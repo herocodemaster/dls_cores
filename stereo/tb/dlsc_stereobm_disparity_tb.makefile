@@ -1,0 +1,49 @@
+
+include $(DLSC_MAKEFILE_TOP)
+
+DLSC_DEPENDS    += stereo
+
+V_DUT           += dlsc_stereobm_disparity.v
+
+SP_TESTBENCH    += dlsc_stereobm_disparity_tb.sp
+
+# TODO: TEXTURE not supported by testbench
+V_PARAMS_DEF    += \
+    IMG_WIDTH=128 \
+    DISP_BITS=6 \
+    DISPARITIES=64 \
+    TEXTURE=0 \
+    SUB_BITS=4 \
+    UNIQUE_MUL=1 \
+    MULT_D=4 \
+    MULT_R=3 \
+    SAD=9 \
+    SAD_BITS=16 \
+    PIPELINE_RD=0 \
+    PIPELINE_WR=0 \
+    PIPELINE_LUT4=0
+
+sims0:
+	$(MAKE) -f $(THIS) V_PARAMS="TEXTURE=0 SUB_BITS=0 UNIQUE_MUL=0"
+	$(MAKE) -f $(THIS) V_PARAMS="TEXTURE=0"
+	$(MAKE) -f $(THIS) V_PARAMS="SUB_BITS=0"
+	$(MAKE) -f $(THIS) V_PARAMS="UNIQUE_MUL=0"
+
+sims1:
+	$(MAKE) -f $(THIS) V_PARAMS="PIPELINE_RD=1 PIPELINE_WR=1 PIPELINE_LUT4=1"
+	$(MAKE) -f $(THIS) V_PARAMS="PIPELINE_RD=1"
+	$(MAKE) -f $(THIS) V_PARAMS="PIPELINE_WR=1"
+	$(MAKE) -f $(THIS) V_PARAMS="PIPELINE_LUT4=1"
+
+sims2:
+	$(MAKE) -f $(THIS) V_PARAMS="MULT_D=1 MULT_R=1"
+	$(MAKE) -f $(THIS) V_PARAMS="MULT_D=1 MULT_R=2"
+	$(MAKE) -f $(THIS) V_PARAMS="MULT_D=2 MULT_R=1"
+
+sims3:
+	$(MAKE) -f $(THIS) V_PARAMS=""
+	$(MAKE) -f $(THIS) V_PARAMS="DISP_BITS=7 DISPARITIES=80"
+	$(MAKE) -f $(THIS) V_PARAMS="IMG_WIDTH=320 SAD=17 SAD_BITS=19"
+
+include $(DLSC_MAKEFILE_BOT)
+
