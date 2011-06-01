@@ -53,7 +53,7 @@ module dlsc_rowbuffer_combiner #(
     input   wire    [DATA_R-1:0]    in_data,
 
     // status
-    output  reg                     in_almost_full,
+    output  wire                    in_almost_full,
 
 
     // ** output **
@@ -135,38 +135,47 @@ always @(posedge in_clk) begin
 end
 
 // almost_full generation
-generate if(ALMOST_FULL>0) begin:GEN_ALMOST_FULL
-/* verilator lint_off WIDTH */
+generate
+    if(ALMOST_FULL>0) begin:GEN_ALMOST_FULL
+        /* verilator lint_off WIDTH */
 
-wire            c0_in_phase = (in_phase == in_o_phase);
-reg             c1_in_phase;
-reg [ADDR:0]    c1_in_free;
-reg [ADDR:0]    c2_in_free;
+        wire            c0_in_phase = (in_phase == in_o_phase);
+        reg             c1_in_phase;
+        reg [ADDR:0]    c1_in_free;
+        reg [ADDR:0]    c2_in_free;
 
-always @(posedge in_clk) begin
-    if(in_rst) begin
+        reg             c3_in_almost_full;
+        assign in_almost_full = c3_in_almost_full;
 
-        c1_in_phase     <= 1'b1;
-        c1_in_free      <= 0;
-        c2_in_free      <= BUF_DEPTH;
+        always @(posedge in_clk) begin
+            if(in_rst) begin
 
-        in_almost_full  <= 1'b0;
+                c1_in_phase     <= 1'b1;
+                c1_in_free      <= 0;
+                c2_in_free      <= BUF_DEPTH;
 
-    end else begin
+                c3_in_almost_full <= 1'b0;
 
-        c1_in_phase     <= c0_in_phase;
+            end else begin
 
-        c1_in_free      <= {1'b0,in_o_addr} - {1'b0,in_addr};
+                c1_in_phase     <= c0_in_phase;
 
-        c2_in_free      <= c1_in_phase ? (c1_in_free + BUF_DEPTH) : c1_in_free;
+                c1_in_free      <= {1'b0,in_o_addr} - {1'b0,in_addr};
 
-        in_almost_full  <= (c2_in_free <= ALMOST_FULL);
+                c2_in_free      <= c1_in_phase ? (c1_in_free + BUF_DEPTH) : c1_in_free;
+
+                c3_in_almost_full <= (c2_in_free <= ALMOST_FULL);
+
+            end
+        end
+
+        /* verilator lint_on WIDTH */
+    end else begin:GEN_NO_ALMOST_FULL
+
+        assign in_almost_full = 1'b0;
 
     end
-end
-
-/* verilator lint_on WIDTH */
-end endgenerate
+endgenerate
 
 
 // ** output **
