@@ -193,13 +193,13 @@ ifeq (,$(filter _objdir%,$(notdir $(CURDIR))))
 # Verilator
 #
 
-V_FILES_MK  := $(patsubst %.v,$(OBJDIR)/V%_classes.mk,$(V_FILES))
+V_FILES_MK      := $(patsubst %.v,$(OBJDIR)/V%_classes.mk,$(V_FILES))
 
-VERILATOR_FLAGS := -MMD --sp --coverage --trace $(V_FLAGS)
+VERILATOR_FLAGS += $(V_FLAGS)
 
 $(OBJDIR)/V%_classes.mk : %.v | $(OBJDIR)
 	@echo verilating $(notdir $<)
-	@$(VERILATOR) $(VERILATOR_FLAGS) -Mdir $(OBJDIR) $<
+	@$(VERILATOR) $(VERILATOR_FLAGS) -MMD --sp --coverage --trace -Mdir $(OBJDIR) $<
 
 .PHONY: verilator
 verilator: $(V_FILES_MK)
@@ -211,7 +211,7 @@ D_FILES     := $(wildcard $(patsubst %.v,$(OBJDIR)/V%*.d,$(V_FILES)))
 .PHONY: lint
 lint: $(V_DUT)
 	@echo linting $(notdir $<)
-	@$(VERILATOR) --lint-only $(V_FLAGS) $<
+	@$(VERILATOR) $(VERILATOR_FLAGS) --lint-only $<
 
 .PHONY: vhier
 vhier: $(V_DUT)

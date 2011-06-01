@@ -101,8 +101,10 @@ TBWRAPPER   := $(DLSC_COMMON)/tools/dlsc_tbwrapper.pl
 DLSC_DEPENDS    := common
 
 DEFINES         := SIMULATION
-# DPI stuff is causing verilator sporadic trouble..
-#DEFINES        += DLSC_SIMULATION
+# if Verilator is experiencing internal errors relating to the DPI imports
+# in dlsc_sim.vh, may have to comment this out (but will lose any dlsc_*
+# checks embedded in Verilog modules)
+DEFINES         += DLSC_SIMULATION
 
 # Testbench
 V_PARAMS        :=
@@ -116,6 +118,9 @@ V_FILES         :=
 V_DIRS          := $(CWD)
 VH_DIRS         := $(CWD)
 V_FLAGS         := +libext+.v+.vh
+# pre-3.810 Verilator doesn't support these extra warning options
+# UNUSED warning seems to trigger on Verilator-generated coverage code.. can't really use it yet
+VERILATOR_FLAGS := -Wall -Wwarn-style -Wno-UNUSED
 
 # SystemPerl
 SP_DEFINES      := 
