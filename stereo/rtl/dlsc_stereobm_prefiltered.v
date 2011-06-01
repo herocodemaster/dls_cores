@@ -38,7 +38,8 @@
 //  alu/rtl/dlsc_divu.v
 //  alu/rtl/dlsc_min_tree.v
 //  alu/rtl/dlsc_multu.v
-//  common/dlsc_clog2.vh
+//  common/rtl/dlsc_clog2.vh
+//  common/rtl/dlsc_synthesis.vh
 //  mem/rtl/dlsc_fifo_shiftreg.v
 //  mem/rtl/dlsc_pipedelay.v
 //  mem/rtl/dlsc_pipedelay_clken.v

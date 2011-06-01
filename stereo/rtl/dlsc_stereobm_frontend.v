@@ -1,3 +1,34 @@
+// 
+// Copyright (c) 2011, Daniel Strother < http://danstrother.com/ >
+// All rights reserved.
+// 
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are met:
+//   - Redistributions of source code must retain the above copyright notice,
+//     this list of conditions and the following disclaimer.
+//   - Redistributions in binary form must reproduce the above copyright
+//     notice, this list of conditions and the following disclaimer in the
+//     documentation and/or other materials provided with the distribution.
+//   - The name of the author may not be used to endorse or promote products
+//     derived from this software without specific prior written permission.
+// 
+// THIS SOFTWARE IS PROVIDED BY THE AUTHOR "AS IS" AND ANY EXPRESS OR IMPLIED
+// WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+// MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
+// EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+// PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+// LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+// NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+//
+
+// Module Description:
+// The first stage in the dlsc_stereobm_core pipeline. Responsible for buffering
+// incoming image rows, and feeding them to the rest of the pipeline once enough
+// for a whole SAD window have been accumulated.
+
 module dlsc_stereobm_frontend #(
     parameter DATA          = 24,
     parameter IMG_WIDTH     = 384,
@@ -289,28 +320,28 @@ endtask
 `endif
 
 
-`ifdef DLSC_SIMULATION
-wire [DATA-1:0] dbg_in_left    [MULT_R-1:0];
-wire [DATA-1:0] dbg_in_right   [MULT_R-1:0];
-wire [DATA-1:0] dbg_back_left  [MULT_R-1:0];
-wire [DATA-1:0] dbg_back_right [MULT_R-1:0];
-wire [DATA-1:0] dbg_out_left   [SAD_R-1:0];
-wire [DATA-1:0] dbg_out_right  [SAD_R-1:0];
-
-generate
-    genvar dbg;
-    for(dbg=0;dbg<MULT_R;dbg=dbg+1) begin:GEN_DBG_INBACK
-        assign dbg_in_left[dbg]     = in_left[(dbg*DATA)+:DATA];
-        assign dbg_in_right[dbg]    = in_right[(dbg*DATA)+:DATA];
-        assign dbg_back_left[dbg]   = back_left[(dbg*DATA)+:DATA];
-        assign dbg_back_right[dbg]  = back_right[(dbg*DATA)+:DATA];
-    end
-    for(dbg=0;dbg<SAD_R;dbg=dbg+1) begin:GEN_DBG_OUT
-        assign dbg_out_left[dbg]    = out_left[(dbg*DATA)+:DATA];
-        assign dbg_out_right[dbg]   = out_right[(dbg*DATA)+:DATA];
-    end
-endgenerate
-`endif
+//`ifdef DLSC_SIMULATION
+//wire [DATA-1:0] dbg_in_left    [MULT_R-1:0];
+//wire [DATA-1:0] dbg_in_right   [MULT_R-1:0];
+//wire [DATA-1:0] dbg_back_left  [MULT_R-1:0];
+//wire [DATA-1:0] dbg_back_right [MULT_R-1:0];
+//wire [DATA-1:0] dbg_out_left   [SAD_R-1:0];
+//wire [DATA-1:0] dbg_out_right  [SAD_R-1:0];
+//
+//generate
+//    genvar dbg;
+//    for(dbg=0;dbg<MULT_R;dbg=dbg+1) begin:GEN_DBG_INBACK
+//        assign dbg_in_left[dbg]     = in_left[(dbg*DATA)+:DATA];
+//        assign dbg_in_right[dbg]    = in_right[(dbg*DATA)+:DATA];
+//        assign dbg_back_left[dbg]   = back_left[(dbg*DATA)+:DATA];
+//        assign dbg_back_right[dbg]  = back_right[(dbg*DATA)+:DATA];
+//    end
+//    for(dbg=0;dbg<SAD_R;dbg=dbg+1) begin:GEN_DBG_OUT
+//        assign dbg_out_left[dbg]    = out_left[(dbg*DATA)+:DATA];
+//        assign dbg_out_right[dbg]   = out_right[(dbg*DATA)+:DATA];
+//    end
+//endgenerate
+//`endif
 
 
 endmodule

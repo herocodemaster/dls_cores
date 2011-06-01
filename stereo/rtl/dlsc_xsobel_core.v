@@ -39,6 +39,40 @@
 // Assuming no input or output throttling, the module requires (IMG_WIDTH + 1)
 // cycles to process each row, and ((IMG_HEIGHT + 1) * (IMG_WIDTH + 1)) cycles
 // to process an entire frame.
+//
+// Note: for odd IMG_HEIGHT, this will deviate slightly from OpenCV's function:
+// OpenCV processes rows 2 at a time, and zeros out the final row when odd; this
+// module does not have that limitation.
+//
+// C reference model:
+//
+// void dlsc_xsobel(const cv::Mat &in, cv::Mat &out) {
+//     for(int y=0;y<in.rows;++y) {
+//         const uint8_t *r0 = y > 0             ? in.ptr<uint8_t>(y-1) : in.ptr<uint8_t>(y+1);
+//         const uint8_t *r1 = in.ptr<uint8_t>(y);
+//         const uint8_t *r2 = y < (in.rows-1)   ? in.ptr<uint8_t>(y+1) : in.ptr<uint8_t>(y-1);
+// 
+//         uint8_t *d      = out.ptr<uint8_t>(y);
+// 
+//         d[0]            = (uint8_t)(DATA_MAX/2);
+//         d[in.cols-1]    = (uint8_t)(DATA_MAX/2);
+// 
+//         for(int x=1;x<(in.cols-1);++x) {
+//             
+//             int d0  = r0[x+1] - r0[x-1];
+//             int d1  = r1[x+1] - r1[x-1];
+//             int d2  = r2[x+1] - r2[x-1];
+// 
+//             int v   = d0 + 2*d1 + d2 + (DATA_MAX/2);
+// 
+//             if(v < 0) v = 0;
+//             else if(v > DATA_MAX) v = DATA_MAX;
+// 
+//             d[x]    = (uint8_t)v;
+// 
+//         }
+//     }
+// }
 
 module dlsc_xsobel_core #(
     parameter IN_DATA       = 8,                // bit width of input pixels

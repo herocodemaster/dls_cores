@@ -1,3 +1,66 @@
+// 
+// Copyright (c) 2011, Daniel Strother < http://danstrother.com/ >
+// All rights reserved.
+// 
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are met:
+//   - Redistributions of source code must retain the above copyright notice,
+//     this list of conditions and the following disclaimer.
+//   - Redistributions in binary form must reproduce the above copyright
+//     notice, this list of conditions and the following disclaimer in the
+//     documentation and/or other materials provided with the distribution.
+//   - The name of the author may not be used to endorse or promote products
+//     derived from this software without specific prior written permission.
+// 
+// THIS SOFTWARE IS PROVIDED BY THE AUTHOR "AS IS" AND ANY EXPRESS OR IMPLIED
+// WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+// MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
+// EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+// PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+// LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+// NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+//
+
+// Module Description:
+// Computes the sum-of-absolute-differences values over a sliding window at a
+// fixed disparity. Can process multiple rows in parallel (and will share
+// significant logic resources between those rows).
+//
+// Some code from the C reference model:
+//
+// // process one disparity level at a time
+// for(int d=0;d<DISPARITIES;++d) {
+//     int sad_accum = 0;
+//     sad_delay.clear();
+//     // process whole row at this disparity
+//     for(int x=DISPARITIES-1;x<il.cols;++x) {
+//         // sum column
+//         int sad = 0;
+//         for(int ys=0;ys<SAD;++ys)
+//             sad += abs((int)(rowsl[ys][x]) - (int)(rowsr[ys][x-d]));
+//         
+//         // accumulate window
+//         sad_accum += sad;
+//         sad_delay.push_back(sad);
+// 
+//         // once window is filled, produce output
+//         if(sad_delay.size()==SAD) {
+// 
+//             // ** keep track of best sad **
+//             // ...snip...
+// 
+//             // ** keep track of adjacent sads **
+//             // ...snip...
+// 
+//             // subtract column sums falling outside of window
+//             sad_accum -= sad_delay.front(); sad_delay.pop_front();
+//         }
+//     } // for(x..
+// } // for(d..
+
 module dlsc_stereobm_pipe #(
     parameter MULT_R        = 1,
     parameter SAD           = 9,    // size of comparison window
