@@ -1,4 +1,8 @@
 
+.PHONY: default
+default:
+	@echo these aren\'t the makefiles you\'re looking for...
+
 # most of the 'real' makefiles for running tests are located in places like:
 # */tb/*_tb.makefile
 #
