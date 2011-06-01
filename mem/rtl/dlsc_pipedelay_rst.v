@@ -74,15 +74,15 @@ generate
             if(rst) begin
                 out_data_rn     <= RESET;
                 for(i=(DELAYN-2);i>=0;i=i-1) begin
-                    out_data_r[i]   = RESET;
+                    out_data_r[i]   <= RESET;
                 end
             end else begin
                 out_data_rn     <= out_data_r[DELAYN-2];
                 
                 for(i=(DELAYN-2);i>0;i=i-1) begin
-                    out_data_r[i]   = out_data_r[i-1];
+                    out_data_r[i]   <= out_data_r[i-1];
                 end
-                out_data_r[0]   = in_data;
+                out_data_r[0]   <= in_data;
                     
             end
         end

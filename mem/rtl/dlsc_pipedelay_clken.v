@@ -64,9 +64,9 @@ generate
         always @(posedge clk) if(clk_en) begin
             out_data_r  <= mem[DELAY-2];
             for(i=(DELAY-2);i>=1;i=i-1) begin
-                mem[i]      = mem[i-1];
+                mem[i]      <= mem[i-1];
             end
-            mem[0]      = in_data;
+            mem[0]      <= in_data;
         end
 
         assign out_data = out_data_r;

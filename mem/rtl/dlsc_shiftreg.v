@@ -52,9 +52,9 @@ assign read_data = mem[read_addr];
 always @(posedge clk) begin
     if(write_en) begin
         for(i=DEPTH-1;i>=1;i=i-1) begin
-            mem[i] = mem[i-1];
+            mem[i] <= mem[i-1];
         end
-        mem[0] = write_data;
+        mem[0] <= write_data;
     end
 end
 
