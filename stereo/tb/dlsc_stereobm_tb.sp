@@ -51,7 +51,7 @@ public:
 
 // aim for clocks that are mostly throughput-matched
 #define CLK_MHZ (20.0)
-#define CORE_CLK_MHZ ( 0.9 * (CLK_MHZ * (IMG_WIDTH-DISPARITIES+SAD)/(1.0*IMG_WIDTH)) * (DISPARITIES)/(1.0*MULT_D*PARAM_MULT_R) )
+#define CORE_CLK_MHZ ( PARAM_CORE_CLK_FACTOR * (CLK_MHZ * (IMG_WIDTH-DISPARITIES+SAD)/(1.0*IMG_WIDTH)) * (DISPARITIES)/(1.0*MULT_D*PARAM_MULT_R) )
 
 #ifdef PARAM_IS_BUFFERED
 SP_CTOR_IMP(__MODULE__) : clk("clk",1000.0/CLK_MHZ,SC_NS), core_clk("core_clk",1000.0/CORE_CLK_MHZ,SC_NS) /*AUTOINIT*/ {
