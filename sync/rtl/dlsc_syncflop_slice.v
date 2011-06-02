@@ -28,8 +28,12 @@
 // 2-level synchronizer flipflop for asynchronous domain crossing.
 // Based on Xilinx Language Templates "Asynchronous Input Synchronization".
 
-module dlsc_syncflop_slice (
+module dlsc_syncflop_slice #(
+    parameter RESET = 1'b0
+) (
+/* verilator lint_off SYNCASYNCNET */
     input wire clk,
+    input wire rst,
     (* TIG="TRUE", IOB="FALSE" *) input wire in,
     output wire out
 );
@@ -39,10 +43,15 @@ assign out = out_r;
 
 (* ASYNC_REG="TRUE", SHIFT_EXTRACT="NO", HBLKNM="sync_reg" *) reg [1:0] sreg = 2'b00;
 
-always @(posedge clk) begin
-    out_r  <= sreg[1];
-    sreg   <= {sreg[0], in};
+always @(posedge clk or posedge rst) begin
+    if(rst) begin
+        { out_r, sreg } <= {3{RESET[0]}};
+    end else begin
+        { out_r, sreg } <= { sreg, in };
+    end
 end
+
+/* verilator lint_on SYNCASYNCNET */
 
 endmodule
 

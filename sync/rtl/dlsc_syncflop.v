@@ -28,9 +28,11 @@
 // 2-level synchronizer flipflop for asynchronous domain crossing.
 
 module dlsc_syncflop #(
-    parameter   DATA    = 1
+    parameter   DATA    = 1,
+    parameter   RESET   = {DATA{1'b0}}
 ) (
     // asynchronous input
+    input   wire                rst,
     input   wire    [DATA-1:0]  in,
 
     // synchronized output
@@ -38,11 +40,19 @@ module dlsc_syncflop #(
     output  wire    [DATA-1:0]  out
 );
 
-dlsc_syncflop_slice dlsc_syncflop_slice_inst[DATA-1:0]  (
-    .clk    ( clk ),
-    .in     ( in ),
-    .out    ( out )
-);
+generate
+    genvar j;
+    for(j=0;j<DATA;j=j+1) begin:GEN_SYNCFLOPS
+        dlsc_syncflop_slice #(
+            .RESET  ( RESET[j] )
+        ) dlsc_syncflop_slice_inst  (
+            .clk    ( clk ),
+            .rst    ( rst ),
+            .in     ( in[j] ),
+            .out    ( out[j] )
+        );
+    end
+endgenerate
 
 endmodule
 

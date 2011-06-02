@@ -183,8 +183,13 @@ reg  [ADDR-1:0]     in_i_addr;
 reg                 in_i_phase;
 
 always @(posedge in_clk) begin
-    in_i_addr   <= in_row_last ?  in_addr :  in_addr_base;
-    in_i_phase  <= in_row_last ? in_phase : in_phase_base;
+    if(in_rst) begin
+        in_i_addr   <= 0;
+        in_i_phase  <= 0;
+    end else begin
+        in_i_addr   <= in_row_last ?  in_addr :  in_addr_base;
+        in_i_phase  <= in_row_last ? in_phase : in_phase_base;
+    end
 end
 
 
@@ -251,20 +256,26 @@ end
 // ** synchronizers **
 
 dlsc_domaincross #(
-    .DATA       ( ADDR + 1 )
+    .DATA       ( ADDR + 1 ),
+    .RESET      ( {(ADDR+1){1'b0}} )
 ) dlsc_domaincross_inst_in (
     .in_clk     ( out_clk ),
+    .in_rst     ( out_rst ),
     .in_data    ( {  out_addr,  out_phase } ),
     .out_clk    ( in_clk ),
+    .out_rst    ( in_rst ),
     .out_data   ( { in_o_addr, in_o_phase } )
 );
 
 dlsc_domaincross #(
-    .DATA       ( ADDR + 1 )
+    .DATA       ( ADDR + 1 ),
+    .RESET      ( {(ADDR+1){1'b0}} )
 ) dlsc_domaincross_inst_out (
     .in_clk     ( in_clk ),
+    .in_rst     ( in_rst ),
     .in_data    ( {  in_i_addr,  in_i_phase } ),
     .out_clk    ( out_clk ),
+    .out_rst    ( out_rst ),
     .out_data   ( { out_i_addr, out_i_phase } )
 );
 

@@ -290,28 +290,39 @@ reg  [ADDR-1:0]     out_o_addr;
 reg                 out_o_phase;
 
 always @(posedge out_clk) begin
-    out_o_addr  <= out_row_last ?  out_addr :  out_addr_base;
-    out_o_phase <= out_row_last ? out_phase : out_phase_base;
+    if(out_rst) begin
+        out_o_addr  <= 0;
+        out_o_phase <= 0;
+    end else begin
+        out_o_addr  <= out_row_last ?  out_addr :  out_addr_base;
+        out_o_phase <= out_row_last ? out_phase : out_phase_base;
+    end
 end
 
 
 // ** synchronizers **
 
 dlsc_domaincross #(
-    .DATA       ( ADDR + 1 )
+    .DATA       ( ADDR + 1 ),
+    .RESET      ( {(ADDR+1){1'b0}} )
 ) dlsc_domaincross_inst_in (
     .in_clk     ( out_clk ),
+    .in_rst     ( out_rst ),
     .in_data    ( { out_o_addr, out_o_phase } ),
     .out_clk    ( in_clk ),
+    .out_rst    ( in_rst ),
     .out_data   ( {  in_o_addr,  in_o_phase } )
 );
 
 dlsc_domaincross #(
-    .DATA       ( ADDR + 1 )
+    .DATA       ( ADDR + 1 ),
+    .RESET      ( {(ADDR+1){1'b0}} )
 ) dlsc_domaincross_inst_out (
     .in_clk     ( in_clk ),
+    .in_rst     ( in_rst ),
     .in_data    ( {    in_addr,    in_phase } ),
     .out_clk    ( out_clk ),
+    .out_rst    ( out_rst ),
     .out_data   ( { out_i_addr, out_i_phase } )
 );
 

@@ -155,36 +155,28 @@ localparam OUT_BUF_DEPTH    = 2**(`dlsc_clog2(IMG_WIDTH + ALMOST_FULL)); // roun
 
 // ** reset synchronization **
 
-// extend reset pulse
-reg [3:0]   rst_cnt;
-reg         rst_done;
-wire        rst_int = rst || !rst_done;
+wire core_rst;
+wire rst_from_core;
 
-always @(posedge clk) begin
-    if(rst) begin
-        { rst_done, rst_cnt } <= 0;
-    end else if(!rst_done) begin
-        { rst_done, rst_cnt } <= { 1'b0, rst_cnt } + 1;
-    end
-end
+// internal interface reset will assert immediately when reset input is asserted
+// and will remain asserted until synchronized reset from core domain finally
+// deasserts
+wire rst_int = rst || rst_from_core;
 
-// synchronize to core domain
-wire core_rst_pre0;
-dlsc_syncflop #(
-    .DATA               ( 1 )
-) dlsc_syncflop_inst_core_rst (
-    .in                 ( rst_int ),
-    .clk                ( core_clk ),
-    .out                ( core_rst_pre0 )
+// first, synchronize to core domain
+dlsc_rstsync dlsc_rstsync_inst_core (
+    .rst_async      ( rst ),
+    .clk            ( core_clk ),
+    .rst            ( core_rst )
 );
 
-// control reset fanout
-`DLSC_FANOUT_REG(16) reg core_rst_pre1;
-`DLSC_FANOUT_REG(16) reg core_rst;
-always @(posedge core_clk) begin
-    core_rst_pre1   <= core_rst_pre0;
-    core_rst        <= core_rst_pre1;
-end
+// then, synchronize back to interface domain
+// (so interface stays in reset until core is out of reset)
+dlsc_rstsync dlsc_rstsync_inst_int (
+    .rst_async      ( core_rst ),
+    .clk            ( clk ),
+    .rst            ( rst_from_core )
+);
 
 
 // ** input buffering **

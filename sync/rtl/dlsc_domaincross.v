@@ -30,10 +30,6 @@
 // is guaranteed to be updated atomically. No guarantees are made about data
 // synchronized through different instantiations of dlsc_domaincross.
 //
-// No reset functionality is provided. If this is used on control signals, the
-// parent module must ensure that resets in both clock domains remain asserted
-// long enough for reset values to propagate from source to consumer domain.
-//
 // Domain crossing is achieved with a cross-domain handshaking. This allows for
 // arbitrary payloads to be transferred without need for special encodings (e.g.
 // gray code), but it yields an inconsistent delay between input and output.
@@ -42,14 +38,17 @@
 // more consistent and lower latency by using a more conventional dlsc_syncflop.
 
 module dlsc_domaincross #(
-    parameter   DATA    = 32
+    parameter   DATA    = 32,
+    parameter   RESET   = {DATA{1'b0}}
 ) (
     // source domain
     input   wire                in_clk,
+    input   wire                in_rst,
     input   wire    [DATA-1:0]  in_data,
 
     // consumer domain
     input   wire                out_clk,
+    input   wire                out_rst,
     output  wire    [DATA-1:0]  out_data
 );
 
@@ -62,7 +61,10 @@ wire in_ack;
 wire in_en = (in_flag == in_ack);
 
 always @(posedge in_clk) begin
-    if(in_en) begin
+    if(in_rst) begin
+        in_flag     <= 1'b0;
+        in_flagx    <= 1'b0;
+    end else if(in_en) begin
         // send and flag new value once acked
         in_flag     <= !in_flag;
         in_flagx    <= !in_flag;
@@ -77,7 +79,10 @@ wire out_flag;
 wire out_en = (out_flag != out_ack);
 
 always @(posedge out_clk) begin
-    if(out_en) begin
+    if(out_rst) begin
+        out_ack     <= 1'b0;
+        out_ackx    <= 1'b0;
+    end else if(out_en) begin
         // consume and ack new value when flagged
         out_ack     <= !out_ack;
         out_ackx    <= !out_ack;
@@ -87,27 +92,44 @@ end
 
 // ** data crossing **
 
-dlsc_domaincross_slice dlsc_domaincross_slice_inst[DATA-1:0] (
-    .in_clk     ( in_clk ),
-    .in_en      ( in_en ),
-    .in_data    ( in_data ),
-    .out_clk    ( out_clk ),
-    .out_en     ( out_en ),
-    .out_data   ( out_data )
-);
+generate
+    genvar j;
+    for(j=0;j<DATA;j=j+1) begin:GEN_SLICES
+        dlsc_domaincross_slice #(
+            .RESET      ( RESET[j] )
+        ) dlsc_domaincross_slice_inst (
+            .in_clk     ( in_clk ),
+            .in_rst     ( in_rst ),
+            .in_en      ( in_en ),
+            .in_data    ( in_data[j] ),
+            .out_clk    ( out_clk ),
+            .out_rst    ( out_rst ),
+            .out_en     ( out_en ),
+            .out_data   ( out_data[j] )
+        );
+    end
+endgenerate
 
 
 // ** control synchronization **
 
-dlsc_syncflop_slice dlsc_syncflop_slice_inst_in (
+dlsc_syncflop #(
+    .DATA   ( 1 ),
+    .RESET  ( 1'b0 )
+) dlsc_syncflop_inst_in (
     .in     ( out_ackx ),
     .clk    ( in_clk ),
+    .rst    ( in_rst ),
     .out    ( in_ack )
 );
 
-dlsc_syncflop_slice dlsc_syncflop_slice_inst_out (
+dlsc_syncflop #(
+    .DATA   ( 1 ),
+    .RESET  ( 1'b0 )
+) dlsc_syncflop_inst_out (
     .in     ( in_flagx ),
     .clk    ( out_clk ),
+    .rst    ( out_rst ),
     .out    ( out_flag )
 );
 

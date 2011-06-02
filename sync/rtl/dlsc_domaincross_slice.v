@@ -29,14 +29,18 @@
 // Does NOT have synchronizer flops; instead, relies on sampling flop
 // only being enabled after input data has stabilized.
 
-module dlsc_domaincross_slice (
+module dlsc_domaincross_slice #(
+    parameter RESET = 1'b0
+) (
     // input
     input   wire    in_clk,
+    input   wire    in_rst,
     input   wire    in_en,
     input   wire    in_data,
 
     // output
     input   wire    out_clk,
+    input   wire    out_rst,
     input   wire    out_en,
     output  wire    out_data
 );
@@ -45,7 +49,9 @@ module dlsc_domaincross_slice (
 (* IOB="FALSE", SHIFT_EXTRACT="NO" *) reg in_reg;
 
 always @(posedge in_clk) begin
-    if(in_en) begin
+    if(in_rst) begin
+        in_reg  <= RESET;
+    end else if(in_en) begin
         in_reg  <= in_data;
     end
 end
@@ -53,7 +59,9 @@ end
 (* IOB="FALSE", SHIFT_EXTRACT="NO" *) reg out_reg;
 
 always @(posedge out_clk) begin
-    if(out_en) begin
+    if(out_rst) begin
+        out_reg <= RESET;
+    end else if(out_en) begin
         out_reg <= in_reg;
     end
 end
@@ -65,16 +73,21 @@ assign out_data = out_reg;
 `include "dlsc_sim_top.vh"
 
 always @* begin
-    if(in_en && out_en) begin
+    if(!out_rst && in_en && out_en) begin
         `dlsc_error("in_en and out_en must never be asserted simultaneously");
     end
 end
 
 reg in_reg_prev;
+reg out_rst_prev;
 always @(posedge out_clk) begin
     in_reg_prev <= in_reg;
-    if(out_en && in_reg_prev != in_reg) begin
+    out_rst_prev <= out_rst;
+    if(!out_rst && out_en && in_reg_prev != in_reg) begin
         `dlsc_error("in_reg must be stable when out_en is asserted");
+    end
+    if(!out_rst && out_rst_prev && (in_reg != RESET || in_reg_prev != RESET)) begin
+        `dlsc_error("in_reg must be stable at RESET (%0x) when out_rst is deasserted", RESET);
     end
 end
 
