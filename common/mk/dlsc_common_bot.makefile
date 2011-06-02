@@ -54,7 +54,10 @@ V_PARAMSI := $(sort $(V_PARAMSI))
 
 # looks like: _work/_{testbench}__{md5sum(params)}/
 
-WORKROOT    := $(CWD)/_work
+WORKROOT    := $(DLSC_WORKROOT)
+ifeq (,$(WORKROOT))
+    WORKROOT    := $(CWD)/_work
+endif
 WORKDIR     := $(WORKROOT)/_$(call dlsc-base,$(SP_TESTBENCH))__$(call dlsc-md5sum,$(V_PARAMSI))
 OBJDIR      := $(WORKDIR)/_objdir
 
