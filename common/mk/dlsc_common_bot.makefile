@@ -271,8 +271,8 @@ recurse: verilator systemperl vparams.txt
 	+@$(MAKE) --no-print-directory -C $(OBJDIR) -f $(THIS) CWD_TOP=$(CWD_TOP) $(MAKECMDGOALS)
 
 # targets that can be passed through
-.PHONY: build sim waves coverage
-build sim waves coverage: recurse
+.PHONY: build sim waves gtkwave coverage
+build sim waves gtkwave coverage: recurse
 
 
 # ^^^ ifneq (,$(filter _objdir%,$(notdir $(CURDIR))))
@@ -427,16 +427,22 @@ D_FILES += $(TESTBENCH).bin.d
 
 LOG_FILES   := $(WORKDIR)/$(TESTBENCH).log
 COV_FILES   := $(WORKDIR)/$(TESTBENCH).cov
-VCD_FILES   := $(WORKDIR)/$(TESTBENCH).vcd
+LXT_FILES   := $(WORKDIR)/$(TESTBENCH).lxt
 
-.PRECIOUS: $(LOG_FILES) $(COV_FILES) $(VCD_FILES)
+.PRECIOUS: $(LOG_FILES) $(COV_FILES) $(LXT_FILES)
 
 # run inside $(CWD) to allow executable to consistently reference data files
 $(COV_FILES) $(LOG_FILES) : $(TESTBENCH).bin
 	@cd $(CWD) && $(OBJDIR)/$< --log $(LOG_FILES) --cov $(COV_FILES)
 
-$(VCD_FILES) : $(TESTBENCH).bin
-	@cd $(CWD) && $(OBJDIR)/$< --log $(LOG_FILES) --cov $(COV_FILES) --vcd $(VCD_FILES)
+# run simulation and generate VCD file.. but send it to a fifo and use vcd2lxt2
+# to convert in real-time to an LXT2 file; from:
+# http://www.veripool.org/boards/2/topics/show/150-Verilator-Converting-VCD-file-to-LXT-file-during-simulation
+$(LXT_FILES) : $(TESTBENCH).bin
+	@mkfifo $@.vcd
+	@vcd2lxt2 $@.vcd $@ &
+	@cd $(CWD) && $(OBJDIR)/$< --log $(LOG_FILES) --cov $(COV_FILES) --vcd $@.vcd
+	@rm -f $@.vcd
 
 .PHONY: build
 build: $(TESTBENCH).bin
@@ -445,7 +451,11 @@ build: $(TESTBENCH).bin
 sim: $(LOG_FILES)
 
 .PHONY: waves
-waves: $(VCD_FILES)
+waves: $(LXT_FILES)
+
+.PHONY: gtkwave
+gtkwave: $(LXT_FILES)
+	gtkwave $< &
 
 .PHONY: coverage
 coverage: $(COV_FILES)
