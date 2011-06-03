@@ -135,6 +135,7 @@ SP_FILES    += $(SP_TESTBENCH)
 TESTBENCH   := $(call dlsc-base,$(SP_TESTBENCH))
 C_DEFINES   += DLSC_TB=$(TESTBENCH)
 C_DEFINES   += DLSC_DUT=V$(call dlsc-base,$(V_DUT))_tbwrapper
+V_DEFINES   += DLSC_DPI_PATH=$(call dlsc-base,$(V_DUT))_tbwrapper
 
 
 #

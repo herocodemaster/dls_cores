@@ -89,7 +89,7 @@ foreach my $port (@ports) {
     print $fh "wire ",$datatype," ",$port->name,$last,"\n";
 }
 
-print $fh ");\n\n";
+print $fh ");\n\n`include \"dlsc_dpi.vh\"\n\n";
 
 # ** module instance **
 

@@ -24,55 +24,75 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-
-#ifndef DLSC_COMMON_INCLUDED
-#define DLSC_COMMON_INCLUDED
-
-#include <systemc>
 #include <iostream>
 #include <iomanip>
+
+#include "systemperl.h"
+#include "svdpi.h"
 
 // globals defined in dlsc_main.cpp
 extern int _dlsc_chk_cnt;
 extern int _dlsc_warn_cnt;
 extern int _dlsc_err_cnt;
 
-#define dlsc_display(msg) do { std::cout << std::setw(15) << std::setfill(' ') << sc_core::sc_time_stamp() << " : [" << this->name() << ":" << __func__ << "] : " << std::dec << msg << std::endl; } while(0)
+// DPI
+extern "C" {
+    extern void dlsc_dpi_error (const char *str);
+    extern void dlsc_dpi_warn  (const char *str);
+    extern void dlsc_dpi_info  (const char *str);
+    extern void dlsc_dpi_verb  (const char *str);
+    extern void dlsc_dpi_okay  (const char *str);
+    extern void dlsc_dpi_assert(const bool cond, const char *str);
+}
 
+void dlsc_dpi_display(const char *str, const char *severity) {
+    svScope scope = svGetScope();
+    const char *scopename = svGetNameFromScope(scope);
+
+    std::cout << std::setw(15) << std::setfill(' ')
+        << sc_core::sc_time_stamp()
+        << " : [" << scopename << "] : "
+        << severity << " : "
+        << std::dec << str << std::endl;
+}
+
+void dlsc_dpi_error(const char *str) {
+    ++_dlsc_chk_cnt;
+    ++_dlsc_err_cnt;
+    dlsc_dpi_display(str,"*** ERROR ***");
+}
+
+void dlsc_dpi_warn(const char *str) {
+    ++_dlsc_warn_cnt;
 #ifdef DLSC_DEBUG_WARN
-# define dlsc_warn(msg) do { _dlsc_warn_cnt++; dlsc_display("WARNING : " << msg); } while(0)
-#else
-# define dlsc_warn(msg) do { _dlsc_warn_cnt++; } while(0)
+    dlsc_dpi_display(str,"WARNING");
 #endif
+}
 
+void dlsc_dpi_info(const char *str) {
 #ifdef DLSC_DEBUG_INFO
-# define dlsc_info(msg) do { dlsc_display("INFO : " << msg); } while(0)
-#else
-# define dlsc_info(msg) do { } while(0)
+    dlsc_dpi_display(str,"INFO");
 #endif
+}
 
+void dlsc_dpi_verb(const char *str) {
 #ifdef DLSC_DEBUG_VERB
-# define dlsc_verb(msg) do { dlsc_display("VERB : " << msg); } while(0)
-#else
-# define dlsc_verb(msg) do { } while(0)
+    dlsc_dpi_display(str,"VERB");
 #endif
+}
 
+void dlsc_dpi_okay(const char *str) {
+    ++_dlsc_chk_cnt;
 #ifdef DLSC_DEBUG_OKAY
-# define dlsc_okay(msg) do { _dlsc_chk_cnt++; dlsc_display("OKAY : " << msg); } while(0)
-#else
-# define dlsc_okay(msg) do { _dlsc_chk_cnt++; } while(0)
+    dlsc_dpi_display(str,"OKAY");
 #endif
+}
 
-#define dlsc_error(msg) do { _dlsc_chk_cnt++; _dlsc_err_cnt++; dlsc_display("*** ERROR *** : " << msg); } while(0)
-
-#define dlsc_assert(cond) do { if((cond)) { dlsc_okay("dlsc_assert('" << #cond << "') passed"); } else { dlsc_error("dlsc_assert('" << #cond << "') failed!"); } } while(0)
-
-#define dlsc_assert_equals(lhs,rhs) do { \
-    if((lhs)==(rhs)) { \
-        dlsc_okay("dlsc_assert_equals( " << #lhs << " , " << #rhs << " ) passed"); \
-    } else { \
-        dlsc_error("dlsc_assert_equals( " << #lhs << " ('" << (lhs) << "') , " << #rhs << " ('" << (rhs) << "') ) failed!"); \
-    } } while(0)
-
-#endif
+void dlsc_dpi_assert(const bool cond, const char *str) {
+    if(cond) {
+        dlsc_dpi_okay(str);
+    } else {
+        dlsc_dpi_error(str);
+    }
+}
 

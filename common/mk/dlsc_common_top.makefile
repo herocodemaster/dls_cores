@@ -100,11 +100,8 @@ TBWRAPPER   := $(DLSC_COMMON)/tools/dlsc_tbwrapper.pl
 
 DLSC_DEPENDS    := common
 
-DEFINES         := SIMULATION
-# if Verilator is experiencing internal errors relating to the DPI imports
-# in dlsc_sim.vh, may have to comment this out (but will lose any dlsc_*
-# checks embedded in Verilog modules)
-DEFINES         += DLSC_SIMULATION
+DEFINES         := DLSC_DEBUG_WARN DLSC_DEBUG_INFO
+DEFINES         += SIMULATION DLSC_SIMULATION
 
 # Testbench
 V_PARAMS        :=

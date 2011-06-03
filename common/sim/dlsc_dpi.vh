@@ -27,24 +27,12 @@
 
 `ifdef DLSC_SIMULATION
 
-// TODO: add support for simulators other than Verilator
+import "DPI-C" context function void dlsc_dpi_error  (input string str /*verilator sformat*/ );
+import "DPI-C" context function void dlsc_dpi_warn   (input string str /*verilator sformat*/ );
+import "DPI-C" context function void dlsc_dpi_info   (input string str /*verilator sformat*/ );
+import "DPI-C" context function void dlsc_dpi_verb   (input string str /*verilator sformat*/ );
+import "DPI-C" context function void dlsc_dpi_okay   (input string str /*verilator sformat*/ );
+import "DPI-C" context function void dlsc_dpi_assert (input bit cond, input string str /*verilator sformat*/ );
 
-// This file should be included in any module that wishes to use the various
-// dlsc_ simulation macros. It should be included inside the module definition.
-// In general, only testbench (non-synthesizable) code should include this.
-
-`ifndef DLSC_SIM_INCLUDED
-`define DLSC_SIM_INCLUDED
-
-// DLSC_DPI_PATH must point to top _tbwrapper which includes "dlsc_dpi.vh"
-// (trying to have DPI import in just one place to mitigate Verilator internal errors)
-`define dlsc_error  `DLSC_DPI_PATH.dlsc_dpi_error
-`define dlsc_warn   `DLSC_DPI_PATH.dlsc_dpi_warn
-`define dlsc_info   `DLSC_DPI_PATH.dlsc_dpi_info
-`define dlsc_verb   `DLSC_DPI_PATH.dlsc_dpi_verb
-`define dlsc_okay   `DLSC_DPI_PATH.dlsc_dpi_okay
-`define dlsc_assert `DLSC_DPI_PATH.dlsc_dpi_assert
-
-`endif // `ifndef DLSC_SIM_INCLUDED
 `endif // `ifdef DLSC_SIMULATION
 

@@ -45,24 +45,6 @@ int _dlsc_chk_cnt   = 0;
 int _dlsc_warn_cnt  = 0;
 int _dlsc_err_cnt   = 0;
 
-// DPI
-extern "C" {
-    extern void dlsc_dpi_display (const char* str);
-    extern void dlsc_dpi_write (const char* str);
-    extern void dlsc_dpi_error ();
-    extern void dlsc_dpi_okay ();
-    extern void dlsc_dpi_warn ();
-}
-
-void dlsc_dpi_display (const char* str) {
-    std::cout << str << std::endl;
-}
-void dlsc_dpi_write (const char* str) {
-    std::cout << std::setw(12) << std::setfill(' ') << sc_core::sc_time_stamp() << str;
-}
-void dlsc_dpi_okay() { ++_dlsc_chk_cnt; }
-void dlsc_dpi_warn() { ++_dlsc_warn_cnt; }
-void dlsc_dpi_error() { ++_dlsc_chk_cnt; ++_dlsc_err_cnt; }
 
 void dlsc_assert_report() {
     std::cout << std::endl << sc_time_stamp() << " : ";
