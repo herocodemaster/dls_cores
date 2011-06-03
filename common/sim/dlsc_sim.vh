@@ -27,8 +27,6 @@
 
 `ifdef DLSC_SIMULATION
 
-// TODO: add support for simulators other than Verilator
-
 // This file should be included in any module that wishes to use the various
 // dlsc_ simulation macros. It should be included inside the module definition.
 // In general, only testbench (non-synthesizable) code should include this.
@@ -38,27 +36,58 @@
 
 `ifdef VERILATOR
 
-// DLSC_DPI_PATH must point to top _tbwrapper which includes "dlsc_dpi.vh"
-// (trying to have DPI import in just one place to mitigate Verilator internal errors)
-`define dlsc_error  `DLSC_DPI_PATH.dlsc_dpi_error
-`define dlsc_warn   `DLSC_DPI_PATH.dlsc_dpi_warn
-`define dlsc_info   `DLSC_DPI_PATH.dlsc_dpi_info
-`define dlsc_verb   `DLSC_DPI_PATH.dlsc_dpi_verb
-`define dlsc_okay   `DLSC_DPI_PATH.dlsc_dpi_okay
-`define dlsc_assert `DLSC_DPI_PATH.dlsc_dpi_assert
+    // DLSC_DPI_PATH must point to top _tbwrapper which includes "dlsc_dpi.vh"
+    // (trying to have DPI import in just one place to mitigate Verilator internal errors)
+    `define dlsc_error  `DLSC_DPI_PATH.dlsc_dpi_error
+    `define dlsc_warn   `DLSC_DPI_PATH.dlsc_dpi_warn
+    `define dlsc_info   `DLSC_DPI_PATH.dlsc_dpi_info
+    `define dlsc_verb   `DLSC_DPI_PATH.dlsc_dpi_verb
+    `define dlsc_okay   `DLSC_DPI_PATH.dlsc_dpi_okay
+    `define dlsc_assert `DLSC_DPI_PATH.dlsc_dpi_assert
 
 `endif // `ifdef VERILATOR
 
 `ifdef ICARUS
+    
+    // the various tasks invoked by macros in here live at the top level, so we must
+    // know the path to the top module - assumed to be tb, unless overridden
+    `ifndef TOP
+        `define TOP tb
+    `endif
 
-// TODO:
+    `ifndef DLSC_DEBUG_WARN
+        `define DLSC_DEBUG_WARN 0
+    `endif
+    `ifndef DLSC_DEBUG_INFO
+        `define DLSC_DEBUG_INFO 0
+    `endif
+    `ifndef DLSC_DEBUG_VERB
+        `define DLSC_DEBUG_VERB 0
+    `endif
+    `ifndef DLSC_DEBUG_OKAY
+        `define DLSC_DEBUG_OKAY 0
+    `endif
 
-`define dlsc_error  $display
-`define dlsc_warn   $display
-`define dlsc_info   $display
-`define dlsc_verb   $display
-`define dlsc_okay   $display
-`define dlsc_assert $display
+    // display macros, qualified by desired level of verbosity
+    `define dlsc_display $write("%t: %m: ", $time); $display
+    `define dlsc_warn `TOP._dlsc_warn; if(`DLSC_DEBUG_WARN) $write("%t : [%m] : WARN : ", $time); if(`DLSC_DEBUG_WARN) $display
+    `define dlsc_info if(`DLSC_DEBUG_INFO) $write("%t : [%m] : INFO : ", $time); if(`DLSC_DEBUG_INFO) $display
+    `define dlsc_verb if(`DLSC_DEBUG_VERB) $write("%t : [%m] : VERB : ", $time); if(`DLSC_DEBUG_VERB) $display
+
+    // macros for recording success or failure of a test
+    // (all invocations of these will be used for reporting final pass/fail when dlsc_finish is called)
+    `define dlsc_okay `TOP._dlsc_okay; if(`DLSC_DEBUG_OKAY) $write("%t : [%m] : OKAY : ", $time); if(`DLSC_DEBUG_OKAY) $display
+    `define dlsc_error `TOP._dlsc_error; $write("%t : [%m] : *** ERROR *** : ",$time); $display
+
+    // if condition is true, invokes dlsc_okay; otherwise, invokes dlsc_error
+    `define dlsc_assert(cond,msg) if(cond) begin `dlsc_okay(msg); end else begin `dlsc_error(msg); end if(0)
+
+    // use instead of $finish (prints out pass/fail result, then finishes)
+    `define dlsc_finish `TOP._dlsc_finish
+
+    // generates random number in [min,max] range (inclusive)
+    // (wrapper for $dist_uniform - initial seed specified with `RANDSEED)
+    `define dlsc_rand(min,max) `TOP._dlsc_rand(min,max)
 
 `endif // `ifdef ICARUS
 

@@ -520,7 +520,7 @@ ICARUS_FLAGS    += $(addprefix -y,$(V_DIRS))
 
 # compile verilog
 $(TESTBENCH).vvp : $(V_FILES)
-	@iverilog -o $@ -M$@.d.pre -D DUMPFILE='"$(LXT_FILES)"' $(ICARUS_FLAGS) $^
+	@iverilog -o $@ -M$@.d.pre -D DUMPFILE='"$(LXT_FILES)"' $(ICARUS_FLAGS) $<
 	@echo -n "$@ : " > $@.d
 	@cat $@.d.pre | sort | uniq | tr '\n' ' ' >> $@.d
 

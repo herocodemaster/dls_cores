@@ -100,8 +100,8 @@ TBWRAPPER   := $(DLSC_COMMON)/tools/dlsc_tbwrapper.pl
 
 DLSC_DEPENDS    := common
 
-DEFINES         := DLSC_DEBUG_WARN DLSC_DEBUG_INFO
-DEFINES         += SIMULATION DLSC_SIMULATION
+DEFINES         := DLSC_DEBUG_WARN=1 DLSC_DEBUG_INFO=1
+DEFINES         += SIMULATION=1 DLSC_SIMULATION=1
 
 # Testbench
 V_PARAMS        :=
@@ -120,7 +120,7 @@ V_FLAGS         := +libext+.v+.vh
 # pre-3.810 Verilator doesn't support these extra warning options
 # UNUSED warning seems to trigger on Verilator-generated coverage code.. can't really use it yet
 VERILATOR_FLAGS := -Wall -Wwarn-style -Wno-UNUSED
-ICARUS_FLAGS    := 
+ICARUS_FLAGS    := -Wall -Wno-timescale
 
 # SystemPerl
 SP_DEFINES      := 
