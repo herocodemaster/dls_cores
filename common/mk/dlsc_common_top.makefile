@@ -106,8 +106,10 @@ DEFINES         += SIMULATION DLSC_SIMULATION
 # Testbench
 V_PARAMS        :=
 V_PARAMS_DEF    := 
+V_DUT           :=
+# one or the other; not both!
 SP_TESTBENCH    := 
-V_DUT           := 
+V_TESTBENCH     :=
 
 # Verilog
 V_DEFINES       := 
@@ -118,6 +120,7 @@ V_FLAGS         := +libext+.v+.vh
 # pre-3.810 Verilator doesn't support these extra warning options
 # UNUSED warning seems to trigger on Verilator-generated coverage code.. can't really use it yet
 VERILATOR_FLAGS := -Wall -Wwarn-style -Wno-UNUSED
+ICARUS_FLAGS    := 
 
 # SystemPerl
 SP_DEFINES      := 

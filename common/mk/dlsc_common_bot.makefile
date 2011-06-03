@@ -24,6 +24,23 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
+
+#
+# Verilator or Icarus?
+#
+
+ifneq (,$(SP_TESTBENCH))
+    USING_VERILATOR := 1
+    V_DEFINES       += VERILATOR=1
+    TESTBENCH       := $(call dlsc-base,$(SP_TESTBENCH))
+endif
+ifneq (,$(V_TESTBENCH))
+    USING_ICARUS    := 1
+    V_DEFINES       += ICARUS=1
+    TESTBENCH       := $(call dlsc-base,$(V_TESTBENCH))
+endif
+
+
 #
 # Verilog parameters
 #
@@ -54,11 +71,13 @@ V_PARAMSI := $(sort $(V_PARAMSI))
 
 # looks like: _work/_{testbench}__{md5sum(params)}/
 
+
 WORKROOT    := $(DLSC_WORKROOT)
 ifeq (,$(WORKROOT))
     WORKROOT    := $(CWD)/_work
 endif
-WORKDIR     := $(WORKROOT)/_$(call dlsc-base,$(SP_TESTBENCH))__$(call dlsc-md5sum,$(V_PARAMSI))
+WORKDIR_PREFIX := $(WORKROOT)/_$(TESTBENCH)
+WORKDIR     := $(WORKDIR_PREFIX)__$(call dlsc-md5sum,$(V_PARAMSI))
 OBJDIR      := $(WORKDIR)/_objdir
 
 ifeq (,$(filter _%,$(notdir $(CURDIR))))
@@ -80,22 +99,22 @@ Makefile : ;
 
 .PHONY: clean
 clean:
-	rm -rf _work
+	rm -rf $(WORKDIR_PREFIX)__*
 
 # remove everything except the .bin files
 .PHONY: objclean
 objclean:
-	@rm -f _work/_*/_objdir/*.sp
-	@rm -f _work/_*/_objdir/*.h
-	@rm -f _work/_*/_objdir/*.cpp
-	@rm -f _work/_*/_objdir/*.o
-	@rm -f _work/_*/_objdir/*.d
-	@rm -f _work/_*/_objdir/*.mk
-	@rm -f _work/_*/_objdir/*.dat
+	rm -f $(WORKDIR_PREFIX)__*/_objdir/*.sp
+	rm -f $(WORKDIR_PREFIX)__*/_objdir/*.h
+	rm -f $(WORKDIR_PREFIX)__*/_objdir/*.cpp
+	rm -f $(WORKDIR_PREFIX)__*/_objdir/*.o
+	rm -f $(WORKDIR_PREFIX)__*/_objdir/*.d
+	rm -f $(WORKDIR_PREFIX)__*/_objdir/*.mk
+	rm -f $(WORKDIR_PREFIX)__*/_objdir/*.dat
 
 .PHONY: summary
 summary:
-	@cd $(WORKROOT) && grep -n "assertions" _$(call dlsc-base,$(SP_TESTBENCH))*/*.log
+	@cd $(WORKROOT) && grep -n "assertions" _$(TESTBENCH)*/*.log
 
 else
 # *****************************************************************************
@@ -132,10 +151,20 @@ CWD := $(CWD_TOP)
 #
 
 SP_FILES    += $(SP_TESTBENCH)
-TESTBENCH   := $(call dlsc-base,$(SP_TESTBENCH))
 C_DEFINES   += DLSC_TB=$(TESTBENCH)
 C_DEFINES   += DLSC_DUT=V$(call dlsc-base,$(V_DUT))_tbwrapper
 V_DEFINES   += DLSC_DPI_PATH=$(call dlsc-base,$(V_DUT))_tbwrapper
+
+
+#
+# Simulation results
+#
+
+LOG_FILES   := $(WORKDIR)/$(TESTBENCH).log
+COV_FILES   := $(WORKDIR)/$(TESTBENCH).cov
+LXT_FILES   := $(WORKDIR)/$(TESTBENCH).lxt
+
+.PRECIOUS: $(LOG_FILES) $(COV_FILES) $(LXT_FILES)
 
 
 #
@@ -160,7 +189,12 @@ V_FLAGS     += $(addprefix -D,$(V_DEFINES))
 
 V_DUT       := $(sort $(V_DUT))
 
+ifdef USING_VERILATOR
 V_FILES     += $(V_DUT:.v=_tbwrapper.v)
+endif
+ifdef USING_ICARUS
+V_FILES     += $(V_TESTBENCH)
+endif
 
 V_FILES     := $(sort $(V_FILES))
 V_FILES_MK  := $(patsubst %.v,V%_classes.mk,$(V_FILES))
@@ -183,7 +217,6 @@ ifeq (,$(filter _objdir%,$(notdir $(CURDIR))))
 # not in objdir yet; need to create prereqs
 
 
-
 #
 # Verilog DUT
 #
@@ -197,9 +230,11 @@ ifeq (,$(filter _objdir%,$(notdir $(CURDIR))))
 # Verilator
 #
 
-V_FILES_MK      := $(patsubst %.v,$(OBJDIR)/V%_classes.mk,$(V_FILES))
-
 VERILATOR_FLAGS += $(V_FLAGS)
+
+ifdef USING_VERILATOR
+
+V_FILES_MK      := $(patsubst %.v,$(OBJDIR)/V%_classes.mk,$(V_FILES))
 
 $(OBJDIR)/V%_classes.mk : %.v | $(OBJDIR)
 	@echo verilating $(notdir $<)
@@ -211,6 +246,13 @@ verilator: $(V_FILES_MK)
 D_FILES     := $(wildcard $(patsubst %.v,$(OBJDIR)/V%*.d,$(V_FILES)))
 
 -include $(D_FILES)
+
+else
+
+.PHONY: verilator
+verilator:
+
+endif
 
 .PHONY: lint
 lint: $(V_DUT)
@@ -227,6 +269,8 @@ vhier: $(V_DUT)
 # SystemPerl
 #
 
+ifdef USING_VERILATOR
+
 vpath %.sp $(SP_DIRS)
 vpath %.cpp $(SC_DIRS)
 vpath %.h $(SC_DIRS)
@@ -236,6 +280,13 @@ vpath %.h $(SC_DIRS)
 .PHONY: systemperl
 systemperl: $(SP_FILES) $(SC_FILES) $(SCH_FILES) | $(OBJDIR)
 	@ln -s -f -t $(OBJDIR) $^
+
+else
+
+.PHONY: systemperl
+systemperl:
+
+endif
 
 
 #
@@ -271,7 +322,7 @@ vparams.txt:
 
 # invoke again in the objdir
 .PHONY: recurse
-recurse: verilator systemperl vparams.txt
+recurse: verilator systemperl vparams.txt $(OBJDIR)
 	+@$(MAKE) --no-print-directory -C $(OBJDIR) -f $(THIS) CWD_TOP=$(CWD_TOP) $(MAKECMDGOALS)
 
 # targets that can be passed through
@@ -284,6 +335,8 @@ else
 # *****************************************************************************
 # in objdir now; have prereqs; can build remainder
 
+
+ifdef USING_VERILATOR
 
 #
 # Verilator
@@ -429,12 +482,6 @@ D_FILES += $(TESTBENCH).bin.d
 # Execution
 #
 
-LOG_FILES   := $(WORKDIR)/$(TESTBENCH).log
-COV_FILES   := $(WORKDIR)/$(TESTBENCH).cov
-LXT_FILES   := $(WORKDIR)/$(TESTBENCH).lxt
-
-.PRECIOUS: $(LOG_FILES) $(COV_FILES) $(LXT_FILES)
-
 # run inside $(CWD) to allow executable to consistently reference data files
 $(COV_FILES) $(LOG_FILES) : $(TESTBENCH).bin
 	@cd $(CWD) && $(OBJDIR)/$< --log $(LOG_FILES) --cov $(COV_FILES)
@@ -451,6 +498,53 @@ $(LXT_FILES) : $(TESTBENCH).bin
 .PHONY: build
 build: $(TESTBENCH).bin
 
+.PHONY: coverage
+coverage: $(COV_FILES)
+	@[ -d $(WORKDIR)/coverage ] || mkdir -p $(WORKDIR)/coverage
+	@$(VCOVERAGE) --all-files -o $(WORKDIR)/coverage $(V_FLAGS) $<
+
+
+# ^^^ ifdef USING_VERILATOR
+endif
+
+
+ifdef USING_ICARUS
+
+#
+# Icarus Verilog
+#
+
+ICARUS_FLAGS    += $(addprefix -D,$(V_DEFINES))
+ICARUS_FLAGS    += $(addprefix -I,$(VH_DIRS))
+ICARUS_FLAGS    += $(addprefix -y,$(V_DIRS))
+
+# compile verilog
+$(TESTBENCH).vvp : $(V_FILES)
+	@iverilog -o $@ -M$@.d.pre -D DUMPFILE='"$(LXT_FILES)"' $(ICARUS_FLAGS) $^
+	@echo -n "$@ : " > $@.d
+	@cat $@.d.pre | sort | uniq | tr '\n' ' ' >> $@.d
+
+D_FILES         += $(TESTBENCH).vvp.d
+
+# generate just a log file
+$(LOG_FILES) : $(TESTBENCH).vvp
+	@IVERILOG_DUMPER=NONE vvp -l $(LOG_FILES) $<
+
+# generate dump file and log
+$(LXT_FILES) : $(TESTBENCH).vvp
+	@vvp -l $(LOG_FILES) $< -lxt2
+
+.PHONY: build
+build: $(TESTBENCH).vvp
+
+# TODO
+coverage: sim
+
+
+# ^^^ ifdef USING_ICARUS
+endif
+
+
 .PHONY: sim
 sim: $(LOG_FILES)
 
@@ -460,11 +554,6 @@ waves: $(LXT_FILES)
 .PHONY: gtkwave
 gtkwave: $(LXT_FILES)
 	gtkwave $< &
-
-.PHONY: coverage
-coverage: $(COV_FILES)
-	@[ -d $(WORKDIR)/coverage ] || mkdir -p $(WORKDIR)/coverage
-	@$(VCOVERAGE) --all-files -o $(WORKDIR)/coverage $(V_FLAGS) $<
 
 
 # include dependency files

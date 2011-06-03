@@ -36,6 +36,8 @@
 `ifndef DLSC_SIM_INCLUDED
 `define DLSC_SIM_INCLUDED
 
+`ifdef VERILATOR
+
 // DLSC_DPI_PATH must point to top _tbwrapper which includes "dlsc_dpi.vh"
 // (trying to have DPI import in just one place to mitigate Verilator internal errors)
 `define dlsc_error  `DLSC_DPI_PATH.dlsc_dpi_error
@@ -44,6 +46,21 @@
 `define dlsc_verb   `DLSC_DPI_PATH.dlsc_dpi_verb
 `define dlsc_okay   `DLSC_DPI_PATH.dlsc_dpi_okay
 `define dlsc_assert `DLSC_DPI_PATH.dlsc_dpi_assert
+
+`endif // `ifdef VERILATOR
+
+`ifdef ICARUS
+
+// TODO:
+
+`define dlsc_error  $display
+`define dlsc_warn   $display
+`define dlsc_info   $display
+`define dlsc_verb   $display
+`define dlsc_okay   $display
+`define dlsc_assert $display
+
+`endif // `ifdef ICARUS
 
 `endif // `ifndef DLSC_SIM_INCLUDED
 `endif // `ifdef DLSC_SIMULATION
