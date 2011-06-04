@@ -165,17 +165,17 @@ wire rst_int = rst || rst_from_core;
 
 // first, synchronize to core domain
 dlsc_rstsync dlsc_rstsync_inst_core (
-    .rst_async      ( rst ),
     .clk            ( core_clk ),
-    .rst            ( core_rst )
+    .rst_in         ( rst ),
+    .rst_out        ( core_rst )
 );
 
 // then, synchronize back to interface domain
 // (so interface stays in reset until core is out of reset)
 dlsc_rstsync dlsc_rstsync_inst_int (
-    .rst_async      ( core_rst ),
     .clk            ( clk ),
-    .rst            ( rst_from_core )
+    .rst_in         ( core_rst ),
+    .rst_out        ( rst_from_core )
 );
 
 

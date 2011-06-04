@@ -36,17 +36,17 @@ module dlsc_rstsync #(
     parameter DEPTH = 4
 ) (
 /* verilator lint_off SYNCASYNCNET */
-    input       wire    rst_async,  // asynchronous reset input
     input       wire    clk,        // clock (which the reset will be synchronized to)
-    output      wire    rst         // synchronous reset output
+    input       wire    rst_in,     // asynchronous reset input
+    output      wire    rst_out     // synchronous reset output
 );
 
 `include "dlsc_synthesis.vh"
 
 // synchronizer
 (* ASYNC_REG="TRUE", SHIFT_EXTRACT="NO", HBLKNM="sync_reg" *) reg [1:0] sreg = 2'b11;
-always @(posedge clk or posedge rst_async) begin
-    if(rst_async) begin
+always @(posedge clk or posedge rst_in) begin
+    if(rst_in) begin
         sreg    <= 2'b11;
     end else begin
         sreg    <= { sreg[0], 1'b0 };
@@ -55,15 +55,15 @@ end
 
 // fanout control
 `DLSC_FANOUT_REG(16) reg [DEPTH-1:0] rst_fanout;
-always @(posedge clk or posedge rst_async) begin
-    if(rst_async) begin
+always @(posedge clk or posedge rst_in) begin
+    if(rst_in) begin
         rst_fanout <= {DEPTH{1'b1}};
     end else begin
         rst_fanout <= { rst_fanout[DEPTH-2:0], sreg[1] };
     end
 end
 
-assign rst = rst_fanout[DEPTH-1];
+assign rst_out = rst_fanout[DEPTH-1];
 
 /* verilator lint_on SYNCASYNCNET */
 
