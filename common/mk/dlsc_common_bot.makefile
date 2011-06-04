@@ -290,6 +290,25 @@ endif
 
 
 #
+# Icarus
+#
+
+ifdef USING_ICARUS
+
+# create links to files not inside the object dir
+.PHONY: icarus
+icarus: $(V_FILES) | $(OBJDIR)
+	@ln -s -f -t $(OBJDIR) $^
+
+else
+
+.PHONY: icarus
+icarus: 
+
+endif
+
+
+#
 # Coverage merging
 #
 
@@ -322,7 +341,7 @@ vparams.txt:
 
 # invoke again in the objdir
 .PHONY: recurse
-recurse: verilator systemperl vparams.txt $(OBJDIR)
+recurse: verilator systemperl icarus vparams.txt $(OBJDIR)
 	+@$(MAKE) --no-print-directory -C $(OBJDIR) -f $(THIS) CWD_TOP=$(CWD_TOP) $(MAKECMDGOALS)
 
 # targets that can be passed through
@@ -520,9 +539,11 @@ ICARUS_FLAGS    += $(addprefix -y,$(V_DIRS))
 
 # compile verilog
 $(TESTBENCH).vvp : $(V_FILES)
-	@iverilog -o $@ -M$@.d.pre -D DUMPFILE='"$(LXT_FILES)"' $(ICARUS_FLAGS) $<
+	@echo compiling $@
+	@iverilog -o $@ -M$@.d.pre -D DUMPFILE='"$(LXT_FILES)"' $(ICARUS_FLAGS) $(V_FILES)
 	@echo -n "$@ : " > $@.d
 	@cat $@.d.pre | sort | uniq | tr '\n' ' ' >> $@.d
+	@rm -f $@.d.pre
 
 D_FILES         += $(TESTBENCH).vvp.d
 
