@@ -347,7 +347,7 @@ vparams.txt:
 
 # invoke again in the objdir
 .PHONY: recurse
-recurse: verilator systemperl icarus vparams.txt $(OBJDIR)
+recurse: gen verilator systemperl icarus vparams.txt $(OBJDIR)
 	+@$(MAKE) --no-print-directory -C $(OBJDIR) -f $(THIS) CWD_TOP=$(CWD_TOP) $(MAKECMDGOALS)
 
 # targets that can be passed through
