@@ -150,10 +150,16 @@ CWD := $(CWD_TOP)
 # Testbench
 #
 
+DEFINES     += DLSC_TB=$(TESTBENCH)
+
+ifdef USING_VERILATOR
 SP_FILES    += $(SP_TESTBENCH)
-C_DEFINES   += DLSC_TB=$(TESTBENCH)
 C_DEFINES   += DLSC_DUT=V$(call dlsc-base,$(V_DUT))_tbwrapper
 V_DEFINES   += DLSC_DPI_PATH=$(call dlsc-base,$(V_DUT))_tbwrapper
+endif
+ifdef USING_ICARUS
+V_DEFINES   += DLSC_DUT=$(call dlsc-base,$(V_DUT))
+endif
 
 
 #
