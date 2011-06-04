@@ -6,8 +6,6 @@
 
 #include "dlsc_stereobm_models.h"
 
-using namespace cv;
-
 void dlsc_xsobel(
     const cv::Mat &in,
     cv::Mat &out,
@@ -226,5 +224,68 @@ void dlsc_stereobm(
     delete sads_prev;
     delete sads_lo;
     delete sads_hi;
+}
+
+void dlsc_stereobm_invoker(
+    cv::Mat &il,
+    cv::Mat &ir,
+    cv::Mat &ilf,
+    cv::Mat &irf,
+    cv::Mat &id,
+    cv::Mat &valid,
+    cv::Mat &filtered,
+    const dlsc_stereobm_params &params
+) {
+
+    int width   = params.width;
+    int height  = params.height;
+
+    if(width <=0) width  = il.cols;
+    if(height<=0) height = il.rows;
+
+    if( (params.scale || il.cols < width || il.rows < height) && (il.cols != width || il.rows != height) ) {
+        // perform aspect-ratio-preserving scale
+        cv::Mat ils = il.clone();
+        cv::Mat irs = ir.clone();
+
+        int w,h;
+        float src_aspect = 1.0*il.cols/il.rows;
+        float aspect = 1.0*width/height;
+
+        if( src_aspect > aspect ) {
+            h = height;
+            w = (int)(height*src_aspect);
+        } else {
+            w = width;
+            h = (int)(width/src_aspect);
+        }
+
+        cv::resize(ils,il,cv::Size(w,h));
+        cv::resize(irs,ir,cv::Size(w,h));
+    }
+
+    if(il.cols != width || il.rows != height) {
+        // take central crop
+        int x   = (il.cols/2) - (width/2);
+        int dx  = x + width;
+        int y   = (il.rows/2) - (height/2);
+        int dy  = y + height;
+        il      = il(cv::Range(y,dy),cv::Range(x,dx));
+        ir      = ir(cv::Range(y,dy),cv::Range(x,dx));
+    }
+        
+    assert(il.cols == width && il.rows == height);
+
+    ilf = il.clone();
+    irf = ir.clone();
+
+    if(params.xsobel) {
+        dlsc_xsobel(il,ilf,params);
+        dlsc_xsobel(ir,irf,params);
+    }
+    
+    dlsc_stereobm(ilf,irf,id,valid,filtered,params);
+
+    filtered &= valid;
 }
 

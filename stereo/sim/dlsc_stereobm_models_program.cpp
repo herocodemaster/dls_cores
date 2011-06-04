@@ -54,8 +54,6 @@ int img_to_memh(const std::string &filename, const cv::Mat &img) {
 
 int main(int argc, char *argv[]) {
 
-    bool xsobel;
-
     dlsc_stereobm_params params;
 
     std::string leftfile;
@@ -63,13 +61,10 @@ int main(int argc, char *argv[]) {
     std::string outfile;
 
     bool use_readmemh;
-    int width;
-    int height;
-    bool scale;
     
     po::options_description desc("Allowed options");
     desc.add_options()
-        ("xsobel",          po::value<bool>(&xsobel)->default_value(true),              "Use XSOBEL pre-filtering")
+        ("xsobel",          po::value<bool>(&params.xsobel)->default_value(true),       "Use XSOBEL pre-filtering")
         ("data-max",        po::value<int>(&params.data_max)->default_value(14),        "Maximum XSOBEL output")
         ("disparities",     po::value<int>(&params.disparities)->default_value(64),     "Disparity levels")
         ("sad-window",      po::value<int>(&params.sad_window)->default_value(17),      "Sum-of-absolute-differences window")
@@ -81,10 +76,10 @@ int main(int argc, char *argv[]) {
         ("left",            po::value<std::string>(&leftfile),                          "Left image file input")
         ("right",           po::value<std::string>(&rightfile),                         "Right image file input")
         ("output",          po::value<std::string>(&outfile)->default_value("stereo"),  "Output files prefix")
+        ("width",           po::value<int>(&params.width)->default_value(-1),           "Width of output image")
+        ("height",          po::value<int>(&params.height)->default_value(-1),          "Height of output image")
+        ("scale",           po::value<bool>(&params.scale)->default_value(false),       "Scale input images")
         ("readmemh",        po::value<bool>(&use_readmemh)->default_value(false),       "Use Verilog $readmemh format for output")
-        ("width",           po::value<int>(&width)->default_value(-1),                  "Width of output image")
-        ("height",          po::value<int>(&height)->default_value(-1),                 "Height of output image")
-        ("scale",           po::value<bool>(&scale)->default_value(false),              "Scale input images")
     ;
     
     po::variables_map vm;
@@ -116,55 +111,8 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    if(width <=0) width  = il.cols;
-    if(height<=0) height = il.rows;
-
-    if(scale && (il.cols != width || il.rows != height)) {
-        cv::Mat ils = il.clone();
-        cv::Mat irs = ir.clone();
-
-        int w,h;
-        float src_aspect = 1.0*il.cols/il.rows;
-        float aspect = 1.0*width/height;
-
-        if( src_aspect > aspect ) {
-            h = height;
-            w = (int)(height*src_aspect);
-        } else {
-            w = width;
-            h = (int)(width/src_aspect);
-        }
-
-        cv::resize(ils,il,cv::Size(w,h));
-        cv::resize(irs,ir,cv::Size(w,h));
-    }
-
-    if(il.cols < width || il.rows < height) {
-        std::cerr << "source image size must be >= output size (try --scale)" << std::endl;
-        return 1;
-    }
-
-    if(il.cols != width || il.rows != height) {
-        // take central crop
-        int x   = (il.cols/2) - (width/2);
-        int dx  = x + width;
-        int y   = (il.rows/2) - (height/2);
-        int dy  = y + height;
-        il      = il(cv::Range(y,dy),cv::Range(x,dx));
-        ir      = ir(cv::Range(y,dy),cv::Range(x,dx));
-        assert(il.cols == width && il.rows == height);
-    }
-
-    cv::Mat ilf = il.clone();
-    cv::Mat irf = ir.clone();
-
-    if(xsobel) {
-        dlsc_xsobel(il,ilf,params);
-        dlsc_xsobel(ir,irf,params);
-    }
-
-    cv::Mat id,valid,filtered;
-    dlsc_stereobm(ilf,irf,id,valid,filtered,params);
+    cv::Mat ilf,irf,id,valid,filtered;
+    dlsc_stereobm_invoker(il,ir,ilf,irf,id,valid,filtered,params);
 
     if(use_readmemh) {
         
@@ -185,7 +133,7 @@ int main(int argc, char *argv[]) {
         id .convertTo(id, CV_8U,256.0/(1.0*params.disparities*(1<<params.sub_bits)));
 
         // mask out filtered pixels
-        id &= ~filtered;
+        id &= ~filtered & valid;
 
         // write output
         cv::imwrite(of_inleft,      il);

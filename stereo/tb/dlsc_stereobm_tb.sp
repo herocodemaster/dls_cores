@@ -203,8 +203,7 @@ void __MODULE__::stim_thread() {
         "data/tsukuba.scene1.row3.col3.ppm",
         "data/tsukuba.scene1.row3.col2.ppm",
         in_vals,
-        out_vals,
-        USE_XSOBEL);
+        out_vals);
 
     // reset after ~15 rows
     wait( (1.0/CLK_MHZ)*(IMG_WIDTH*(SAD+15)) ,SC_US);
@@ -217,15 +216,13 @@ void __MODULE__::stim_thread() {
         "data/tsukuba.scene1.row3.col1.ppm",
         "data/tsukuba.scene1.row3.col5.ppm",
         in_vals,
-        out_vals,
-        USE_XSOBEL);
+        out_vals);
 
     dlsc_stereobm_run_test(
         "data/tsukuba.scene1.row3.col2.ppm",
         "data/tsukuba.scene1.row3.col4.ppm",
         in_vals,
-        out_vals,
-        USE_XSOBEL);
+        out_vals);
 
     while(frames_done < 2) {
         wait(100,SC_US);

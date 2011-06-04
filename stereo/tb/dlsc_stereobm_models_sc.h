@@ -72,8 +72,7 @@ void dlsc_stereobm_run_test(
     const char *left_image,
     const char *right_image,
     std::deque<in_type> &in_vals,
-    std::deque<out_type> &out_vals,
-    const bool use_xsobel
+    std::deque<out_type> &out_vals
 );
 
 #endif
