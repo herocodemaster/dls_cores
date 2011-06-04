@@ -101,7 +101,9 @@ dlsc_pipedelay #(
 generate
     if(OUT < MULT_BITS) begin:GEN_OUT_TRUNC
         assign out = out_s[OUT-1:0];
-    end else begin:GEN_OUT_FULL
+    end else if(OUT == MULT_BITS) begin:GEN_OUT_EXACT
+        assign out = out_s;
+    end else begin:GEN_OUT_PAD
         assign out = { {(OUT-MULT_BITS){1'b0}} , out_s };
     end
 endgenerate

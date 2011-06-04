@@ -105,8 +105,8 @@ generate
         wire [SUB-1:0] sub;     // dividend - shifted_divisor
         wire           resn;    // sign of subtraction result (negative indicates shifter_divisor didn't fit, so result of stage is '0')
 
-        wire [SUB  :0] left  = { 1'b0, {(SUB-DIVIDEND ){1'b0}} , t[j+1] };              // dividend
-        wire [SUB  :0] right = { 1'b0, {(SUB-DIVISOR-j){1'b0}} , b[j+1], {(j){1'b0}} }; // shifted divisor
+        wire [SUB  :0] left  = { {(1+SUB-DIVIDEND){1'b0}} , t[j+1] };       // dividend
+        wire [SUB  :0] right = { {(1+SUB-DIVISOR ){1'b0}} , b[j+1] } << j;  // shifted divisor
 
         assign { resn, sub } = left - right;
 
