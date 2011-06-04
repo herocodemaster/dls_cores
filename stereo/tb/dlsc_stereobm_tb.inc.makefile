@@ -5,7 +5,7 @@ DLSC_DEPENDS    += stereo opencv
 
 SP_TESTBENCH    += dlsc_stereobm_tb.sp
 
-C_FILES         += dlsc_stereobm_tb_models.cpp
+C_FILES         += dlsc_stereobm_models.cpp dlsc_stereobm_models_sc.cpp
 
 V_PARAMS_DEF    += \
     DATA=8 \

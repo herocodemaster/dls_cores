@@ -6,7 +6,7 @@
 
 #include <deque>
 
-#include "dlsc_stereobm_tb_common.h"
+#include "dlsc_stereobm_models_sc.h"
 
 /*AUTOSUBCELL_CLASS*/
 
