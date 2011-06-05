@@ -42,6 +42,9 @@ sims1:
 sims2:
 sims3:
 
+.PHONY: gen
+gen: 
+
 
 #
 # Utilities
