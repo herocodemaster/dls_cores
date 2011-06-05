@@ -228,6 +228,17 @@ initial begin
 
     `dlsc_info("reset removed");
 
+    while(out_y < 15) #1000;
+
+    `dlsc_info("resetting again");
+
+    @(posedge clk);
+    rst = 1;
+    @(posedge clk);
+    rst = 0;
+
+    `dlsc_info("reset removed");
+
     @(posedge check_done);
 
     `dlsc_info("done");
