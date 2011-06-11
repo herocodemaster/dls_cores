@@ -33,7 +33,7 @@
 // Based on Xilinx Language Templates "Asynchronous Input Synchronization".
 
 module dlsc_rstsync #(
-    parameter DEPTH = 4
+    parameter DEPTH = 4             // TODO
 ) (
 /* verilator lint_off SYNCASYNCNET */
     input       wire    clk,        // clock (which the reset will be synchronized to)
@@ -54,16 +54,19 @@ always @(posedge clk or posedge rst_in) begin
 end
 
 // fanout control
-`DLSC_FANOUT_REG(16) reg [DEPTH-1:0] rst_fanout;
+`DLSC_FANOUT_REG(16) reg rst_f0;
+`DLSC_FANOUT_REG(16) reg rst_f1;
+`DLSC_FANOUT_REG(16) reg rst_f2;
+`DLSC_FANOUT_REG(16) reg rst_f3;
 always @(posedge clk or posedge rst_in) begin
     if(rst_in) begin
-        rst_fanout <= {DEPTH{1'b1}};
+        {rst_f3,rst_f2,rst_f1,rst_f0} <= {4{1'b1}};
     end else begin
-        rst_fanout <= { rst_fanout[DEPTH-2:0], sreg[1] };
+        {rst_f3,rst_f2,rst_f1,rst_f0} <= {rst_f2,rst_f1,rst_f0,sreg[1]};
     end
 end
 
-assign rst_out = rst_fanout[DEPTH-1];
+assign rst_out = rst_f3;
 
 /* verilator lint_on SYNCASYNCNET */
 
