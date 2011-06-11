@@ -112,9 +112,17 @@ objclean:
 	rm -f $(WORKDIR_PREFIX)__*/_objdir/*.mk
 	rm -f $(WORKDIR_PREFIX)__*/_objdir/*.dat
 
+.PHONY: sims_summary
+sims_summary: | sims0 sims1 sims2 sims3
+	@echo "\n\n                                   *** Results for $(TESTBENCH) ***\n"
+	@cd $(WORKROOT) && grep -n "assertions" _$(TESTBENCH)_*/*.log
+	@echo "\n"
+
 .PHONY: summary
 summary:
-	@cd $(WORKROOT) && grep -n "assertions" _$(TESTBENCH)*/*.log
+	@echo "\n\n                                   *** Results for $(TESTBENCH) ***\n"
+	@cd $(WORKROOT) && grep -n "assertions" _$(TESTBENCH)_*/*.log
+	@echo "\n"
 
 else
 # *****************************************************************************
@@ -169,8 +177,9 @@ endif
 LOG_FILES   := $(WORKDIR)/$(TESTBENCH).log
 COV_FILES   := $(WORKDIR)/$(TESTBENCH).cov
 LXT_FILES   := $(WORKDIR)/$(TESTBENCH).lxt
+VCD_FILES   := $(WORKDIR)/$(TESTBENCH).vcd
 
-.PRECIOUS: $(LOG_FILES) $(COV_FILES) $(LXT_FILES)
+.PRECIOUS: $(LOG_FILES) $(COV_FILES) $(LXT_FILES) $(VCD_FILES)
 
 
 #
@@ -351,8 +360,8 @@ recurse: gen verilator systemperl icarus vparams.txt $(OBJDIR)
 	+@$(MAKE) --no-print-directory -C $(OBJDIR) -f $(THIS) CWD_TOP=$(CWD_TOP) $(MAKECMDGOALS)
 
 # targets that can be passed through
-.PHONY: build sim waves gtkwave coverage
-build sim waves gtkwave coverage: recurse
+.PHONY: build sim waves vcd gtkwave coverage
+build sim waves vcd gtkwave coverage: recurse
 
 
 # ^^^ ifneq (,$(filter _objdir%,$(notdir $(CURDIR))))
@@ -520,6 +529,9 @@ $(LXT_FILES) : $(TESTBENCH).bin
 	@cd $(CWD) && $(OBJDIR)/$< --log $(LOG_FILES) --cov $(COV_FILES) --vcd $@.vcd
 	@rm -f $@.vcd
 
+$(VCD_FILES) : $(TESTBENCH).bin
+	@cd $(CWD) && $(OBJDIR)/$< --log $(LOG_FILES) --cov $(COV_FILES) --vcd $@
+
 .PHONY: build
 build: $(TESTBENCH).bin
 
@@ -577,6 +589,9 @@ sim: $(LOG_FILES)
 
 .PHONY: waves
 waves: $(LXT_FILES)
+
+.PHONY: vcd
+vcd: $(VCD_FILES)
 
 .PHONY: gtkwave
 gtkwave: $(LXT_FILES)

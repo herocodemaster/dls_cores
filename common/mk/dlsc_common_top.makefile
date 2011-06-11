@@ -36,7 +36,7 @@ default: coverage
 
 # multiple sims targets for parallel execution
 .PHONY: sims sims0 sims1 sims2 sims3
-sims: sims0 sims1 sims2 sims3
+sims: sims_summary sims0 sims1 sims2 sims3
 sims0:
 sims1:
 sims2:
