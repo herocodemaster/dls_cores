@@ -55,17 +55,15 @@ end
 
 // ** control
 
-localparam  ST_IDLE     = 0,
-            ST_START    = 1,
-            ST_DATA     = 2,
-            ST_STOP     = 3,
-            ST_PARITY   = 4;
+localparam  ST_START    = 0,
+            ST_DATA     = 1,
+            ST_PARITY   = 2,
+            ST_STOP     = 3;
 
-reg [2:0]           st;
+reg                 st_idle;
+reg [1:0]           st;
 reg [CNTBITS-1:0]   cnt;
 reg                 parity;
-
-wire                start = (st == ST_IDLE && rxf_prev && !rxf);
 
 reg                 sample_en;
 
@@ -73,24 +71,24 @@ reg                 sample_en;
 
 always @(posedge clk) begin
     if(rst || valid) begin
-        st              <= ST_IDLE;
+        st              <= ST_START;
+        st_idle         <= 1'b1;        // idle flag forces IDLE state
         cnt             <= 0;
         parity          <= (PARITY == 1) ? 1'b1 : 1'b0;
         valid           <= 1'b0;
         data            <= 0;
         frame_error     <= 1'b0;
         parity_error    <= 1'b0;
-    end else if(clk_en) begin
+    end else begin
 
-        if(start) begin
-            st              <= ST_START;
+        if(clk_en && st_idle && rxf_prev && !rxf) begin
+            // start detected; leave IDLE
+            st_idle         <= 1'b0;
         end
 
-        if(sample_en) begin
+        if(clk_en && sample_en) begin
 
-            if(st != ST_IDLE) begin
-                cnt             <= cnt + 1;
-            end
+            cnt             <= cnt + 1;
 
             if(st == ST_START) begin
                 if(rxf != 1'b0) begin
@@ -111,7 +109,7 @@ always @(posedge clk) begin
                 end
             end
 
-            if(st == ST_PARITY) begin
+            if(st == ST_PARITY && PARITY != 0) begin
                 parity_error    <= (rxf != parity);
                 st              <= ST_STOP;
                 cnt             <= 0;
@@ -142,10 +140,10 @@ reg [OSBITS-1:0] oscnt;
 /* verilator lint_off WIDTH */
 
 always @(posedge clk) begin
-    if(start) begin
+    if(rst || valid) begin
         oscnt       <= 0;
         sample_en   <= 1'b0;
-    end else if(clk_en) begin
+    end else if(clk_en && !st_idle) begin
         oscnt       <= oscnt + 1;
         if(oscnt == ( OVERSAMPLE   -1)) oscnt <= 0;
         sample_en   <= 1'b0;
