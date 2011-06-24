@@ -84,12 +84,11 @@ void __MODULE__::in_thread() {
 
     uint32_t txd = 1;
 
-    const float bit_time_us = 1000000.0/FREQ_OUT;
+    float bit_time_us = 1000000.0/FREQ_OUT;
 
     while(true) {
 
-        wait(bit_time_us * (1.0 + ((rand()%100)/2000.0)),SC_US);
-//        wait(bit_time_us,SC_US);
+        wait(bit_time_us,SC_US);
 
         if(rst) {
             txd     = 1;
@@ -110,6 +109,9 @@ void __MODULE__::in_thread() {
 
             txd = in_vals.front(); in_vals.pop_front();
             txd |= (1<<BITS);
+
+            // +-3% tolerance
+            bit_time_us = (1000000.0/FREQ_OUT) * (0.97 + ((rand()%60)/1000.0));
         }
 
         rx      = (txd & 1) ? 1 : 0;

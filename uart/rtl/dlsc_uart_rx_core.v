@@ -24,8 +24,8 @@ module dlsc_uart_rx_core #(
 
 `include "dlsc_clog2.vh"
 
-localparam CNTBITS  = `dlsc_clog2(DATA);
-localparam OSBITS   = `dlsc_clog2(OVERSAMPLE);
+localparam PARITY_BITS  = (PARITY>0)?1:0;
+localparam BITS         = (START+STOP+DATA+PARITY_BITS);
 
 
 // ** input filter
@@ -43,7 +43,7 @@ dlsc_glitchfilter #(
     .out        ( rxf )
 );
 
-reg rxf_prev;
+reg rxf_prev = 1'b1;
 
 always @(posedge clk) begin
     if(rst) begin
@@ -56,102 +56,77 @@ end
 
 // ** control
 
-localparam  ST_START    = 0,
-            ST_DATA     = 1,
-            ST_PARITY   = 2,
-            ST_STOP     = 3;
+reg                 sample_en   = 1'b0;
+reg                 sr_last     = 1'b0;
 
-reg                 st_idle;
-reg [1:0]           st;
-reg [CNTBITS-1:0]   cnt;
-reg                 parity;
-
-reg                 sample_en;
-
-/* verilator lint_off WIDTH */
+// detect start
+reg                 started     = 1'b0;
+wire                start       = (!started && rxf_prev && !rxf);
 
 always @(posedge clk) begin
-    if(rst || valid) begin
-        st              <= ST_START;
-        st_idle         <= 1'b1;        // idle flag forces IDLE state
-        cnt             <= 0;
-        parity          <= (PARITY == 1) ? 1'b1 : 1'b0;
-        valid           <= 1'b0;
-        data            <= 0;
-        frame_error     <= 1'b0;
-        parity_error    <= 1'b0;
-    end else begin
-
-        if(clk_en && st_idle && rxf_prev && !rxf) begin
-            // start detected; leave IDLE
-            st_idle         <= 1'b0;
-        end
-
-        if(clk_en && sample_en) begin
-
-            cnt             <= cnt + 1;
-
-            if(st == ST_START) begin
-                if(rxf != 1'b0) begin
-                    frame_error     <= 1'b1;
-                end
-                if((START==1) || cnt == (START-1)) begin
-                    st              <= ST_DATA;
-                    cnt             <= 0;
-                end
-            end
-
-            if(st == ST_DATA) begin
-                parity          <= parity ^ rxf;
-                data            <= {rxf,data[DATA-1:1]};
-                if(cnt == (DATA-1)) begin
-                    st              <= (PARITY == 0) ? ST_STOP : ST_PARITY;
-                    cnt             <= 0;
-                end
-            end
-
-            if(st == ST_PARITY && PARITY != 0) begin
-                parity_error    <= (rxf != parity);
-                st              <= ST_STOP;
-                cnt             <= 0;
-            end
-
-            if(st == ST_STOP) begin
-                if(rxf != 1'b1) begin
-                    frame_error     <= 1'b1;
-                end
-                if((STOP==1) || cnt == (STOP-1)) begin
-                    // once valid is asserted, control will reset back to IDLE
-                    valid           <= 1'b1;
-                end
-            end
-
-        end
-
+    if(rst || sr_last) begin
+        started     <= 1'b0;
+    end else if(start) begin
+        started     <= 1'b1;
     end
 end
 
-/* verilator lint_on WIDTH */
+// sample data
+reg  [BITS-1:0]     sr;
 
+always @(posedge clk) begin
+    if(!started) begin
+        { sr, sr_last }     <= {1'b1,{BITS{1'b0}}};
+    end else if(sample_en) begin
+        { sr, sr_last }     <= { rxf, sr };
+    end
+end
 
-// ** sampler
+// drive output once everything is shifted in
+wire [START-1:0]    start_bits  = sr[  0                       +: START ];
+wire [DATA -1:0]    data_bits   = sr[  START                   +: DATA ];
+wire                parity_bit  = sr[ (START+DATA)             +: 1 ];
+wire [STOP -1:0]    stop_bits   = sr[ (START+DATA+PARITY_BITS) +: STOP ];
 
+wire                parity      = ^data_bits ^ ((PARITY == 1) ? 1'b1 : 1'b0);
+
+always @(posedge clk) begin
+    if(sr_last) begin
+        data            <= data_bits;
+        frame_error     <= (start_bits != {START{1'b0}}) || (stop_bits != {STOP{1'b1}});
+        parity_error    <= (PARITY != 0) && (parity_bit != parity);
+    end
+end
+
+// drive valid for 1 cycle
+always @(posedge clk) begin
+    if(rst || valid) begin
+        valid           <= 1'b0;
+    end else if(sr_last) begin
+        valid           <= 1'b1;
+    end
+end
+
+// generate sample_en
+localparam OSBITS   = `dlsc_clog2(OVERSAMPLE);
 reg [OSBITS-1:0] oscnt;
 
 /* verilator lint_off WIDTH */
-
 always @(posedge clk) begin
-    if(rst || valid) begin
-        oscnt       <= 0;
+    if(!started) begin
         sample_en   <= 1'b0;
-    end else if(clk_en && !st_idle) begin
-        oscnt       <= oscnt + 1;
-        if(oscnt == ( OVERSAMPLE   -1)) oscnt <= 0;
+        oscnt       <= (OVERSAMPLE/2);
+    end else begin
         sample_en   <= 1'b0;
-        if(oscnt == ((OVERSAMPLE/2)-2)) sample_en <= 1'b1;
+        if(clk_en) begin
+            oscnt       <= oscnt + 1;
+            if(oscnt == (OVERSAMPLE-1)) begin
+                oscnt       <= 0;
+                sample_en   <= 1'b1;
+            end
+        end
     end
 end
-
 /* verilator lint_on WIDTH */
 
 endmodule
