@@ -13,6 +13,7 @@ module dlsc_uart_rx_core #(
 
     // uart pins
     input   wire                rx,
+    input   wire                rx_mask,        // disable reception when asserted
 
     // received data
     output  reg                 valid,          // qualifier; asserts for just 1 cycle
@@ -38,7 +39,7 @@ dlsc_glitchfilter #(
     .clk        ( clk ),
     .clk_en     ( clk_en ),
     .rst        ( rst ),
-    .in         ( rx ),
+    .in         ( rx || rx_mask ),
     .out        ( rxf )
 );
 

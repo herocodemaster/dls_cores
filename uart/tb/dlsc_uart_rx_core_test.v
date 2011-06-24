@@ -14,6 +14,7 @@ module dlsc_uart_rx_core_test #(
 
     // uart pins
     input   wire                rx,
+    input   wire                rx_mask,        // disable reception when asserted
 
     // received data
     output  wire                valid,          // qualifier; asserts for just 1 cycle
@@ -35,6 +36,7 @@ dlsc_uart_rx_core #(
     .clk_en         ( clk_en ),
     .rst            ( rst ),
     .rx             ( rx ),
+    .rx_mask        ( rx_mask ),
     .valid          ( valid ),
     .data           ( data ),
     .frame_error    ( frame_error ),
