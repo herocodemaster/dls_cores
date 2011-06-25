@@ -25,50 +25,67 @@
 //
 
 // Module Description:
-// Reset synchronizer and fanout buffer. Incoming asynchronous reset forces
-// register chain into reset state. Once reset is removed, chain clocks in the
-// non-reset value. Metastability is possible on first flop in chain (if reset
-// is removed near clock edge), so synchronizer flops are present.
-//
-// Based on Xilinx Language Templates "Asynchronous Input Synchronization".
+// Reset synchronizer and fanout buffer for multiple clock domains. All domains
+// are guaranteed to be in reset before any domain is released from reset.
 
 module dlsc_rstsync #(
-    parameter DEPTH = 4             // TODO
+    parameter DOMAINS   = 1,
+    parameter DEPTH     = 4
 ) (
-/* verilator lint_off SYNCASYNCNET */
-    input       wire    clk,        // clock (which the reset will be synchronized to)
-    input       wire    rst_in,     // asynchronous reset input
-    output      wire    rst_out     // synchronous reset output
+    input   wire                    rst_in,     // asynchronous reset input
+    input   wire    [DOMAINS-1:0]   clk,        // clocks to synchronize resets to
+    output  wire    [DOMAINS-1:0]   rst_out     // synchronous reset outputs
 );
 
-`include "dlsc_synthesis.vh"
+generate
+    genvar j;
 
-// synchronizer
-(* ASYNC_REG="TRUE", SHIFT_EXTRACT="NO", HBLKNM="sync_reg" *) reg [1:0] sreg = 2'b11;
-always @(posedge clk or posedge rst_in) begin
-    if(rst_in) begin
-        sreg    <= 2'b11;
-    end else begin
-        sreg    <= { sreg[0], 1'b0 };
+    if(DOMAINS==1) begin:GEN_DOMAINS1
+
+        // for a single domain, we only need a slice
+        dlsc_rstsync_slice #(
+            .DEPTH      ( DEPTH )
+        ) dlsc_rstsync_slice_inst (
+            .clk        ( clk[0] ),
+            .rst_in     ( rst_in ),
+            .rst_out    ( rst_out[0] )
+        );
+
+    end else begin:GEN_DOMAINSN
+
+        // synchronized rst_in in each domain
+        wire [DOMAINS-1:0] rst_domains;
+
+        // aggregate of all domain resets
+        // (used to create the actual reset going into each rstsync_slice)
+        wire rst_all = |rst_domains;
+
+        for(j=0;j<DOMAINS;j=j+1) begin:GEN_SLICES
+
+            // synchronize incoming reset to each domain
+            dlsc_syncflop #(
+                .RESET      ( 1'b1 )
+            ) dlsc_syncflop_inst (
+                .clk        ( clk[j] ),
+                .rst        ( rst_in ),
+                .in         ( 1'b0 ),
+                .out        ( rst_domains[j] )
+            );
+
+            // synchronize aggregate reset to each domain
+            dlsc_rstsync_slice #(
+                .DEPTH      ( DEPTH )
+            ) dlsc_rstsync_slice_inst (
+                .clk        ( clk[j] ),
+                .rst_in     ( rst_all ),
+                .rst_out    ( rst_out[j] )
+            );
+
+        end
+
     end
-end
+endgenerate
 
-// fanout control
-`DLSC_FANOUT_REG(16) reg rst_f0;
-`DLSC_FANOUT_REG(16) reg rst_f1;
-`DLSC_FANOUT_REG(16) reg rst_f2;
-`DLSC_FANOUT_REG(16) reg rst_f3;
-always @(posedge clk or posedge rst_in) begin
-    if(rst_in) begin
-        {rst_f3,rst_f2,rst_f1,rst_f0} <= {4{1'b1}};
-    end else begin
-        {rst_f3,rst_f2,rst_f1,rst_f0} <= {rst_f2,rst_f1,rst_f0,sreg[1]};
-    end
-end
-
-assign rst_out = rst_f3;
-
-/* verilator lint_on SYNCASYNCNET */
 
 endmodule
 

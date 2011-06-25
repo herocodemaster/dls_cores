@@ -155,27 +155,15 @@ localparam OUT_BUF_DEPTH    = 2**(`dlsc_clog2(IMG_WIDTH + ALMOST_FULL)); // roun
 
 // ** reset synchronization **
 
+wire int_rst;
 wire core_rst;
-wire rst_from_core;
 
-// internal interface reset will assert immediately when reset input is asserted
-// and will remain asserted until synchronized reset from core domain finally
-// deasserts
-wire rst_int = rst || rst_from_core;
-
-// first, synchronize to core domain
-dlsc_rstsync dlsc_rstsync_inst_core (
-    .clk            ( core_clk ),
-    .rst_in         ( rst ),
-    .rst_out        ( core_rst )
-);
-
-// then, synchronize back to interface domain
-// (so interface stays in reset until core is out of reset)
-dlsc_rstsync dlsc_rstsync_inst_int (
-    .clk            ( clk ),
-    .rst_in         ( core_rst ),
-    .rst_out        ( rst_from_core )
+dlsc_rstsync #(
+    .DOMAINS    ( 2 )
+) dlsc_rstsync_inst (
+    .rst_in     ( rst ),
+    .clk        ( {     clk, core_clk } ),
+    .rst_out    ( { int_rst, core_rst } )
 );
 
 
@@ -193,7 +181,7 @@ dlsc_rowbuffer #(
     .DATA               ( CORE_IN )
 ) dlsc_rowbuffer_inst_in (
     .in_clk             ( clk ),
-    .in_rst             ( rst_int ),
+    .in_rst             ( int_rst ),
     .in_ready           ( in_ready ),
     .in_valid           ( in_valid ),
     .in_data            ( {
@@ -255,7 +243,7 @@ dlsc_rowbuffer #(
     .in_data            ( core_out_disp ),
     .in_almost_full     ( core_out_disp_busy ),
     .out_clk            ( clk ),
-    .out_rst            ( rst_int ),
+    .out_rst            ( int_rst ),
     .out_ready          ( buf_out_disp_ready ),
     .out_valid          ( buf_out_disp_valid ),
     .out_data           ( {
@@ -307,7 +295,7 @@ generate
             .in_data            ( core_out_img ),
             .in_almost_full     (  ),
             .out_clk            ( clk ),
-            .out_rst            ( rst_int ),
+            .out_rst            ( int_rst ),
             .out_ready          ( buf_out_img_ready ),
             .out_valid          ( buf_out_img_valid ),
             .out_data           ( buf_out_img )
@@ -327,7 +315,7 @@ generate
             .WIDTH      ( CORE_OUT )
         ) dlsc_rvh_decoupler_inst (
             .clk                ( clk ),
-            .rst                ( rst_int ),
+            .rst                ( int_rst ),
             .in_en              ( 1'b1 ),
             .in_ready           ( buf_out_ready ),
             .in_valid           ( buf_out_valid ),

@@ -23,16 +23,12 @@ module dlsc_domaincross_rvh_test #(
 wire in_rst;
 wire out_rst;
 
-dlsc_rstsync dlsc_rstsync_in (
-    .clk        ( in_clk ),
+dlsc_rstsync #(
+    .DOMAINS    ( 2 )
+) dlsc_rstsync_inst (
     .rst_in     ( rst ),
-    .rst_out    ( in_rst )
-);
-
-dlsc_rstsync dlsc_rstsync_out (
-    .clk        ( out_clk ),
-    .rst_in     ( rst ),
-    .rst_out    ( out_rst )
+    .clk        ( { in_clk, out_clk } ),
+    .rst_out    ( { in_rst, out_rst } )
 );
 
 dlsc_domaincross_rvh #(
