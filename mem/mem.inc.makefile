@@ -1,3 +1,5 @@
 
-V_DIRS      += $(CWD)/rtl
+DLSC_DEPENDS    += alu sync
+
+V_DIRS          += $(CWD)/rtl
 
