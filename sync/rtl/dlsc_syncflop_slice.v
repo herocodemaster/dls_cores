@@ -41,7 +41,7 @@ module dlsc_syncflop_slice #(
 reg out_r = 1'b0;
 assign out = out_r;
 
-(* ASYNC_REG="TRUE", SHIFT_EXTRACT="NO", HBLKNM="sync_reg" *) reg [1:0] sreg = 2'b00;
+(* ASYNC_REG="TRUE", SHIFT_EXTRACT="NO", HBLKNM="sync_reg" *) reg [1:0] sreg = {2{RESET[0]}};
 
 always @(posedge clk or posedge rst) begin
     if(rst) begin
