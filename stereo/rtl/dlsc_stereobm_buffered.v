@@ -69,7 +69,10 @@
 //  stereo/rtl/dlsc_stereobm_postprocess_subpixel.v
 //  stereo/rtl/dlsc_stereobm_postprocess_uniqueness.v
 //  sync/rtl/dlsc_domaincross.v
+//  sync/rtl/dlsc_domaincross_rvh.v
 //  sync/rtl/dlsc_domaincross_slice.v
+//  sync/rtl/dlsc_rstsync.v
+//  sync/rtl/dlsc_rstsync_slice.v
 //  sync/rtl/dlsc_syncflop.v
 //  sync/rtl/dlsc_syncflop_slice.v
 

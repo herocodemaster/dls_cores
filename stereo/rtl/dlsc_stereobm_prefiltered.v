@@ -72,7 +72,10 @@
 //  stereo/rtl/dlsc_stereobm_prefiltered.v
 //  stereo/rtl/dlsc_xsobel_core.v
 //  sync/rtl/dlsc_domaincross.v
+//  sync/rtl/dlsc_domaincross_rvh.v
 //  sync/rtl/dlsc_domaincross_slice.v
+//  sync/rtl/dlsc_rstsync.v
+//  sync/rtl/dlsc_rstsync_slice.v
 //  sync/rtl/dlsc_syncflop.v
 //  sync/rtl/dlsc_syncflop_slice.v
 
