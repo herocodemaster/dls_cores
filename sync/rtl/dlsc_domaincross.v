@@ -52,87 +52,23 @@ module dlsc_domaincross #(
     output  wire    [DATA-1:0]  out_data
 );
 
-`include "dlsc_synthesis.vh"
-
-// ** input **
-`DLSC_KEEP_REG reg  in_flag    = 1'b0;
-`DLSC_KEEP_REG reg  in_flagx   = 1'b0;
-wire in_ack;
-wire in_en = (in_flag == in_ack);
-
-always @(posedge in_clk) begin
-    if(in_rst) begin
-        in_flag     <= 1'b0;
-        in_flagx    <= 1'b0;
-    end else if(in_en) begin
-        // send and flag new value once acked
-        in_flag     <= !in_flag;
-        in_flagx    <= !in_flag;
-    end
-end
-
-
-// ** output **
-`DLSC_KEEP_REG reg  out_ack    = 1'b0;
-`DLSC_KEEP_REG reg  out_ackx   = 1'b0;
-wire out_flag;
-wire out_en = (out_flag != out_ack);
-
-always @(posedge out_clk) begin
-    if(out_rst) begin
-        out_ack     <= 1'b0;
-        out_ackx    <= 1'b0;
-    end else if(out_en) begin
-        // consume and ack new value when flagged
-        out_ack     <= !out_ack;
-        out_ackx    <= !out_ack;
-    end
-end
-
-
-// ** data crossing **
-
-generate
-    genvar j;
-    for(j=0;j<DATA;j=j+1) begin:GEN_SLICES
-        dlsc_domaincross_slice #(
-            .RESET      ( RESET[j] )
-        ) dlsc_domaincross_slice_inst (
-            .in_clk     ( in_clk ),
-            .in_rst     ( in_rst ),
-            .in_en      ( in_en ),
-            .in_data    ( in_data[j] ),
-            .out_clk    ( out_clk ),
-            .out_rst    ( out_rst ),
-            .out_en     ( out_en ),
-            .out_data   ( out_data[j] )
-        );
-    end
-endgenerate
-
-
-// ** control synchronization **
-
-dlsc_syncflop #(
-    .DATA   ( 1 ),
-    .RESET  ( 1'b0 )
-) dlsc_syncflop_inst_in (
-    .in     ( out_ackx ),
-    .clk    ( in_clk ),
-    .rst    ( in_rst ),
-    .out    ( in_ack )
+// _rvh is essentially the same functionality; no point in maintaining two
+// nearly-identical modules..
+dlsc_domaincross_rvh #(
+    .DATA       ( DATA ),
+    .RESET      ( RESET )
+) dlsc_domaincross_rvh_inst (
+    .in_clk     ( in_clk ),
+    .in_rst     ( in_rst ),
+    .in_data    ( in_data ),
+    .in_ready   (  ),
+    .in_valid   ( 1'b1 ),
+    .out_clk    ( out_clk ),
+    .out_rst    ( out_rst ),
+    .out_data   ( out_data ),
+    .out_ready  ( 1'b1 ),
+    .out_valid  (  )
 );
-
-dlsc_syncflop #(
-    .DATA   ( 1 ),
-    .RESET  ( 1'b0 )
-) dlsc_syncflop_inst_out (
-    .in     ( in_flagx ),
-    .clk    ( out_clk ),
-    .rst    ( out_rst ),
-    .out    ( out_flag )
-);
-
 
 endmodule
 
