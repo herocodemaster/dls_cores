@@ -74,28 +74,28 @@ end
 
 // ** output **
 `DLSC_KEEP_REG reg  out_ack    = 1'b0;
-`DLSC_KEEP_REG reg  out_ackx   = 1'b0;
+`DLSC_KEEP_REG reg  out_ackx   = 1'b1;
 
 wire out_flag;
-wire out_en = (out_flag != out_ack);
+wire out_en = (out_flag != out_ack) && (out_ready || !out_valid);
 
 always @(posedge out_clk) begin
     if(out_rst) begin
         out_ack     <= 1'b0;
-        out_ackx    <= 1'b0;
-    end else if(out_en) begin
-        // consume and ack new value when flagged
-        out_ack     <= !out_ack;
-        out_ackx    <= !out_ack;
-    end
-end
-
-always @(posedge out_clk) begin
-    if(out_rst) begin
+        out_ackx    <= 1'b1;
         out_valid   <= 1'b0;
     end else begin
-        if(out_ready) out_valid <= 1'b0;
-        if(out_en   ) out_valid <= 1'b1;
+        if(out_ready) begin
+            out_valid   <= 1'b0;
+        end
+        if(out_en) begin
+            // consume and ack new value when flagged
+            out_ack     <= !out_ack;
+            out_ackx    <= !out_ack;
+            out_valid   <= 1'b1;
+        end else begin
+            out_ackx    <=  out_ack;
+        end
     end
 end
 
@@ -125,7 +125,7 @@ endgenerate
 
 dlsc_syncflop #(
     .DATA   ( 1 ),
-    .RESET  ( 1'b0 )
+    .RESET  ( 1'b1 )
 ) dlsc_syncflop_inst_in (
     .in     ( out_ackx ),
     .clk    ( in_clk ),
