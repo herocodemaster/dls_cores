@@ -1,9 +1,5 @@
 
-DLSC_DEPEND     += tlm
+DLSC_DEPENDS    += mem
 
 V_DIRS          += $(CWD)/rtl
-
-SP_DIRS         += $(CWD)/sim
-SC_DIRS         += $(CWD)/sim
-H_DIRS          += $(CWD)/sim
 
