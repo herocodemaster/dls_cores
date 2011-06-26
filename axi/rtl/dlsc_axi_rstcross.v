@@ -33,15 +33,13 @@ module dlsc_axi_rstcross #(
     // read
     parameter AR_BITS           = 1,
     parameter R_BITS            = 1,
-    parameter AR_RESET          = {AR_BITS{1'b0}},
-    parameter R_RESET           = {R_BITS{1'b0}},
+    parameter R_PHONY           = {R_BITS{1'b0}},
     // write
     parameter AW_BITS           = 1,
     parameter W_BITS            = 1,
     parameter B_BITS            = 1,
-    parameter AW_RESET          = {AW_BITS{1'b0}},
-    parameter W_RESET           = {W_BITS{1'b0}},
-    parameter B_RESET           = {B_BITS{1'b0}},
+    parameter W_PHONY           = {W_BITS{1'b0}},
+    parameter B_PHONY           = {B_BITS{1'b0}},
     // common
     parameter LEN_BITS          = 4,
     parameter MAX_OUTSTANDING   = 15
@@ -123,8 +121,7 @@ module dlsc_axi_rstcross #(
 dlsc_axi_rstcross_rd #(
     .AR_BITS            ( AR_BITS ),
     .R_BITS             ( R_BITS ),
-    .AR_RESET           ( AR_RESET ),
-    .R_RESET            ( R_RESET ),
+    .R_PHONY            ( R_PHONY ),
     .LEN_BITS           ( LEN_BITS ),
     .MAX_OUTSTANDING    ( MAX_OUTSTANDING )
 ) dlsc_axi_rstcross_rd_inst (
@@ -163,9 +160,8 @@ dlsc_axi_rstcross_wr #(
     .AW_BITS            ( AW_BITS ),
     .W_BITS             ( W_BITS ),
     .B_BITS             ( B_BITS ),
-    .AW_RESET           ( AW_RESET ),
-    .W_RESET            ( W_RESET ),
-    .B_RESET            ( B_RESET ),
+    .W_PHONY            ( W_PHONY ),
+    .B_PHONY            ( B_PHONY ),
     .LEN_BITS           ( LEN_BITS ),
     .MAX_OUTSTANDING    ( MAX_OUTSTANDING )
 ) dlsc_axi_rstcross_wr_inst (

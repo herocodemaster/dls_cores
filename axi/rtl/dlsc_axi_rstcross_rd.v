@@ -34,8 +34,7 @@
 module dlsc_axi_rstcross_rd #(
     parameter AR_BITS           = 1,
     parameter R_BITS            = 1,
-    parameter AR_RESET          = {AR_BITS{1'b0}},
-    parameter R_RESET           = {R_BITS{1'b0}},
+    parameter R_PHONY           = {R_BITS{1'b0}},
     parameter LEN_BITS          = 4,
     parameter MAX_OUTSTANDING   = 15
 ) (
@@ -139,7 +138,7 @@ assign m_ar_ready   = m_phony ? ( 1'b0 )                : ( !s_phony && s_ar_rea
 
 assign m_r_valid    = m_phony ? ( !m_empty )            : ( !s_phony && s_r_valid );
 assign m_r_last     = m_phony ? ( m_r_cnt == m_r_len )  : ( s_r_last );
-assign m_r          = m_phony ? ( R_RESET )             : ( s_r );
+assign m_r          = m_phony ? ( R_PHONY )             : ( s_r );
 
 
 // ** slave **

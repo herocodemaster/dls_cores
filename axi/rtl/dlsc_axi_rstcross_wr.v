@@ -35,9 +35,8 @@ module dlsc_axi_rstcross_wr #(
     parameter AW_BITS           = 1,
     parameter W_BITS            = 1,
     parameter B_BITS            = 1,
-    parameter AW_RESET          = {AW_BITS{1'b0}},
-    parameter W_RESET           = {W_BITS{1'b0}},
-    parameter B_RESET           = {B_BITS{1'b0}},
+    parameter W_PHONY           = {W_BITS{1'b0}},
+    parameter B_PHONY           = {B_BITS{1'b0}},
     parameter LEN_BITS          = 4,
     parameter MAX_OUTSTANDING   = 15
 ) (
@@ -174,7 +173,7 @@ assign m_aw_ready   = m_phony ? ( 1'b0 )                : ( !s_phony && s_aw_rea
 assign m_w_ready    = m_phony ? ( !m_w_cnt_zero )       : ( !s_phony && s_w_ready && !m_w_cnt_zero );
 
 assign m_b_valid    = m_phony ? ( !m_b_cnt_zero )       : ( !s_phony && s_b_valid );
-assign m_b          = m_phony ? ( B_RESET )             : ( s_b );
+assign m_b          = m_phony ? ( B_PHONY )             : ( s_b );
 
 
 // ** slave **
@@ -258,7 +257,7 @@ assign s_aw         = m_aw;
 
 assign s_w_valid    = s_phony ? ( !s_empty )            : ( !m_phony && m_w_valid && !m_w_cnt_zero );
 assign s_w_last     = s_phony ? ( s_w_cnt == s_w_len )  : ( m_w_last );
-assign s_w          = s_phony ? ( W_RESET )             : ( m_w );
+assign s_w          = s_phony ? ( W_PHONY )             : ( m_w );
 
 assign s_b_ready    = s_phony ? ( !s_b_cnt_zero )       : ( !m_phony && m_b_ready );
 
