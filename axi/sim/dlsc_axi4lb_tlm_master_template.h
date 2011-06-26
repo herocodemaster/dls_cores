@@ -145,13 +145,12 @@ template <typename DATATYPE, typename ADDRTYPE>
 void dlsc_axi4lb_tlm_master_template<DATATYPE,ADDRTYPE>::reset_queue(
     std::deque<transaction> &queue)
 {
-    for(typename std::deque<transaction>::iterator it = queue.begin(); it != queue.end(); ++it) {
-        dlsc_info("lost transaction to reset");
-        (*it)->set_response_status(tlm::TLM_INCOMPLETE_RESPONSE);
-        (*it)->complete();
-        it = queue.erase(it);
+    while(!queue.empty()) {
+        transaction ts = queue.front(); queue.pop_front();
+        dlsc_verb("lost transaction to reset");
+        ts->set_response_status(tlm::TLM_INCOMPLETE_RESPONSE);
+        ts->complete();
     }
-    assert(queue.empty());
 }
 
 template <typename DATATYPE, typename ADDRTYPE>
