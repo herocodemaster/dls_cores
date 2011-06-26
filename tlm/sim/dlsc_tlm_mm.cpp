@@ -17,9 +17,9 @@ dlsc_tlm_mm::~dlsc_tlm_mm() {
         it++;
     }
 
-    if(outstanding) {
-        dlsc_warn("destroyed with outstanding transactions");
-    }
+//    if(outstanding) {
+//        dlsc_warn("destroyed with outstanding transactions");
+//    }
 }
 
 void dlsc_tlm_mm::set_size(const unsigned int pool_size) {
