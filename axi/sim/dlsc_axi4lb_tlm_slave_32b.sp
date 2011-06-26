@@ -35,7 +35,7 @@ public:
     sc_core::sc_out<bool>       axi_b_valid;
     sc_core::sc_out<uint32_t>   axi_b_resp;
 
-    tlm::tlm_initiator_socket<32> socket;
+    dlsc_tlm_initiator_nb<uint32_t>::socket_type socket;
     
     /*AUTOMETHODS*/
 

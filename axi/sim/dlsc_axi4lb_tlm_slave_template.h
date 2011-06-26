@@ -43,7 +43,7 @@ public:
     sc_core::sc_out<bool>       axi_b_valid;
     sc_core::sc_out<uint32_t>   axi_b_resp;
     
-    tlm::tlm_initiator_socket<sizeof(DATATYPE)*8> socket;
+    typename dlsc_tlm_initiator_nb<DATATYPE>::socket_type socket;
 
     dlsc_tlm_initiator_nb<DATATYPE> *initiator;
 
