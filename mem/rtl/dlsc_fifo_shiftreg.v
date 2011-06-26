@@ -63,9 +63,6 @@ localparam ADDR = `dlsc_clog2(DEPTH);
 // read pointer
 reg  [ADDR-1:0] addr;
 
-//// when popping, need to read next entry from shift-register
-//wire [ADDR-1:0] read_addr = pop_en ? (addr - 1) : addr;
-
 always @(posedge clk) begin
     if(rst) begin
         addr        <= {ADDR{1'b1}}; // -1 when empty
@@ -80,7 +77,6 @@ always @(posedge clk) begin
 end
 
 // shift-register for contents of FIFO
-//wire [DATA-1:0] sr_data;
 dlsc_shiftreg #(
     .DATA       ( DATA ),
     .ADDR       ( ADDR ),
@@ -92,14 +88,7 @@ dlsc_shiftreg #(
     .write_data ( push_data ),
     .read_addr  ( addr ),
     .read_data  ( pop_data )
-//    .read_addr  ( read_addr ),
-//    .read_data  ( sr_data )
 );
-
-//// register output
-//always @(posedge clk) begin
-//    pop_data    <= sr_data;
-//end
 
 /* verilator lint_off WIDTH */
 
@@ -119,9 +108,10 @@ always @(posedge clk) begin
 
         if( push_en && !pop_en) begin
 
+            empty           <= 1'b0;
             full            <= (addr == (DEPTH-2));
 
-            if(addr == (      ALMOST_EMPTY-1) && ALMOST_EMPTY != 0) begin
+            if(addr == (      ALMOST_EMPTY-1) || (ALMOST_EMPTY  == 0    )) begin
                 almost_empty    <= 1'b0;
             end
 
@@ -133,9 +123,10 @@ always @(posedge clk) begin
 
         if(!push_en &&  pop_en) begin
 
+            empty           <= (addr == 0);
             full            <= 1'b0;
 
-            if(addr == (      ALMOST_EMPTY  ) && ALMOST_EMPTY != 0) begin
+            if(addr == (      ALMOST_EMPTY  )) begin
                 almost_empty    <= 1'b1;
             end
 
@@ -143,14 +134,6 @@ always @(posedge clk) begin
                 almost_full     <= 1'b0;
             end
 
-        end
-
-        // empty flag is handled specially to allow for 'synchronous' read of memory
-        if(addr == 0) begin
-            empty           <= pop_en;
-            if(ALMOST_EMPTY == 0) begin
-                almost_empty    <= pop_en;
-            end
         end
 
         rst_done        <= 1'b1;
