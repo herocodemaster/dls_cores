@@ -1,5 +1,5 @@
 
-DLSC_DEPENDS    += mem
+DLSC_DEPENDS    += mem rvh
 
 V_DIRS          += $(CWD)/rtl
 
