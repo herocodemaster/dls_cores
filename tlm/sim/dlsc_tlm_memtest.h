@@ -190,11 +190,11 @@ bool dlsc_tlm_memtest<DATATYPE>::test(
         total_bytes_read += bytes_read[i];
         total_bytes_written += bytes_written[i];
         double mbps = ( bytes_read[i] + bytes_written[i] + 0.0 ) / (elapsed.to_seconds()*1000000.0);
-        dlsc_info("For socket #" << std::dec << i << ": read: " << bytes_read[i] << ", wrote: " << bytes_written[i] << ", throughput: " << mbps);
+        dlsc_info("For socket #" << std::dec << i << ": read: " << bytes_read[i] << ", wrote: " << bytes_written[i] << ", throughput: " << mbps << " MB/s");
     }
         
     double mbps = ( total_bytes_read + total_bytes_written + 0.0 ) / (elapsed.to_seconds()*1000000.0);
-    dlsc_info("Combined:      read: " << total_bytes_read << ", wrote: " << total_bytes_written << ", throughput: " << mbps);
+    dlsc_info("Combined:      read: " << total_bytes_read << ", wrote: " << total_bytes_written << ", throughput: " << mbps << " MB/s");
 
     return true;
 }
@@ -300,6 +300,8 @@ bool dlsc_tlm_memtest<DATATYPE>::find_region(
 
     // find region
     do {
+        if(i == 0) length = 0; // reset length on wrap
+
         if( !write_pending[i] && !read_pending[i] ) {
             if(!length) index = i;
             ++length;
@@ -314,6 +316,8 @@ bool dlsc_tlm_memtest<DATATYPE>::find_region(
     unsigned int length_to_boundary = burst_boundary - ((base_addr/sizeof(DATATYPE) + index) % burst_boundary); // [1,burst_boundary]
     if(length > length_to_boundary) length = length_to_boundary;
 
+    assert( (index+length) <= size );
+
     return (length != 0);
 }
 
@@ -322,6 +326,8 @@ template <typename DATATYPE>
 void dlsc_tlm_memtest<DATATYPE>::complete(transaction ts) {
     unsigned int index  = (ts->get_address() - base_addr)/sizeof(DATATYPE);
     unsigned int length = ts->size();
+
+    assert( (index+length) <= size );
     
     if(ts->is_write()) {
         close_region(index,length,write_pending);
@@ -354,7 +360,8 @@ void dlsc_tlm_memtest<DATATYPE>::complete(transaction ts) {
 
         for(unsigned int i=0;i<length;++i) {
             if(mem_array[i+index] != data[i]) {
-                dlsc_error("miscompare at 0x" << std::hex << (ts->get_address() + i*sizeof(DATATYPE)) );
+                dlsc_error("miscompare at 0x" << std::hex << (ts->get_address() + i*sizeof(DATATYPE)) \
+                    << "; expected 0x" << mem_array[i+index] << ", but got 0x" << data[i]);
             }
         }
 
