@@ -55,6 +55,13 @@ private:
     typedef typename dlsc_tlm_initiator_nb<DATATYPE>::transaction transaction;
 
     struct aw_command;
+    
+    // config
+    int                         ar_pct;
+    int                         r_pct;
+    int                         aw_pct;
+    int                         w_pct;
+    int                         b_pct;
 
     std::deque<transaction>     ar_queue;
     std::deque<DATATYPE>        r_queue;
@@ -64,8 +71,6 @@ private:
     std::deque<transaction>     b_queue;
 
     bool                        w_wait_aw; // waiting for an AW command for already received W data
-
-    void w_complete();
 
     void clk_method();
     void rst_method();
@@ -109,10 +114,16 @@ dlsc_axi4lb_tlm_slave_template<DATATYPE,ADDRTYPE>::dlsc_axi4lb_tlm_slave_templat
     initiator = new dlsc_tlm_initiator_nb<DATATYPE>("initiator");
         initiator->socket.bind(socket);
 
+    ar_pct      = 95;
+    r_pct       = 95;
+    aw_pct      = 95;
+    w_pct       = 95;
+    b_pct       = 95;
+
     SC_METHOD(clk_method);
         sensitive << clk.pos();
 
-    w_wait_aw = false;
+    w_wait_aw   = false;
 }
     
 template <typename DATATYPE, typename ADDRTYPE>
@@ -154,9 +165,9 @@ template <typename DATATYPE, typename ADDRTYPE>
 void dlsc_axi4lb_tlm_slave_template<DATATYPE,ADDRTYPE>::ar_method() {
     if(axi_ar_ready && axi_ar_valid) {
         ar_queue.push_back(initiator->nb_read(axi_ar_addr,axi_ar_len+1));
-    } else if(!axi_ar_ready) {
-        axi_ar_ready    = 1;
     }
+
+    axi_ar_ready    = (rand()%100) < ar_pct;
 }
 
 template <typename DATATYPE, typename ADDRTYPE>
@@ -173,7 +184,7 @@ void dlsc_axi4lb_tlm_slave_template<DATATYPE,ADDRTYPE>::r_method() {
             ar_queue.pop_front();
         }
 
-        if(!r_queue.empty()) {
+        if(!r_queue.empty() && (rand()%100) < r_pct) {
             axi_r_data      = r_queue.front();
             r_queue.pop_front();
             axi_r_last      = r_queue.empty();
@@ -192,25 +203,9 @@ void dlsc_axi4lb_tlm_slave_template<DATATYPE,ADDRTYPE>::aw_method() {
     if(axi_aw_ready && axi_aw_valid) {
         aw_command cmd = { axi_aw_addr, axi_aw_len+1 };
         aw_queue.push_back(cmd);
-    } else if(!axi_aw_ready) {
-        axi_aw_ready    = 1;
-    }
-}
-
-template <typename DATATYPE, typename ADDRTYPE>
-void dlsc_axi4lb_tlm_slave_template<DATATYPE,ADDRTYPE>::w_complete() {
-    aw_command cmd = aw_queue.front();
-    aw_queue.pop_front();
-
-    if(cmd.len != w_data_queue.size()) {
-        dlsc_error("AW/W length mismatch");
-        w_data_queue.resize(cmd.len);
-        w_strb_queue.resize(cmd.len);
     }
 
-    b_queue.push_back(initiator->nb_write(cmd.addr,w_data_queue,w_strb_queue));
-    w_data_queue.clear();
-    w_strb_queue.clear();
+    axi_aw_ready    = (rand()%100) < aw_pct;
 }
 
 template <typename DATATYPE, typename ADDRTYPE>
@@ -220,33 +215,42 @@ void dlsc_axi4lb_tlm_slave_template<DATATYPE,ADDRTYPE>::w_method() {
         w_strb_queue.push_back(axi_w_strb);
 
         if(axi_w_last) {
-            if(!aw_queue.empty()) {
-                // have data and command; issue transaction
-                w_complete();
-            } else {
-                // have complete data - but no command!
-                // must wait until we get a command
-                axi_w_ready     = 0;
-                w_wait_aw       = true;
-            }
+            // have complete data
+            // must wait until we get a command
+            w_wait_aw       = true;
         }
-    } else if(!axi_w_ready) {
-        if(w_wait_aw && !aw_queue.empty()) {
-            // now we have a command for our previously received data
-            w_complete();
-            w_wait_aw       = false;
+    }
+
+    if(w_wait_aw && !aw_queue.empty()) {
+        // now we have a command for our previously received data
+        aw_command cmd = aw_queue.front();
+        aw_queue.pop_front();
+
+        if(cmd.len != w_data_queue.size()) {
+            dlsc_error("AW/W length mismatch");
+            w_data_queue.resize(cmd.len);
+            w_strb_queue.resize(cmd.len);
         }
 
-        if(!w_wait_aw) {
-            axi_w_ready     = 1;
-        }
+        b_queue.push_back(initiator->nb_write(cmd.addr,w_data_queue,w_strb_queue));
+
+        w_data_queue.clear();
+        w_strb_queue.clear();
+
+        w_wait_aw       = false;
+    }
+
+    if(w_wait_aw) {
+        axi_w_ready     = 0;
+    } else {
+        axi_w_ready     = (rand()%100) < w_pct;
     }
 }
 
 template <typename DATATYPE, typename ADDRTYPE>
 void dlsc_axi4lb_tlm_slave_template<DATATYPE,ADDRTYPE>::b_method() {
     if(!axi_b_valid || axi_b_ready) {
-        if(!b_queue.empty() && b_queue.front()->nb_done()) {
+        if(!b_queue.empty() && b_queue.front()->nb_done() && (rand()%100) < b_pct) {
             transaction ts = b_queue.front();
             switch(ts->b_status()) {
                 case tlm::TLM_OK_RESPONSE:              axi_b_resp = dlsc::AXI_RESP_OKAY; break;
