@@ -1,10 +1,58 @@
+// 
+// Copyright (c) 2011, Daniel Strother < http://danstrother.com/ >
+// All rights reserved.
+// 
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are met:
+//   - Redistributions of source code must retain the above copyright notice,
+//     this list of conditions and the following disclaimer.
+//   - Redistributions in binary form must reproduce the above copyright
+//     notice, this list of conditions and the following disclaimer in the
+//     documentation and/or other materials provided with the distribution.
+//   - The name of the author may not be used to endorse or promote products
+//     derived from this software without specific prior written permission.
+// 
+// THIS SOFTWARE IS PROVIDED BY THE AUTHOR "AS IS" AND ANY EXPRESS OR IMPLIED
+// WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+// MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
+// EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+// PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+// LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+// NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+//
+
+// Module Description:
+// Interfaces an AXI master to a Wishbone slave.
+//
+// Supports Classic (with registered feedback) or Pipelined Wishbone cycles.
+//
+// AXI restrictions:
+// - no ID (all transactions are completed in order)
+// - no SIZE (all beats are full bus width)
+// - no BURST (all transactions are INCR)
+// - no LOCK (no exclusive/atomic accesses)
+// - no CACHE
+// - no PROT
+//
+// Wishbone restrictions:
+// - no LOCK
+// - no RTY
+// - CTI only signals Incrementing (3'b010) or End-of-Burst (3'b111) cycle types
+// - no BTE (all bursts are linear (2'b00))
+// - CYC remains asserted so long as there are outstanding transactions;
+//   continuous AXI transactions will cause CYC to be continuously asserted.
+//
+// All Wishbone outputs are registered. Most AXI outputs are registered (with the
+// exception of AR_READY and AW_READY, which are driven by a simple arbiter).
 
 module dlsc_axi_to_wb #(
     parameter WB_PIPELINE   = 0,    // use pipelined wishbone protocol
     parameter DATA          = 32,
     parameter ADDR          = 32,
     parameter LEN           = 4,
-    parameter RESP          = 2,
     // derived; don't touch
     parameter STRB          = (DATA/8)
 ) (
@@ -27,7 +75,7 @@ module dlsc_axi_to_wb #(
     output  reg                     axi_r_valid,
     output  reg                     axi_r_last,
     output  reg     [DATA-1:0]      axi_r_data,
-    output  reg     [RESP-1:0]      axi_r_resp,
+    output  reg     [1:0]           axi_r_resp,
 
     // write command
     output  wire                    axi_aw_ready,
@@ -45,7 +93,7 @@ module dlsc_axi_to_wb #(
     // write response
     input   wire                    axi_b_ready,
     output  reg                     axi_b_valid,
-    output  reg     [RESP-1:0]      axi_b_resp,
+    output  reg     [1:0]           axi_b_resp,
 
 
     // ** Wishbone **
@@ -276,8 +324,8 @@ dlsc_fifo_shiftreg #(
 
 // response accumulate
 
-reg  [RESP-1:0] wb_resp_accum;
-wire [RESP-1:0] wb_resp_accum_next = wb_err_i ? AXI_RESP_SLVERR : wb_resp_accum;
+reg  [1:0]      wb_resp_accum;
+wire [1:0]      wb_resp_accum_next = wb_err_i ? AXI_RESP_SLVERR : wb_resp_accum;
 
 always @(posedge clk) begin
     if(rst) begin
@@ -293,7 +341,7 @@ end
 wire            fifo_resp_wr;
 wire            fifo_resp_last;
 wire [DATA-1:0] fifo_resp_data;
-wire [RESP-1:0] fifo_resp_resp;
+wire [1:0]      fifo_resp_resp;
 
 wire            fifo_resp_empty;
 wire            fifo_resp_full;
@@ -303,7 +351,7 @@ wire            fifo_resp_pop_en    = !fifo_resp_empty && ( fifo_resp_wr ?
                                         (!axi_b_valid || axi_b_ready) :
                                         (!axi_r_valid || axi_r_ready) ); 
 dlsc_fifo_shiftreg #(
-    .DATA           ( DATA+RESP+2 ),
+    .DATA           ( DATA+4 ),
     .DEPTH          ( RESP_FIFO_DEPTH ),
     .ALMOST_FULL    ( CMD_FIFO_DEPTH )
 ) dlsc_fifo_shiftreg_resp (
