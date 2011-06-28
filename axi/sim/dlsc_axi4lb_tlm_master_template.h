@@ -56,6 +56,13 @@ public:
     SC_HAS_PROCESS(dlsc_axi4lb_tlm_master_template);
 
 private:
+    // config
+    int                         ar_pct;
+    int                         r_pct;
+    int                         aw_pct;
+    int                         w_pct;
+    int                         b_pct;
+
     std::deque<transaction>     ar_queue;
     std::deque<transaction>     r_queue;
     std::deque<DATATYPE>        r_data_queue;
@@ -111,6 +118,12 @@ dlsc_axi4lb_tlm_master_template<DATATYPE,ADDRTYPE>::dlsc_axi4lb_tlm_master_templ
     target = new dlsc_tlm_target_nb<dlsc_axi4lb_tlm_master_template,DATATYPE>(
         "target", this, &dlsc_axi4lb_tlm_master_template<DATATYPE,ADDRTYPE>::target_callback);
     socket.bind(target->socket);
+
+    ar_pct      = 95;
+    r_pct       = 95;
+    aw_pct      = 95;
+    w_pct       = 95;
+    b_pct       = 95;
 
     SC_METHOD(clk_method);
         sensitive << clk.pos();
@@ -182,7 +195,7 @@ void dlsc_axi4lb_tlm_master_template<DATATYPE,ADDRTYPE>::rst_method() {
 template <typename DATATYPE, typename ADDRTYPE>
 void dlsc_axi4lb_tlm_master_template<DATATYPE,ADDRTYPE>::ar_method() {
     if(!axi_ar_valid || axi_ar_ready) {
-        if(!ar_queue.empty()) {
+        if(!ar_queue.empty() && (rand()%100) < ar_pct) {
             transaction ts  = ar_queue.front(); ar_queue.pop_front();
             axi_ar_addr     = ts->get_address();
             axi_ar_len      = ts->size() - 1;
@@ -223,15 +236,15 @@ void dlsc_axi4lb_tlm_master_template<DATATYPE,ADDRTYPE>::r_method() {
                 r_data_queue.clear();
             }
         }
-    } else if(!axi_r_ready) {
-        axi_r_ready     = 1;
     }
+
+    axi_r_ready     = (rand()%100) < r_pct;
 }
 
 template <typename DATATYPE, typename ADDRTYPE>
 void dlsc_axi4lb_tlm_master_template<DATATYPE,ADDRTYPE>::aw_method() {
     if(!axi_aw_valid || axi_aw_ready) {
-        if(!aw_queue.empty()) {
+        if(!aw_queue.empty() && (rand()%100) < aw_pct) {
             transaction ts  = aw_queue.front(); aw_queue.pop_front();
             axi_aw_addr     = ts->get_address();
             axi_aw_len      = ts->size() - 1;
@@ -256,7 +269,7 @@ void dlsc_axi4lb_tlm_master_template<DATATYPE,ADDRTYPE>::w_method() {
             b_queue.push_back(ts);
         }
 
-        if(!w_data_queue.empty()) {
+        if(!w_data_queue.empty() && (rand()%100) < w_pct) {
             axi_w_data      = w_data_queue.front(); w_data_queue.pop_front();
             axi_w_strb      = w_strb_queue.front(); w_strb_queue.pop_front();
             axi_w_last      = w_data_queue.empty();
@@ -287,9 +300,9 @@ void dlsc_axi4lb_tlm_master_template<DATATYPE,ADDRTYPE>::b_method() {
             ts->complete();
             b_queue.pop_front();
         }
-    } else if(!axi_b_ready) {
-        axi_b_ready     = 1;
     }
+    
+    axi_b_ready     = (rand()%100) < b_pct;
 }
 
 
