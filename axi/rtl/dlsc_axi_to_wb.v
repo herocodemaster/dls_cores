@@ -117,10 +117,15 @@ assign          axi_ar_ready        = !axi_cmd_valid && axi_ar_valid && ( axi_cm
 assign          axi_aw_ready        = !axi_cmd_valid && axi_aw_valid && (!axi_cmd_wr || !axi_ar_valid);
 
 always @(posedge clk) begin
-    if(rst || axi_cmd_ready) begin
+    if(rst) begin
         axi_cmd_valid       <= 1'b0;
-    end else if(!axi_cmd_valid) begin
-        axi_cmd_valid       <= axi_ar_valid || axi_aw_valid;
+    end else begin
+        if(axi_cmd_ready) begin
+            axi_cmd_valid       <= 1'b0;
+        end
+        if(!axi_cmd_valid) begin
+            axi_cmd_valid       <= axi_ar_valid || axi_aw_valid;
+        end
     end
 end
 

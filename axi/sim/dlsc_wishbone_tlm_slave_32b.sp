@@ -26,6 +26,8 @@ public:
 
     dlsc_tlm_initiator_nb<uint32_t>::socket_type socket;
     
+    void set_pipelined(const bool p) { slave->set_pipelined(p); }
+    
     /*AUTOMETHODS*/
 
 private:
