@@ -80,7 +80,7 @@ public:
     inline transaction nb_write(
         const uint64_t addr,
         std::vector<DATATYPE> &data,
-        std::vector<DATATYPE> &strb,
+        std::vector<uint32_t> &strb,
         sc_core::sc_time delay_initial = sc_core::SC_ZERO_TIME)
     {
         return nb_write(addr,data.begin(),data.end(),strb.begin(),strb.end(),delay_initial);
@@ -89,7 +89,7 @@ public:
     inline transaction nb_write(
         const uint64_t addr,
         std::deque<DATATYPE> &data,
-        std::deque<DATATYPE> &strb,
+        std::deque<uint32_t> &strb,
         sc_core::sc_time delay_initial = sc_core::SC_ZERO_TIME)
     {
         return nb_write(addr,data.begin(),data.end(),strb.begin(),strb.end(),delay_initial);

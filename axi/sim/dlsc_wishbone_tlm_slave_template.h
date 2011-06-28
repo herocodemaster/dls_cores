@@ -65,7 +65,7 @@ private:
     bool                        pipe_we;
     ADDRTYPE                    pipe_addr;
     std::deque<DATATYPE>        pipe_data;
-    std::deque<DATATYPE>        pipe_strb;
+    std::deque<uint32_t>        pipe_strb;
 
     void pipe_submit();
 
@@ -210,7 +210,7 @@ void dlsc_wishbone_tlm_slave_template<DATATYPE,ADDRTYPE>::cmd_method() {
             // got new write command
             std::deque<DATATYPE> data;
             data.push_back(wb_dat_i);
-            std::deque<DATATYPE> strb;
+            std::deque<uint32_t> strb;
             strb.push_back(wb_sel_i);
             resp_queue.push_back(initiator->nb_write(wb_adr_i,data,strb));
         } else {

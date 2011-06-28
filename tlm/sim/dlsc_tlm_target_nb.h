@@ -347,8 +347,8 @@ public:
     template <class InputIterator>
     void get_strobes(InputIterator first);
 
-    inline void get_strobes(std::vector<DATATYPE> &strb) { strb.resize(size()); get_strobes(strb.begin()); }
-    inline void get_strobes(std::deque<DATATYPE>  &strb) { strb.resize(size()); get_strobes(strb.begin()); }
+    inline void get_strobes(std::vector<uint32_t> &strb) { strb.resize(size()); get_strobes(strb.begin()); }
+    inline void get_strobes(std::deque<uint32_t>  &strb) { strb.resize(size()); get_strobes(strb.begin()); }
    
     inline sc_core::sc_time get_ready_time() { return ready_time; }
     inline sc_core::sc_time get_complete_time() { return complete_time; }
