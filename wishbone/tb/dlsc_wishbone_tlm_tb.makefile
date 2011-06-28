@@ -1,7 +1,7 @@
 
 include $(DLSC_MAKEFILE_TOP)
 
-DLSC_DEPENDS    += axi_tlm
+DLSC_DEPENDS    += wishbone_tlm
 
 # TODO
 V_DUT           += dlsc_empty.v
