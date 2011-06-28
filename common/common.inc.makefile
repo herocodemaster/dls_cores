@@ -1,4 +1,5 @@
 
+V_DIRS          += $(CWD)/sim $(CWD)/rtl
 VH_DIRS         += $(CWD)/sim $(CWD)/rtl
 SP_DIRS         += $(CWD)/sim
 SC_DIRS         += $(CWD)/sim
