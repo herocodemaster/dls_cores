@@ -250,7 +250,7 @@ always @* begin
 end
 
 always @(posedge clk) begin
-    if(next_ready) begin
+    if(next_ready && next_valid) begin
         wb_we_o     <= next_we_o;
         wb_adr_o    <= next_adr_o;
         wb_cti_o    <= next_cti_o;
