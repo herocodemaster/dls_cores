@@ -78,6 +78,10 @@ SP_CTOR_IMP(__MODULE__) : clk("clk",10,SC_NS) /*AUTOINIT*/ {
 
     wb_slave->set_pipelined(WB_PIPELINE!=0);
 
+    // allow a few errors
+    memory->set_error_rate(1);
+    memtest->set_ignore_error(true);
+
     rst         = 1;
 
     SC_THREAD(stim_thread);
