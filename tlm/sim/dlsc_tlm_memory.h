@@ -188,6 +188,12 @@ void dlsc_tlm_memory<DATATYPE>::b_transport(int id, tlm::tlm_generic_payload &tr
             delay = cpl_time;
         }
     }
+    
+    if(error_rate && (rand()%100) < error_rate) {
+        // generate error
+        trans.set_response_status(tlm::TLM_GENERIC_ERROR_RESPONSE);
+        return;
+    }
 
     // setup pointers for copying
     uint8_t *src_ptr;
@@ -217,13 +223,7 @@ void dlsc_tlm_memory<DATATYPE>::b_transport(int id, tlm::tlm_generic_payload &tr
     }
     
     trans.set_dmi_allowed(true); // DMI is allowed to entire memory
-
-    if(error_rate && (rand()%100) < error_rate) {
-        // generate error
-        trans.set_response_status(tlm::TLM_GENERIC_ERROR_RESPONSE);
-    } else {
-        trans.set_response_status(tlm::TLM_OK_RESPONSE);
-    }
+    trans.set_response_status(tlm::TLM_OK_RESPONSE);
 }
 
 template <typename DATATYPE>
