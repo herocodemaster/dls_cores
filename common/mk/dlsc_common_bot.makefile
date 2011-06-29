@@ -524,10 +524,10 @@ $(COV_FILES) $(LOG_FILES) : $(TESTBENCH).bin
 # to convert in real-time to an LXT2 file; from:
 # http://www.veripool.org/boards/2/topics/show/150-Verilator-Converting-VCD-file-to-LXT-file-during-simulation
 $(LXT_FILES) : $(TESTBENCH).bin
+	@rm -f $@.vcd
 	@mkfifo $@.vcd
 	@vcd2lxt2 $@.vcd $@ &
 	@cd $(CWD) && $(OBJDIR)/$< --log $(LOG_FILES) --cov $(COV_FILES) --vcd $@.vcd
-	@rm -f $@.vcd
 
 $(VCD_FILES) : $(TESTBENCH).bin
 	@cd $(CWD) && $(OBJDIR)/$< --log $(LOG_FILES) --cov $(COV_FILES) --vcd $@
