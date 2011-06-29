@@ -190,7 +190,7 @@ void dlsc_axi4lb_tlm_slave_template<DATATYPE,ADDRTYPE>::r_method() {
             axi_r_last      = r_queue.empty();
             axi_r_valid     = 1;
         } else {
-            axi_r_resp      = 0;
+//          axi_r_resp      = 0;    // can't clear resp, since it's only set once up above
             axi_r_data      = 0;
             axi_r_last      = 0;
             axi_r_valid     = 0;
