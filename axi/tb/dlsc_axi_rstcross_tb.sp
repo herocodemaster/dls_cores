@@ -5,7 +5,7 @@
 
 #include <deque>
 
-#include "dlsc_tlm_initiator_nb.h"
+#include "dlsc_tlm_memtest.h"
 #include "dlsc_tlm_memory.h"
 
 /*AUTOSUBCELL_CLASS*/
@@ -24,9 +24,12 @@ private:
     void m_rst_thread();
     void s_rst_thread();
     
-    dlsc_tlm_initiator_nb<uint32_t> *initiator;
+    dlsc_tlm_memtest<uint32_t> *memtest;
 
     dlsc_tlm_memory<uint32_t> *memory;
+
+    bool allow_m_rst;
+    bool allow_s_rst;
 
     /*AUTOSUBCELL_DECL*/
     /*AUTOSIGNAL*/
@@ -51,9 +54,6 @@ public:
 
 SP_CTOR_IMP(__MODULE__) : clk("clk",10,SC_NS) /*AUTOINIT*/ {
     SP_AUTO_CTOR;
-    
-    initiator = new dlsc_tlm_initiator_nb<uint32_t>("initiator");
-    memory = new dlsc_tlm_memory<uint32_t>("memory",16*1024*1024,0,sc_core::sc_time(2.5,SC_NS),sc_core::sc_time(10,SC_NS));
 
     /*AUTOTIEOFF*/
     SP_CELL(dut,DLSC_DUT);
@@ -66,8 +66,6 @@ SP_CTOR_IMP(__MODULE__) : clk("clk",10,SC_NS) /*AUTOINIT*/ {
     
     SP_TEMPLATE(axi_master,"axi_(.*)","m_$1");
 
-    initiator->socket.bind(axi_master->socket);
-
 
     SP_CELL(axi_slave,dlsc_axi4lb_tlm_slave_32b);
         SP_PIN(axi_slave,rst,s_rst);
@@ -75,11 +73,20 @@ SP_CTOR_IMP(__MODULE__) : clk("clk",10,SC_NS) /*AUTOINIT*/ {
     
     SP_TEMPLATE(axi_slave,"axi_(.*)","s_$1");
 
+
+    memtest = new dlsc_tlm_memtest<uint32_t>("memtest");
+    memtest->socket.bind(axi_master->socket);
+    
+    memory = new dlsc_tlm_memory<uint32_t>("memory",4*1024*1024,0,sc_core::sc_time(2.5,SC_NS),sc_core::sc_time(20,SC_NS));
+
     axi_slave->socket.bind(memory->socket);
 
 
     m_rst       = 1;
     s_rst       = 1;
+
+    allow_m_rst = false;
+    allow_s_rst = false;
 
     SC_THREAD(m_rst_thread);
     SC_THREAD(s_rst_thread);
@@ -97,7 +104,7 @@ void __MODULE__::m_rst_thread() {
 
         wait(rand()%10000,SC_NS);
         wait(clk.posedge_event());
-        m_rst       = 1;
+        m_rst       = allow_m_rst;
 
         if(rand()%3==0) {
             // do long reset
@@ -119,7 +126,7 @@ void __MODULE__::s_rst_thread() {
 
         wait(rand()%10000,SC_NS);
         wait(clk.posedge_event());
-        s_rst       = 1;
+        s_rst       = allow_s_rst;
 
         if(rand()%3==0) {
             // do long reset
@@ -135,42 +142,59 @@ void __MODULE__::s_rst_thread() {
 void __MODULE__::stim_thread() {
     wait(1,SC_US);
 
-    for(int i=0;i<10000;++i) {
+    dlsc_info("testing with only s_rst");
+    memory->set_error_rate(1);
+    memtest->set_ignore_error(true);
+    allow_m_rst = false;
+    allow_s_rst = true;
+    wait(10,SC_US);
+    memtest->test(0,4*4096,1*1000*100);
+    wait(100,SC_US);
 
-        uint32_t addr = (rand() % 1000) << 2;
-        uint32_t len = (rand() % 16) + 1;
-        assert(len > 0 && len <= 16);
-        assert((addr + 4*len) < 4096);
+    dlsc_info("testing with no resets");
+    memory->set_error_rate(0);
+    memtest->set_ignore_error(false);
+    allow_m_rst = false;
+    allow_s_rst = false;
+    wait(10,SC_US);
+    memtest->test(0,4*4096,1*1000*100);
+    wait(100,SC_US);
+    
+    dlsc_info("testing with both m_rst and s_rst");
+    memory->set_error_rate(1);
+    memtest->set_ignore_error(true);
+    allow_m_rst = true;
+    allow_s_rst = true;
+    wait(10,SC_US);
+    memtest->test(0,4*4096,1*1000*100);
+    wait(100,SC_US);
 
-//        uint32_t addr = (rand() % (4*1024*1024)) << 2;
-//        uint32_t len  = (rand() % 16) + 1;
-//
-//        if( addr + len > 
-//
-//        if( (addr & 0xFFF) + len*4 > 4096 ) {
-//            len = (4096 - (addr & 0xFFF))/4;
-//        }
+    dlsc_info("testing with no resets (again)");
+    memory->set_error_rate(0);
+    memtest->set_ignore_error(false);
+    allow_m_rst = false;
+    allow_s_rst = false;
+    wait(10,SC_US);
+    memtest->test(0,4*4096,1*1000*100);
+    wait(100,SC_US);
+    
+    dlsc_info("testing with only m_rst");
+    memory->set_error_rate(1);
+    memtest->set_ignore_error(true);
+    allow_m_rst = true;
+    allow_s_rst = false;
+    wait(10,SC_US);
+    memtest->test(0,4*4096,1*1000*100);
+    wait(100,SC_US);
 
-        if(rand()%2) {
-            initiator->nb_read(addr,len);
-        } else {
-            std::deque<uint32_t> data;
-            for(int i=0;i<len;++i) {
-                data.push_back(rand());
-            }
-            initiator->nb_write(addr,data);
-        }
-
-        wait(100,SC_NS);
-
-        if(rand()%100==0) {
-            initiator->wait();
-        }
-    }
-
-    initiator->wait();
-
-    dlsc_okay("didn't block!");
+    dlsc_info("testing with no resets (one final time)");
+    memory->set_error_rate(0);
+    memtest->set_ignore_error(false);
+    allow_m_rst = false;
+    allow_s_rst = false;
+    wait(10,SC_US);
+    memtest->test(0,4*4096,1*1000*100);
+    wait(100,SC_US);
 
     wait(1,SC_US);
     dut->final();
@@ -178,7 +202,7 @@ void __MODULE__::stim_thread() {
 }
 
 void __MODULE__::watchdog_thread() {
-    wait(10,SC_MS);
+    wait(100,SC_MS);
 
     dlsc_error("watchdog timeout");
 
