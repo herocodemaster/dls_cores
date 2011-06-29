@@ -39,6 +39,7 @@ private:
     uint8_t             *read_pending;  // indication of pending reads from memory  (don't write to something with a pending read)
     uint8_t             *write_pending; // indication of pending writes to memory   (don't read from something with a pending write)
     DATATYPE            *data;          // data array for generating/checking transactions
+    uint32_t            *strb;          // strobe array ""
     
     // statistics
     sc_core::sc_time    start_time;
@@ -66,7 +67,7 @@ private:
     void launch_read(int socket_id, unsigned int index, unsigned int length);
 
     // issue a write (will generate random data)
-    void launch_write(int socket_id, unsigned int index, unsigned int length);
+    void launch_write(int socket_id, unsigned int index, unsigned int length, bool allow_strobes = false);
 
     // finds a random region suitable for reading/writing
     bool find_region(unsigned int &index, unsigned int &length, bool &read);
@@ -102,6 +103,7 @@ dlsc_tlm_memtest<DATATYPE>::dlsc_tlm_memtest(
     read_pending    = 0;
     write_pending   = 0;
     data            = 0;
+    strb            = 0;
 
     ignore_error    = false;
 }
@@ -128,7 +130,7 @@ bool dlsc_tlm_memtest<DATATYPE>::test(
     initiator->set_socket(0);
 
     for(unsigned int i=0;i<size;i+=max_length) {
-        launch_write(0,i,max_length);
+        launch_write(0,i,max_length,false);
         if(outstanding[0].size() >= max_mots) {
             transaction ts = outstanding[0].front(); outstanding[0].pop_front();
             ts->wait(delay);
@@ -223,6 +225,7 @@ void dlsc_tlm_memtest<DATATYPE>::clear() {
     if(read_pending)    delete read_pending;
     if(write_pending)   delete write_pending;
     if(data)            delete data;
+    if(strb)            delete strb;
 
     errors.clear();
     bytes_read.clear();
@@ -234,6 +237,7 @@ void dlsc_tlm_memtest<DATATYPE>::clear() {
     read_pending    = 0;
     write_pending   = 0;
     data            = 0;
+    strb            = 0;
 }
 
 // initializes all members and allocates memory for a new test run
@@ -248,6 +252,7 @@ void dlsc_tlm_memtest<DATATYPE>::init() {
     read_pending    = new uint8_t[size];
     write_pending   = new uint8_t[size];
     data            = new DATATYPE[max_length];
+    strb            = new uint32_t[max_length];
 
     errors.resize(initiator->get_socket_size());
     bytes_read.resize(initiator->get_socket_size());
@@ -282,7 +287,7 @@ bool dlsc_tlm_memtest<DATATYPE>::launch(int socket_id) {
     if(read) {
         launch_read(socket_id,index,length);
     } else {
-        launch_write(socket_id,index,length);
+        launch_write(socket_id,index,length,true);
     }
 
     return true;
@@ -299,14 +304,23 @@ void dlsc_tlm_memtest<DATATYPE>::launch_read(int socket_id, unsigned int index, 
 
 // issue a write (will generate random data)
 template <typename DATATYPE>
-void dlsc_tlm_memtest<DATATYPE>::launch_write(int socket_id, unsigned int index, unsigned int length) {
+void dlsc_tlm_memtest<DATATYPE>::launch_write(int socket_id, unsigned int index, unsigned int length, bool allow_strobes) {
     uint64_t addr = base_addr + index*sizeof(DATATYPE);
     open_region(index,length,write_pending);
     for(unsigned int i=0;i<length;++i) {
         data[i] = rand(); // TODO
     }
     initiator->set_socket(socket_id);
-    outstanding[socket_id].push_back(initiator->nb_write(addr,data,data+length,delay));
+    if(!allow_strobes || rand() % 3) {
+        // data only
+        outstanding[socket_id].push_back(initiator->nb_write(addr,data,data+length,delay));
+    } else {
+        // with strobes
+        for(unsigned int i=0;i<length;++i) {
+            strb[i] = rand() & ((1<<sizeof(DATATYPE))-1);
+        }
+        outstanding[socket_id].push_back(initiator->nb_write(addr,data,data+length,strb,strb+length,delay));
+    }
 }
 
 // finds a random region suitable for reading/writing (depending on arguments)
@@ -391,7 +405,9 @@ void dlsc_tlm_memtest<DATATYPE>::complete(transaction ts) {
         ts->b_read(mem_array+index,delay);
 
         // indicate location has been initialized
-        std::fill(init_done+index,init_done+index+length,0xFF);
+        if(!ts->has_strobes()) {
+            std::fill(init_done+index,init_done+index+length,0xFF);
+        }
 
     } else {
         

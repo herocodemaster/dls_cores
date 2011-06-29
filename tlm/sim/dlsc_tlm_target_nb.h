@@ -452,7 +452,8 @@ void dlsc_tlm_target_nb<MODULE,DATATYPE>::transaction_state::get_strobes(InputIt
         // payload has strobes; use them
         assert(payload->get_byte_enable_ptr());
         uint8_t *strb_ptr = payload->get_byte_enable_ptr();
-        for(;first!=first+size();++first) {
+        InputIterator last = first+size();
+        for(;first!=last;++first) {
             uint32_t strb = 0;
             for(unsigned int i=0;i<sizeof(DATATYPE);++i,++strb_ptr) {
                 assert(*strb_ptr == TLM_BYTE_ENABLED || *strb_ptr == TLM_BYTE_DISABLED);

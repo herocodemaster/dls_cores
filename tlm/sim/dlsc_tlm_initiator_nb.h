@@ -433,11 +433,19 @@ public:
 
     tlm::tlm_response_status b_status();
     
+    // get transaction properties
     inline bool is_read() { return payload->is_read(); }
     inline bool is_write() { return payload->is_write(); }
     inline uint64_t get_address() { return payload->get_address(); }
     inline unsigned int size() { return payload->get_data_length()/sizeof(DATATYPE); }
     inline int get_socket_id() { return socket_id; }
+    
+    // get payload strobes
+    inline bool has_strobes() { return (payload->get_byte_enable_length() != 0); }
+    template <class InputIterator>
+    void get_strobes(InputIterator first);
+    inline void get_strobes(std::vector<uint32_t> &strb) { strb.resize(size()); get_strobes(strb.begin()); }
+    inline void get_strobes(std::deque<uint32_t>  &strb) { strb.resize(size()); get_strobes(strb.begin()); }
 
     ~transaction_state();
 
@@ -529,8 +537,29 @@ bool dlsc_tlm_initiator_nb<DATATYPE>::transaction_state::b_read(InputIterator fi
     if(payload->get_response_status() != tlm::TLM_OK_RESPONSE) {
         return false;
     }
+
     DATATYPE *src_ptr = reinterpret_cast<DATATYPE*>(payload->get_data_ptr());
-    std::copy(src_ptr,src_ptr+size(),first);
+
+    if(!payload->get_byte_enable_length()) {
+        // no strobes; just a straight copy
+        std::copy(src_ptr,src_ptr+size(),first);
+    } else {
+        // strobes; must examine each byte
+        assert(payload->get_byte_enable_ptr());
+        uint8_t *strb_ptr = payload->get_byte_enable_ptr();
+        DATATYPE strb_mask;
+        InputIterator last = first+size();
+        for(;first!=last;++first,++src_ptr) {
+            strb_mask = 0;
+            for(unsigned int i=0;i<sizeof(DATATYPE);++i,++strb_ptr) {
+                assert(*strb_ptr == TLM_BYTE_ENABLED || *strb_ptr == TLM_BYTE_DISABLED);
+                strb_mask |= ((DATATYPE)(*strb_ptr)) << (i*8);
+            }
+
+            *first = (*first & ~strb_mask) | (*src_ptr & strb_mask);
+        }
+    }
+
     return true;
 }
 
@@ -555,6 +584,31 @@ template <typename DATATYPE>
 tlm::tlm_response_status dlsc_tlm_initiator_nb<DATATYPE>::transaction_state::b_status(sc_core::sc_time &delay) {
     this->wait(delay);
     return payload->get_response_status();
+}
+
+// get payload strobes
+template <typename DATATYPE> template <class InputIterator>
+void dlsc_tlm_initiator_nb<DATATYPE>::transaction_state::get_strobes(InputIterator first) {
+    if(payload->get_byte_enable_length()) {
+        // payload has strobes; use them
+        assert(payload->get_byte_enable_ptr());
+        uint8_t *strb_ptr = payload->get_byte_enable_ptr();
+        InputIterator last = first+size();
+        for(;first!=last;++first) {
+            uint32_t strb = 0;
+            for(unsigned int i=0;i<sizeof(DATATYPE);++i,++strb_ptr) {
+                assert(*strb_ptr == TLM_BYTE_ENABLED || *strb_ptr == TLM_BYTE_DISABLED);
+                if(*strb_ptr == TLM_BYTE_ENABLED) {
+                    strb |= (1<<i);
+                }
+            }
+            *first = strb;
+        }
+    } else {
+        // payload lacks strobes; generate some
+        uint32_t strb = (1<<sizeof(DATATYPE))-1;
+        std::fill(first,first+size(),strb);
+    }
 }
 
 // *** Blocking Reads (unannotated) ***
