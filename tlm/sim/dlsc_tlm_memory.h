@@ -27,7 +27,7 @@ public:
         const sc_core::sc_time          byte_latency    = sc_core::SC_ZERO_TIME,    // time it takes to transfer a single byte
         const sc_core::sc_time          access_latency  = sc_core::SC_ZERO_TIME);   // time it takes to setup a burst
 
-    void set_latency(const sc_core::sc_time byte_latency, const sc_core::sc_time access_latency, int socket_id = -1);
+    void set_error_rate(const int error_rate) { assert(error_rate >= 0 && error_rate <= 100); this->error_rate = error_rate; }
 
     void end_of_elaboration();
 
@@ -37,6 +37,8 @@ private:
     // no copying/assigning
     dlsc_tlm_memory(const dlsc_tlm_memory&);
     dlsc_tlm_memory& operator= (const dlsc_tlm_memory&);
+
+    int                         error_rate;     // percentage of transactions to have fail
 
     const unsigned int          bus_width;
 
@@ -98,9 +100,11 @@ dlsc_tlm_memory<DATATYPE>::dlsc_tlm_memory(
     socket.register_transport_dbg(this, &dlsc_tlm_memory<DATATYPE>::transport_dbg);
     socket.register_get_direct_mem_ptr(this, &dlsc_tlm_memory<DATATYPE>::get_direct_mem_ptr);
 
-    next_time = sc_core::SC_ZERO_TIME;
+    next_time       = sc_core::SC_ZERO_TIME;
 
-    delay_enabled = byte_latency != sc_core::SC_ZERO_TIME || access_latency != sc_core::SC_ZERO_TIME;
+    delay_enabled   = byte_latency != sc_core::SC_ZERO_TIME || access_latency != sc_core::SC_ZERO_TIME;
+
+    error_rate      = 0;
 }
 
 template <typename DATATYPE>
@@ -211,9 +215,15 @@ void dlsc_tlm_memory<DATATYPE>::b_transport(int id, tlm::tlm_generic_payload &tr
             if(++be == be_length) be = 0;
         }
     }
-
+    
     trans.set_dmi_allowed(true); // DMI is allowed to entire memory
-    trans.set_response_status(tlm::TLM_OK_RESPONSE);
+
+    if(error_rate && (rand()%100) < error_rate) {
+        // generate error
+        trans.set_response_status(tlm::TLM_GENERIC_ERROR_RESPONSE);
+    } else {
+        trans.set_response_status(tlm::TLM_OK_RESPONSE);
+    }
 }
 
 template <typename DATATYPE>

@@ -24,6 +24,8 @@ public:
 
     bool test(uint64_t addr, unsigned int length, unsigned int iterations);
 
+    void set_ignore_error(const bool ignore_error) { this->ignore_error = ignore_error; }
+
 private:
     typedef typename dlsc_tlm_initiator_nb<DATATYPE>::transaction transaction;
 
@@ -33,6 +35,7 @@ private:
     sc_core::sc_time    delay;          // local time
 
     DATATYPE            *mem_array;     // expected memory values
+    uint8_t             *init_done;     // indication of if a location has been initialized (sucessfully written to at least once)
     uint8_t             *read_pending;  // indication of pending reads from memory  (don't write to something with a pending read)
     uint8_t             *write_pending; // indication of pending writes to memory   (don't read from something with a pending write)
     DATATYPE            *data;          // data array for generating/checking transactions
@@ -41,12 +44,14 @@ private:
     sc_core::sc_time    start_time;
     std::vector<unsigned int> bytes_written;
     std::vector<unsigned int> bytes_read;
+    std::vector<unsigned int> errors;
 
     // parameters
     uint64_t            base_addr;      // beginning of region-under-test
     unsigned int        size;           // size of region-under-test
     unsigned int        max_length;     // max burst length
     unsigned int        max_mots;       // max multiple-outstanding-transactions
+    bool                ignore_error;   // don't flag failed transactions as an error
 
     // clears all allocated memory
     void clear();
@@ -64,7 +69,7 @@ private:
     void launch_write(int socket_id, unsigned int index, unsigned int length);
 
     // finds a random region suitable for reading/writing
-    bool find_region(unsigned int &index, unsigned int &length);
+    bool find_region(unsigned int &index, unsigned int &length, bool &read);
 
     // finishes a transaction and checks/updates results
     void complete(transaction ts);
@@ -93,9 +98,12 @@ dlsc_tlm_memtest<DATATYPE>::dlsc_tlm_memtest(
         initiator->socket.bind(socket);
 
     mem_array       = 0;
+    init_done       = 0;
     read_pending    = 0;
     write_pending   = 0;
     data            = 0;
+
+    ignore_error    = false;
 }
 
 template <typename DATATYPE>
@@ -129,6 +137,7 @@ bool dlsc_tlm_memtest<DATATYPE>::test(
     }
     
     start_time = sc_core::sc_time_stamp();
+    std::fill(errors.begin(),errors.end(),0);
     std::fill(bytes_read.begin(),bytes_read.end(),0);
     std::fill(bytes_written.begin(),bytes_written.end(),0);
 
@@ -191,6 +200,13 @@ bool dlsc_tlm_memtest<DATATYPE>::test(
         total_bytes_written += bytes_written[i];
         double mbps = ( bytes_read[i] + bytes_written[i] + 0.0 ) / (elapsed.to_seconds()*1000000.0);
         dlsc_info("For socket #" << std::dec << i << ": read: " << bytes_read[i] << ", wrote: " << bytes_written[i] << ", throughput: " << mbps << " MB/s");
+        if(errors[i] > 0) {
+            if(ignore_error) {
+                dlsc_info("Bytes errored: " << errors[i] << " (but ignored)");
+            } else {
+                dlsc_error("Bytes errored: " << errors[i]);
+            }
+        }
     }
         
     double mbps = ( total_bytes_read + total_bytes_written + 0.0 ) / (elapsed.to_seconds()*1000000.0);
@@ -203,15 +219,18 @@ bool dlsc_tlm_memtest<DATATYPE>::test(
 template <typename DATATYPE>
 void dlsc_tlm_memtest<DATATYPE>::clear() {
     if(mem_array)       delete mem_array;
+    if(init_done)       delete init_done;
     if(read_pending)    delete read_pending;
     if(write_pending)   delete write_pending;
     if(data)            delete data;
 
+    errors.clear();
     bytes_read.clear();
     bytes_written.clear();
     outstanding.clear();
 
     mem_array       = 0;
+    init_done       = 0;
     read_pending    = 0;
     write_pending   = 0;
     data            = 0;
@@ -225,17 +244,21 @@ void dlsc_tlm_memtest<DATATYPE>::init() {
     assert(size > 0 && (size & (size-1)) == 0);
 
     mem_array       = new DATATYPE[size];
+    init_done       = new uint8_t[size];
     read_pending    = new uint8_t[size];
     write_pending   = new uint8_t[size];
     data            = new DATATYPE[max_length];
 
+    errors.resize(initiator->get_socket_size());
     bytes_read.resize(initiator->get_socket_size());
     bytes_written.resize(initiator->get_socket_size());
     outstanding.resize(initiator->get_socket_size());
 
+    std::fill(errors.begin(),errors.end(),0);
     std::fill(bytes_read.begin(),bytes_read.end(),0);
     std::fill(bytes_written.begin(),bytes_written.end(),0);
 
+    std::fill(init_done,init_done+size,0);
     std::fill(read_pending,read_pending+size,0);
     std::fill(write_pending,write_pending+size,0);
 }
@@ -248,9 +271,12 @@ bool dlsc_tlm_memtest<DATATYPE>::launch(int socket_id) {
 
     bool read = rand() % 2; // TODO
 
-    if(!find_region(index,length)) {
-        dlsc_warn("launch failed");
-        return false;
+    if(!find_region(index,length,read)) {
+        read = false;
+        if(!find_region(index,length,read)) {
+            dlsc_warn("launch failed");
+            return false;
+        }
     }
     
     if(read) {
@@ -287,7 +313,8 @@ void dlsc_tlm_memtest<DATATYPE>::launch_write(int socket_id, unsigned int index,
 template <typename DATATYPE>
 bool dlsc_tlm_memtest<DATATYPE>::find_region(
     unsigned int    &index,
-    unsigned int    &length)
+    unsigned int    &length,
+    bool            &read)
 {
     unsigned int burst_boundary = 4096/sizeof(DATATYPE);
 
@@ -302,7 +329,10 @@ bool dlsc_tlm_memtest<DATATYPE>::find_region(
     do {
         if(i == 0) length = 0; // reset length on wrap
 
-        if( !write_pending[i] && !read_pending[i] ) {
+        // only write to locations with no pending transactions
+        // only read from initialized locations with no pending write transactions
+        // (multiple reads are okay)
+        if( !write_pending[i] && ( read ? init_done[i] : !read_pending[i] ) ) {
             if(!length) index = i;
             ++length;
         } else if(length) {
@@ -335,10 +365,19 @@ void dlsc_tlm_memtest<DATATYPE>::complete(transaction ts) {
         close_region(index,length,read_pending);
     }
 
-    bool success = ts->b_status(delay) == tlm::TLM_OK_RESPONSE;
+    if(ts->b_status(delay) != tlm::TLM_OK_RESPONSE) {
+        if(ts->is_write()) {
+            // may have corrupted location with partial write; de-initialize
+            std::fill(init_done+index,init_done+index+length,0);
+        }
 
-    if(!success) {
-        dlsc_error("transaction failed at 0x" << std::hex << ts->get_address() << ", length: " << std::dec << (ts->size()*sizeof(DATATYPE)) );
+        errors[ts->get_socket_id()] += length * sizeof(DATATYPE);
+
+        if(ignore_error) {
+            dlsc_verb ("transaction failed at 0x" << std::hex << ts->get_address() << ", length: " << std::dec << (ts->size()*sizeof(DATATYPE)) );
+        } else {
+            dlsc_error("transaction failed at 0x" << std::hex << ts->get_address() << ", length: " << std::dec << (ts->size()*sizeof(DATATYPE)) );
+        }
         return;
     }
 
@@ -350,6 +389,9 @@ void dlsc_tlm_memtest<DATATYPE>::complete(transaction ts) {
         
         // update array with written data
         ts->b_read(mem_array+index,delay);
+
+        // indicate location has been initialized
+        std::fill(init_done+index,init_done+index+length,0xFF);
 
     } else {
         
@@ -375,7 +417,10 @@ void dlsc_tlm_memtest<DATATYPE>::open_region(
     unsigned int    length,
     uint8_t         *pending)
 {
-    std::fill(pending+index,pending+index+length,0xFF);
+    for(unsigned int i=index;i<(index+length);++i) {
+        assert(pending[i] < 0xFF);
+        ++pending[i];
+    }
 }
 
 // marks a region as unused; also updates hit counts
@@ -385,7 +430,10 @@ void dlsc_tlm_memtest<DATATYPE>::close_region(
     unsigned int    length,
     uint8_t         *pending)
 {
-    std::fill(pending+index,pending+index+length,0x00);
+    for(unsigned int i=index;i<(index+length);++i) {
+        assert(pending[i] > 0);
+        --pending[i];
+    }
 }
 
 #endif
