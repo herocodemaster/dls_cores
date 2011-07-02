@@ -12,9 +12,14 @@ using namespace std;
 using namespace sc_dt;
 using namespace dlsc::pcie;
 
-pcie_tlp::pcie_tlp() {
+pcie_tlp::pcie_tlp() : name_str("pcie_tlp") {
     clear();
 }
+
+pcie_tlp::pcie_tlp(const char *nm) : name_str(nm) {
+    clear();
+}
+    
 
 void pcie_tlp::clear() {
     malformed   = false;
@@ -186,6 +191,34 @@ void pcie_tlp::set_completion(pcie_cpl status, bool bcm, unsigned int bytes, uns
     }
 }
 
+void pcie_tlp::set_bcm(bool bcm) {
+    cpl_bcm     = bcm;
+}
+
+void pcie_tlp::set_byte_count(unsigned int bytes) {
+    if(bytes <= 0 || bytes > 4096) {
+        throw invalid_argument("invalid byte count");
+    }
+
+    cpl_bytes   = bytes;
+}
+
+void pcie_tlp::set_lower_addr(unsigned int lower_addr) {
+    if(lower_addr >= 128) {
+        throw invalid_argument("invalid lower address");
+    }
+
+    cpl_addr    = lower_addr;
+}
+
+void pcie_tlp::set_completion_tag(unsigned int tag) {
+    if(tag >= 256) {
+        throw invalid_argument("invalid completion tag");
+    }
+
+    cpl_tag     = tag;
+}
+
 void pcie_tlp::set_byte_enables(unsigned int first, unsigned int last) {
     if(first > 0xF || last > 0xF) {
         throw invalid_argument("invalid byte-enables");
@@ -216,14 +249,14 @@ void pcie_tlp::set_destination(unsigned int id) {
     dest_id      = id;
 }
 
-void pcie_tlp::set_data(const vector<uint32_t> &dw) {
+void pcie_tlp::set_data(const deque<uint32_t> &dw) {
     set_length(dw.size());
     set_format(fmt_4dw ? FMT_4DW_DATA : FMT_3DW_DATA);
     data        = dw;
 }
 
 
-bool pcie_tlp::deserialize(const vector<uint32_t> &dw) {
+bool pcie_tlp::deserialize(const deque<uint32_t> &dw) {
     clear();
 
     if(dw.empty()) {
@@ -364,50 +397,60 @@ bool pcie_tlp::deserialize(const vector<uint32_t> &dw) {
         }
     }
 
+    return true;
+}
+
+bool pcie_tlp::validate() const {
+
+    if(malformed) {
+        return false;
+    }
+
     // ** assertions
 
-//    if(type_mem || type_io) {
-//        // TODO: 4K-crossing
-//
-//        if(fmt_4dw) {
-//            dlsc_assert((dest_addr & 0xFFFFFFFF00000000) != 0);
-//        }
-//    }
-//
-//    if(type_mem || type_io || type_cfg) {
-//        if(length == 1) {
-//            dlsc_assert(be_last == 0);
-//        }
-//        if(length > 1) {
-//            dlsc_assert(be_first != 0);
-//            dlsc_assert(be_last != 0);
-//        }
-//        if( (length == 1) || (length == 2 && type_mem && (dest_addr & 0x7 == 0)) ) {
-//            // non-contiguous byte-enables okay
-//        } else {
-//            // TODO: not okay
-//        }
-//    }
-//
-//    if(type_io || type_cfg) {
-//        dlsc_assert(fmt == FMT_3DW || fmt == FMT_3DW_DATA);
-//        dlsc_assert(tc == 0);
-//        dlsc_assert(attr_ro == false && attr_ns == false);
-//        dlsc_assert(length == 1);
-//    }
-//
-//    if(type_msg) {
-//        dlsc_assert(attr_ro == false && attr_ns == false);
-//    }
-//
-//    if(type_cpl) {
-//        dlsc_assert(fmt == FMT_3DW || fmt == FMT_3DW_DATA);
-//    }
+    if(type_mem || type_io) {
+        // 4K crossing
+        dlsc_assert( ((dest_addr & 0xFFF) + length) <= 4096 );
+
+        if(fmt_4dw) {
+            dlsc_assert((dest_addr & 0xFFFFFFFF00000000) != 0);
+        }
+    }
+
+    if(type_mem || type_io || type_cfg) {
+        if(length == 1) {
+            dlsc_assert(be_last == 0);
+        }
+        if(length > 1) {
+            dlsc_assert(be_first != 0);
+            dlsc_assert(be_last != 0);
+        }
+        if( (length == 1) || (length == 2 && type_mem && ((dest_addr & 0x7) == 0)) ) {
+            // non-contiguous byte-enables okay
+        } else {
+            // TODO: not okay
+        }
+    }
+
+    if(type_io || type_cfg) {
+        dlsc_assert(fmt == FMT_3DW || fmt == FMT_3DW_DATA);
+        dlsc_assert(tc == 0);
+        dlsc_assert(attr_ro == false && attr_ns == false);
+        dlsc_assert(length == 1);
+    }
+
+    if(type_msg) {
+        dlsc_assert(attr_ro == false && attr_ns == false);
+    }
+
+    if(type_cpl) {
+        dlsc_assert(fmt == FMT_3DW || fmt == FMT_3DW_DATA);
+    }
 
     return true;
 }
 
-void pcie_tlp::serialize(vector<uint32_t> &dw) const {
+void pcie_tlp::serialize(deque<uint32_t> &dw) const {
 
     sc_int<32> d;
 
@@ -562,7 +605,7 @@ ostream& dlsc::pcie::operator << ( ostream &os, const pcie_tlp &tlp ) {
     
     // ** payload
     if(tlp.fmt_data) {
-        for(int i=0;i<tlp.data.size();i=i+1) {
+        for(unsigned int i=0;i<tlp.data.size();i=i+1) {
             os << " Data[" << dec << setw(4) << setfill(' ') << i << "]:         0x" << hex << setw(8) << setfill('0') << tlp.data.at(i) << endl;
         }
     }

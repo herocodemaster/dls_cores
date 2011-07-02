@@ -3,7 +3,8 @@
 #define DLSC_PCIE_TLP_H_INCLUDED
 
 #include <iostream>
-#include <vector>
+#include <string>
+#include <deque>
 #include <stdint.h>
 
 namespace dlsc {
@@ -89,7 +90,7 @@ public:
     unsigned int    cfg_reg;    // [11:2]
 
     // ** payload
-    std::vector<uint32_t> data;
+    std::deque<uint32_t> data;
     uint32_t        digest;
 
     // decoded fields
@@ -103,8 +104,20 @@ public:
     bool            type_cpl;
     unsigned int    digest_size;
 
+    inline bool is_write() const { return fmt_data; }
+    inline bool is_read() const { return !fmt_data; }
+
+    inline bool is_posted() const { return type_mem && fmt_data; }
+
+    inline unsigned int size() const { return length; }
+
 public:
     pcie_tlp();
+    pcie_tlp(const char *nm);
+
+    const std::string name_str;
+
+    inline const char *name() const { return name_str.c_str(); }
 
     void clear();
 
@@ -118,14 +131,20 @@ public:
     void set_source(unsigned int id);
     void set_tag(unsigned int tag);
     bool set_completion_status(pcie_cpl status);
+    void set_bcm(bool bcm);
+    void set_byte_count(unsigned int bytes);
+    void set_lower_addr(unsigned int lower_addr);
+    void set_completion_tag(unsigned int tag);
     void set_completion(pcie_cpl status, bool bcm, unsigned int bytes, unsigned int tag, unsigned int lower_addr);
     void set_byte_enables(unsigned int first, unsigned int last);
     void set_address(uint64_t address);
     void set_destination(unsigned int id);
-    void set_data(const std::vector<uint32_t> &dw);
+    void set_data(const std::deque<uint32_t> &dw);
 
-    bool deserialize(const std::vector<uint32_t> &dw);
-    void serialize(std::vector<uint32_t> &dw) const;
+    bool deserialize(const std::deque<uint32_t> &dw);
+    void serialize(std::deque<uint32_t> &dw) const;
+
+    bool validate() const;
 
     bool operator==(const pcie_tlp &tlp) const;
 
