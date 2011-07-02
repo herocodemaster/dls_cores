@@ -29,13 +29,15 @@ public:
     dlsc_tlm_target_nb(
         const sc_core::sc_module_name &nm,
         MODULE *mod,
-        void (MODULE::*cb)(transaction,sc_core::sc_time));
+        void (MODULE::*cb)(transaction,sc_core::sc_time),
+        const unsigned int max_length = 16);
 
     // constructor with callback for targets not supporting annotation
     dlsc_tlm_target_nb(
         const sc_core::sc_module_name &nm,
         MODULE *mod,
-        void (MODULE::*cb)(transaction));
+        void (MODULE::*cb)(transaction),
+        const unsigned int max_length = 16);
     
     virtual tlm::tlm_sync_enum nb_transport_fw(tlm::tlm_generic_payload &trans,tlm::tlm_phase &phase,sc_time &delay);
 //    virtual void b_transport(tlm::tlm_generic_payload &trans,sc_time &delay);
@@ -52,6 +54,7 @@ private:
 
     // parameters
     const bool tann; // timing annotation enabled
+    const unsigned int max_length;
 
     // callbacks
     MODULE *callback_module;
@@ -96,10 +99,12 @@ template <typename MODULE, typename DATATYPE>
 dlsc_tlm_target_nb<MODULE,DATATYPE>::dlsc_tlm_target_nb(
     const sc_core::sc_module_name &nm,
     MODULE *mod,
-    void (MODULE::*cb)(transaction,sc_core::sc_time)
+    void (MODULE::*cb)(transaction,sc_core::sc_time),
+    const unsigned int max_length
 ) :
     sc_module(nm),
-    tann(true)
+    tann(true),
+    max_length(max_length)
 {
     callback_module = mod;
     callback        = 0;
@@ -115,10 +120,12 @@ template <typename MODULE, typename DATATYPE>
 dlsc_tlm_target_nb<MODULE,DATATYPE>::dlsc_tlm_target_nb(
     const sc_core::sc_module_name &nm,
     MODULE *mod,
-    void (MODULE::*cb)(transaction)
+    void (MODULE::*cb)(transaction),
+    const unsigned int max_length
 ) :
     sc_module(nm),
-    tann(false)
+    tann(false),
+    max_length(max_length)
 {
     callback_module = mod;
     callback        = cb;
@@ -214,6 +221,7 @@ bool dlsc_tlm_target_nb<MODULE,DATATYPE>::validate_payload(tlm::tlm_generic_payl
     trans.set_response_status(tlm::TLM_INCOMPLETE_RESPONSE);
 
     if(!trans.is_read() && !trans.is_write()) {             // must be read or write
+        dlsc_warn("transaction wasn't a read or write");
         trans.set_response_status(tlm::TLM_OK_RESPONSE);
         return false;
     }
@@ -222,14 +230,16 @@ bool dlsc_tlm_target_nb<MODULE,DATATYPE>::validate_payload(tlm::tlm_generic_payl
         (length % sizeof(DATATYPE)) != 0 ||                 // data length aligned to bus width
         ((addr  % 4096) + length) > 4096 )                  // burst doesn't cross 4K boundary
     {
+        dlsc_warn("transaction violated address rules");
         trans.set_response_status(tlm::TLM_ADDRESS_ERROR_RESPONSE);
         return false;
     }
 
     if( length == 0 ||                                      // length must be non-zero
-        (length / sizeof(DATATYPE)) > 16 ||                 // length doesn't exceed 16 beats
+        (length / sizeof(DATATYPE)) > max_length ||         // length doesn't exceed max_length beats
         trans.get_streaming_width() < length)               // no streaming
     {
+        dlsc_warn("transaction violated burst rules");
         trans.set_response_status(tlm::TLM_BURST_ERROR_RESPONSE);
         return false;
     }
@@ -238,6 +248,7 @@ bool dlsc_tlm_target_nb<MODULE,DATATYPE>::validate_payload(tlm::tlm_generic_payl
         if( trans.is_read() ||                              // no strobes on read
             be_length != length)                            // strobes 1:1 with data
         {
+            dlsc_warn("transaction violated strobe rules");
             trans.set_response_status(tlm::TLM_BYTE_ENABLE_ERROR_RESPONSE);
             return false;
         }
@@ -344,6 +355,7 @@ public:
     inline void get_data(std::deque<DATATYPE>  &data) { data.resize(size()); get_data(data.begin()); }
 
     // get payload strobes
+    inline bool has_strobes() { return (payload->get_byte_enable_length() != 0); }
     template <class InputIterator>
     void get_strobes(InputIterator first);
 

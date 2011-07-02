@@ -18,13 +18,17 @@ public:
     
     dlsc_tlm_initiator_nb<DATATYPE> *initiator;
     
-    dlsc_tlm_memtest(const sc_core::sc_module_name &nm);
+    dlsc_tlm_memtest(
+        const sc_core::sc_module_name &nm,
+        const unsigned int max_length = 16);
 
     SC_HAS_PROCESS(dlsc_tlm_memtest);
 
     bool test(uint64_t addr, unsigned int length, unsigned int iterations);
 
     void set_ignore_error(const bool ignore_error) { this->ignore_error = ignore_error; }
+    void set_strobe_rate(const unsigned int strb_pct) { assert(strb_pct <= 100); this->strb_pct = strb_pct; }
+    void set_max_outstanding(const unsigned int mot) { this->max_mots = mot; }
 
 private:
     typedef typename dlsc_tlm_initiator_nb<DATATYPE>::transaction transaction;
@@ -50,9 +54,10 @@ private:
     // parameters
     uint64_t            base_addr;      // beginning of region-under-test
     unsigned int        size;           // size of region-under-test
-    unsigned int        max_length;     // max burst length
+    const unsigned int  max_length;     // max burst length
     unsigned int        max_mots;       // max multiple-outstanding-transactions
     bool                ignore_error;   // don't flag failed transactions as an error
+    unsigned int        strb_pct;       // use write strobes
 
     // clears all allocated memory
     void clear();
@@ -90,12 +95,14 @@ private:
 
 template <typename DATATYPE>
 dlsc_tlm_memtest<DATATYPE>::dlsc_tlm_memtest(
-    const sc_core::sc_module_name &nm
+    const sc_core::sc_module_name &nm,
+    const unsigned int max_length
 ) :
     sc_module(nm),
-    socket("socket")
+    socket("socket"),
+    max_length(max_length)
 {
-    initiator = new dlsc_tlm_initiator_nb<DATATYPE>("initiator");
+    initiator = new dlsc_tlm_initiator_nb<DATATYPE>("initiator",max_length);
         initiator->socket.bind(socket);
 
     mem_array       = 0;
@@ -106,6 +113,8 @@ dlsc_tlm_memtest<DATATYPE>::dlsc_tlm_memtest(
     strb            = 0;
 
     ignore_error    = false;
+    strb_pct        = 20;
+    max_mots        = 4;
 }
 
 template <typename DATATYPE>
@@ -116,8 +125,6 @@ bool dlsc_tlm_memtest<DATATYPE>::test(
 {
     base_addr   = addr;
     size        = length;
-    max_length  = 16;
-    max_mots    = 4;
 
     assert(base_addr % max_length == 0);
 
@@ -311,7 +318,7 @@ void dlsc_tlm_memtest<DATATYPE>::launch_write(int socket_id, unsigned int index,
         data[i] = rand(); // TODO
     }
     initiator->set_socket(socket_id);
-    if(!allow_strobes || rand() % 3) {
+    if(!allow_strobes || (rand()%100) >= (int)strb_pct) {
         // data only
         outstanding[socket_id].push_back(initiator->nb_write(addr,data,data+length,delay));
     } else {
@@ -333,8 +340,9 @@ bool dlsc_tlm_memtest<DATATYPE>::find_region(
     unsigned int burst_boundary = 4096/sizeof(DATATYPE);
 
     // TODO: randomize better
-    unsigned int begin  = rand() % size;                    // [0,size)
-    unsigned int max    = (rand() % (max_length-1)) + 1;    // [1,max_length]
+    unsigned int begin  = rand() % size;                        // [0,size)
+    unsigned int min    = (rand() % 2) ? 1 : (max_length/2)+1;  // 50% chance of not-small burst
+    unsigned int max    = (rand() % (max_length-min)) + min;    // [min,max_length]
 
     length  = 0;
     unsigned int i = begin;
@@ -349,8 +357,8 @@ bool dlsc_tlm_memtest<DATATYPE>::find_region(
         if( !write_pending[i] && ( read ? init_done[i] : !read_pending[i] ) ) {
             if(!length) index = i;
             ++length;
-        } else if(length) {
-            break;
+        } else {
+            length = 0;
         }
     
         if(++i == size) i = 0; // wrapping increment
