@@ -119,8 +119,6 @@ wire [31:0]     fifo_w_data;
 assign          axi_w_ready     = !fifo_w_full && axi_w_ready_s;
 assign          axi_w_valid_s   = !fifo_w_full && axi_w_valid;
 
-assign          axi_b_inc       = fifo_w_pop && fifo_w_last;
-
 // TODO: shiftreg isn't efficient for large MAX_SIZE
 dlsc_fifo_shiftreg #(
     .DATA           ( 33 ),
@@ -151,8 +149,14 @@ always @(posedge clk) begin
     end
 end
 
+// only generate response once last beat of data is accepted by downstream
+// (implying that it is now impossible for a subsequent read command to pass it)
+reg             d_last          = 0;    // AXI last; not necessarily TLP last
+assign          axi_b_inc       = (tlp_d_ready && tlp_d_valid && d_last);
+
 always @(posedge clk) begin
     if(fifo_w_pop) begin
+        d_last          <= fifo_w_last;
         tlp_d_data      <= fifo_w_data;
     end
 end
