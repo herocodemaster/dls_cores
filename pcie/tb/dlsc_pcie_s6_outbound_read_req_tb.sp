@@ -9,7 +9,7 @@
 
 #define ADDR            PARAM_ADDR
 #define LEN             PARAM_LEN
-#define MAX_SIZE        4096
+#define MAX_SIZE        PARAM_MAX_SIZE
 
 struct check_type {
     uint64_t    addr;
@@ -108,6 +108,8 @@ void __MODULE__::check_method() {
 
     if(tlp_h_ready && tlp_h_valid) {
         uint32_t max_len    = (32 << max_read_request.read());
+        if(max_len > (MAX_SIZE/4)) max_len = (MAX_SIZE/4);
+
         uint32_t len        = tlp_h_len.read();
         
         if(len == 0) len = 1024;
@@ -178,7 +180,7 @@ void __MODULE__::stim_thread() {
     wait(100,SC_NS);
 
     int mrr = 0;
-    for(int i=128;i<=MAX_SIZE;i*=2,++mrr) {
+    for(int i=128;i<=4096;i*=2,++mrr) {
         dlsc_info("testing max_read_request = " << std::dec << i);
 
         wait(clk.posedge_event());

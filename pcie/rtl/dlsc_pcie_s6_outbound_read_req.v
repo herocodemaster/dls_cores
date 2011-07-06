@@ -1,7 +1,8 @@
 
 module dlsc_pcie_s6_outbound_read_req #(
     parameter ADDR      = 32,
-    parameter LEN       = 4
+    parameter LEN       = 4,
+    parameter MAX_SIZE  = 128
 ) (
     // ** System **
 
@@ -30,28 +31,9 @@ module dlsc_pcie_s6_outbound_read_req #(
     output  reg     [9:0]       tlp_h_len
 );
 
-
-// ** Buffer read command (AR) **
-
-wire            axi_ar_ready_r;
-wire            axi_ar_valid_r;
-wire [ADDR-1:0] axi_ar_addr_r;
-wire [LEN-1:0]  axi_ar_len_r;
-
-dlsc_rvh_decoupler #(
-    .WIDTH          ( ADDR + LEN )
-) dlsc_rvh_decoupler_ar (
-    .clk            ( clk ),
-    .rst            ( rst ),
-    .in_en          ( 1'b1 ),
-    .in_ready       ( axi_ar_ready ),
-    .in_valid       ( axi_ar_valid ),
-    .in_data        ( { axi_ar_addr, axi_ar_len } ),
-    .out_en         ( 1'b1 ),
-    .out_ready      ( axi_ar_ready_r ),
-    .out_valid      ( axi_ar_valid_r ),
-    .out_data       ( { axi_ar_addr_r, axi_ar_len_r } )
-);
+/* verilator lint_off WIDTH */
+localparam [10:0] MAX_SIZE_DW = (MAX_SIZE < 1024) ? (MAX_SIZE/4) : 11'd1024;
+/* verilator lint_on WIDTH */
 
 
 // ** Merge commands **
@@ -67,21 +49,21 @@ reg  [10:0]     next_cmd_len;
 
 always @* begin
     if(!cmd_present) begin
-        next_cmd_addr       = axi_ar_addr_r[ADDR-1:2];
-        next_cmd_addr_last  = { {(10-LEN){1'b0}}, axi_ar_len_r } + 10'd1 + axi_ar_addr_r[11:2];
-        next_cmd_len        = { {(11-LEN){1'b0}}, axi_ar_len_r } + 11'd1;
+        next_cmd_addr       = axi_ar_addr[ADDR-1:2];
+        next_cmd_addr_last  = { {(10-LEN){1'b0}}, axi_ar_len } + 10'd1 + axi_ar_addr[11:2];
+        next_cmd_len        = { {(11-LEN){1'b0}}, axi_ar_len } + 11'd1;
     end else begin
         next_cmd_addr       = cmd_addr;
-        next_cmd_addr_last  = { {(10-LEN){1'b0}}, axi_ar_len_r } + 10'd1 + cmd_addr_last;
-        next_cmd_len        = { {(11-LEN){1'b0}}, axi_ar_len_r } + 11'd1 + cmd_len;
+        next_cmd_addr_last  = { {(10-LEN){1'b0}}, axi_ar_len } + 10'd1 + cmd_addr_last;
+        next_cmd_len        = { {(11-LEN){1'b0}}, axi_ar_len } + 11'd1 + cmd_len;
     end
 end
 
-wire            cmd_can_merge   = cmd_present && axi_ar_valid_r &&
-                                    (axi_ar_addr_r[ADDR-1:12] == cmd_addr[ADDR-1:12]) &&
-                                    (axi_ar_addr_r[11:2] == cmd_addr_last) && (cmd_addr_last != 0);
+wire            cmd_can_merge   = cmd_present && axi_ar_valid &&
+                                    (axi_ar_addr[ADDR-1:12] == cmd_addr[ADDR-1:12]) &&
+                                    (axi_ar_addr[11:2] == cmd_addr_last) && (cmd_addr_last != 0);
 
-assign          axi_ar_ready_r  = !cmd_present || cmd_can_merge;
+assign          axi_ar_ready    = !cmd_present || cmd_can_merge;
 
 wire            cmd_ready;
 wire            cmd_valid       = cmd_present && !cmd_can_merge;
@@ -93,14 +75,14 @@ always @(posedge clk) begin
         if(cmd_ready && cmd_valid) begin
             cmd_present     <= 1'b0;
         end
-        if(axi_ar_ready_r && axi_ar_valid_r) begin
+        if(axi_ar_ready && axi_ar_valid) begin
             cmd_present     <= 1'b1;
         end
     end
 end
 
 always @(posedge clk) begin
-    if(axi_ar_ready_r && axi_ar_valid_r) begin
+    if(axi_ar_ready && axi_ar_valid) begin
         cmd_addr        <= next_cmd_addr;
         cmd_addr_last   <= next_cmd_addr_last;
         cmd_len         <= next_cmd_len;
@@ -115,13 +97,12 @@ reg  [10:0]  max_len            = 11'd32;
 
 always @(posedge clk) begin
     case(max_read_request)
-        3'b000:  max_len <= 11'd32;
-        3'b001:  max_len <= 11'd64;
-        3'b010:  max_len <= 11'd128;
-        3'b011:  max_len <= 11'd256;
-        3'b100:  max_len <= 11'd512;
-        3'b101:  max_len <= 11'd1024;
-        default: max_len <= 11'd32;
+        3'b101:  max_len <= ((MAX_SIZE_DW >= 11'd1024) ? 11'd1024 : MAX_SIZE_DW);
+        3'b100:  max_len <= ((MAX_SIZE_DW >= 11'd512 ) ? 11'd512  : MAX_SIZE_DW);
+        3'b011:  max_len <= ((MAX_SIZE_DW >= 11'd256 ) ? 11'd256  : MAX_SIZE_DW);
+        3'b010:  max_len <= ((MAX_SIZE_DW >= 11'd128 ) ? 11'd128  : MAX_SIZE_DW);
+        3'b001:  max_len <= ((MAX_SIZE_DW >= 11'd64  ) ? 11'd64   : MAX_SIZE_DW);
+        default: max_len <= ((MAX_SIZE_DW >= 11'd32  ) ? 11'd32   : MAX_SIZE_DW);
     endcase
 end
 
