@@ -291,8 +291,8 @@ void __MODULE__::rst_method() {
 //  user_clk_out            = 0;
 //  user_reset_out          = 0;
     user_lnk_up             = 0;
-    fc_ph                   = 0;
-    fc_pd                   = 0;
+    fc_ph                   = 32;   // TODO
+    fc_pd                   = 256;  // TODO
     fc_nph                  = 0;
     fc_npd                  = 0;
     fc_cplh                 = 0;
