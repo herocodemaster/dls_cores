@@ -262,6 +262,7 @@ void __MODULE__::clk_method() {
     }
 
     if(rd_tlp_h_ready && rd_tlp_h_valid) {
+        ++rd_tlp_h_cnt;
         if(rd_tlph_queue.empty()) {
             dlsc_error("unexpected rd_tlp_h");
         } else {
@@ -298,6 +299,7 @@ void __MODULE__::stim_thread() {
         }
 
         wait(1,SC_US);
+        dlsc_assert_equals(rd_tlp_h_cnt,0);
         wait(clk.posedge_event());
         dma_en  = 1;
 
