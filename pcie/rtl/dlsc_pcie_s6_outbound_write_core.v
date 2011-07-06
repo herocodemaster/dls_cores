@@ -1,5 +1,5 @@
 
-module dlsc_pcie_s6_outbound_write #(
+module dlsc_pcie_s6_outbound_write_core #(
     parameter ADDR      = 32,
     parameter LEN       = 4,
     parameter MAX_SIZE  = 128                       // maximum write payload size

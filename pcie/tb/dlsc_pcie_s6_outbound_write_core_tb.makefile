@@ -3,9 +3,9 @@ include $(DLSC_MAKEFILE_TOP)
 
 DLSC_DEPENDS    += pcie
 
-V_DUT           += dlsc_pcie_s6_outbound_write.v
+V_DUT           += dlsc_pcie_s6_outbound_write_core.v
 
-SP_TESTBENCH    += dlsc_pcie_s6_outbound_write_tb.sp
+SP_TESTBENCH    += dlsc_pcie_s6_outbound_write_core_tb.sp
 
 V_PARAMS_DEF    += \
     ADDR=32 \
