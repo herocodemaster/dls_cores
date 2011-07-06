@@ -4,7 +4,9 @@ module dlsc_pcie_s6_outbound_read_alloc #(
     parameter TAG       = 5,
     parameter BUFA      = 9,
     parameter CPLH      = 8,    // receive buffer completion header space
-    parameter CPLD      = 64    // receive buffer completion data space
+    parameter CPLD      = 64,   // receive buffer completion data space
+    parameter FCHB      = 8,
+    parameter FCDB      = 12
 ) (
     // system
     input   wire                clk,
@@ -38,16 +40,14 @@ module dlsc_pcie_s6_outbound_read_alloc #(
     output  reg     [ADDR-1:2]  rd_tlp_h_addr,
     output  reg     [9:0]       rd_tlp_h_len,
     output  reg     [TAG-1:0]   rd_tlp_h_tag,
+    output  reg     [3:0]       rd_tlp_h_be_first,
+    output  reg     [3:0]       rd_tlp_h_be_last,
     
     // PCIe config/status
     output  reg                 tlp_pending,        // transactions pending
     input   wire                dma_en,             // bus-mastering enabled
     input   wire                rcb                 // read completion boundary; 64 or 128 bytes
 );
-
-localparam  CHB = 8;
-localparam  CDB = 12;
-
 
 // ** Compute required space **
 
@@ -106,15 +106,15 @@ end
 
 // Credits
 
-reg  [CHB-1:0]  cplh_avail      = CPLH;
-reg  [CDB-1:0]  cpld_avail      = CPLD;
+reg  [FCHB-1:0] cplh_avail      = CPLH;
+reg  [FCDB-1:0] cpld_avail      = CPLD;
 
-wire [CHB:0]    cplh_sub        = {1'b0, cplh_avail} - { {(CHB-6){1'b0}}, h_cplh };
-wire [CDB:0]    cpld_sub        = {1'b0, cpld_avail} - { {(CDB-8){1'b0}}, h_cpld };
+wire [FCHB:0]   cplh_sub        = {1'b0, cplh_avail} - { {(FCHB-6){1'b0}}, h_cplh };
+wire [FCDB:0]   cpld_sub        = {1'b0, cpld_avail} - { {(FCDB-8){1'b0}}, h_cpld };
 
 // only okay if space is available (result of subtraction is non-negative)
-wire            cplh_okay       = !cplh_sub[CHB];
-wire            cpld_okay       = !cpld_sub[CDB];
+wire            cplh_okay       = !cplh_sub[FCHB];
+wire            cpld_okay       = !cpld_sub[FCDB];
 
 always @(posedge clk) begin
     if(rst) begin
@@ -122,11 +122,11 @@ always @(posedge clk) begin
         cpld_avail          <= CPLD;
     end else begin
         if(h_xfer) begin
-            cplh_avail              <= cplh_sub[CHB-1:0] + { {(CHB-1){1'b0}}, dealloc_cplh };
-            cpld_avail              <= cpld_sub[CDB-1:0] + { {(CDB-1){1'b0}}, dealloc_cpld };
+            cplh_avail              <= cplh_sub[FCHB-1:0] + { {(FCHB-1){1'b0}}, dealloc_cplh };
+            cpld_avail              <= cpld_sub[FCDB-1:0] + { {(FCDB-1){1'b0}}, dealloc_cpld };
         end else begin
-            cplh_avail              <= cplh_avail        + { {(CHB-1){1'b0}}, dealloc_cplh };
-            cpld_avail              <= cpld_avail        + { {(CDB-1){1'b0}}, dealloc_cpld };
+            cplh_avail              <= cplh_avail         + { {(FCHB-1){1'b0}}, dealloc_cplh };
+            cpld_avail              <= cpld_avail         + { {(FCDB-1){1'b0}}, dealloc_cpld };
         end
     end
 end
@@ -233,9 +233,11 @@ end
 
 always @(posedge clk) begin
     if(h_xfer) begin
-        rd_tlp_h_addr   <= h_addr;
-        rd_tlp_h_len    <= h_len[9:0];
-        rd_tlp_h_tag    <= tag[TAG-1:0];
+        rd_tlp_h_addr       <= h_addr;
+        rd_tlp_h_len        <= h_len[9:0];
+        rd_tlp_h_tag        <= tag[TAG-1:0];
+        rd_tlp_h_be_first   <= 4'hF;
+        rd_tlp_h_be_last    <= (h_len[9:0] == 10'd1) ? 4'h0 : 4'hF;
     end
 end
 
