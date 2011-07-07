@@ -35,7 +35,6 @@ module dlsc_pcie_s6_outbound_tlp #(
     output  reg                 wr_tlp_d_ready,
     input   wire                wr_tlp_d_valid,
     input   wire    [31:0]      wr_tlp_d_data,
-    input   wire                wr_tlp_d_last,
 
     // output TLP
     input   wire                tlp_ready,
@@ -49,7 +48,8 @@ module dlsc_pcie_s6_outbound_tlp #(
     input   wire    [2:0]       func_number
 );
 
-wire [TAG-1:0]  wr_tlp_h_tag    = {TAG{1'b0}};
+wire [TAG-1:0]  wr_tlp_h_tag    = {TAG{1'b0}};  // no tags for posted transactions
+wire            wr_tlp_d_last;                  // generated below
 
 
 // ** Decouple output **
@@ -196,7 +196,7 @@ always @* begin
         tlp_valid_r         = 1'b1;
         tlp_last_r          = !trans_ack_64 && h_read;
 
-        h_ready             = !trans_ack_64;
+        h_ready             = !trans_ack_64 && tlp_ready_r;
 
         next_st             = trans_ack_64 ? ST_H3 : (h_read ? ST_H0 : ST_DATA);
     end
@@ -208,12 +208,13 @@ always @* begin
         tlp_valid_r         = 1'b1;
         tlp_last_r          = h_read;
 
-        h_ready             = 1'b1;
+        h_ready             = tlp_ready_r;
 
         next_st             = h_read ? ST_H0 : ST_DATA;
     end
 
     if(st == ST_DATA) begin
+        tlp_data_r[31:0]    = wr_tlp_d_data;
         wr_tlp_d_ready      = tlp_ready_r;
         tlp_valid_r         = wr_tlp_d_valid;
         tlp_last_r          = wr_tlp_d_last;
@@ -221,6 +222,26 @@ always @* begin
         next_st             = wr_tlp_d_last ? ST_H0 : ST_DATA;
     end
 end
+
+
+// ** Count data **
+
+reg  [9:0]  d_cnt               = 0;
+reg         d_last              = 0;
+
+assign      wr_tlp_d_last       = d_last;
+
+always @(posedge clk) begin
+    if(st != ST_DATA) begin
+        d_cnt           <= h_len;
+        d_last          <= (h_len == 1);
+    end
+    if(st == ST_DATA && tlp_ready_r && tlp_valid_r) begin
+        d_cnt           <= (d_cnt - 1);
+        d_last          <= (d_cnt == 2);
+    end
+end
+
 
 endmodule
 

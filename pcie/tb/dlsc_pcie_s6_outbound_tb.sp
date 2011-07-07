@@ -135,7 +135,7 @@ void __MODULE__::stim_thread() {
 #ifdef MEMTEST
     memtest->set_max_outstanding(16);   // more MOT for improved performance
     memtest->set_strobe_rate(1);        // sparse strobes are very slow over PCIe
-    memtest->test(0,4*4096,1*1000*10);
+    memtest->test(0,4*4096,1*1000*100);
 #else
 
     std::deque<uint32_t> data;
@@ -157,7 +157,7 @@ void __MODULE__::stim_thread() {
 }
 
 void __MODULE__::watchdog_thread() {
-    wait(1,SC_MS);
+    wait(100,SC_MS);
 
     dlsc_error("watchdog timeout");
 

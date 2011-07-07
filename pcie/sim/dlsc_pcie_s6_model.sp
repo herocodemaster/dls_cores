@@ -843,12 +843,17 @@ void __MODULE__::tgt_read_complete(tlp_type &tlp) {
     }
 
     if(tlp->cpl_bytes != (ts->size() - tgt->data.size())*4) {
-        dlsc_error("incorrect cpl_bytes");
+        dlsc_assert_equals( tlp->cpl_bytes , (ts->size() - tgt->data.size())*4 );
         error = true;
     }
 
-    if(tgt->data.empty() && tlp->cpl_addr != (tgt->tlp->dest_addr & 0x7F)) {
-        dlsc_error("incorrect cpl_addr");
+    if(tlp->cpl_addr != ((tgt->tlp->dest_addr + tgt->data.size()*4) & 0x7F)) {
+        dlsc_assert_equals( tlp->cpl_addr , ((tgt->tlp->dest_addr + tgt->data.size()*4) & 0x7F) );
+        error = true;
+    }
+
+    if(!tgt->data.empty() && (tlp->cpl_addr & rcb_mask) != 0) {
+        dlsc_error("RCB violated");
         error = true;
     }
 

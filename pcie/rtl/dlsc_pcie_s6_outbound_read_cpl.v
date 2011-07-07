@@ -400,5 +400,24 @@ always @(posedge clk) begin
 
 end
 
+
+`ifdef DLSC_SIMULATION
+`include "dlsc_sim_top.vh"
+
+always @(posedge clk) begin
+    if(set_unexpected) begin
+        `dlsc_info("unexpected completion: tag = 0x%0x, addr = 0x%0x, bytes = %0d", h2_tag, h2_addr[6:0], h_bytes[11:0]);
+        if(tag_hit_tag) begin
+            `dlsc_info("..but tag did hit on: addr = 0x%0x, bytes = %0d", {tag_addr[6:2],2'b00}, {tag_len[9:0],2'b00});
+        end
+    end
+    if(set_timeout) begin
+        `dlsc_info("timed out: tag = 0x%0x, addr = 0x%0x, bytes = %0d", h_tag_r, {tag_addr[6:2],2'b00}, {tag_len[9:0],2'b00});
+    end
+end
+
+`include "dlsc_sim_bot.vh"
+`endif
+
 endmodule
 

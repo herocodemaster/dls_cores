@@ -53,8 +53,7 @@ module dlsc_pcie_s6_outbound_write #(
     // TLP payload to arbiter
     input   wire                wr_tlp_d_ready,
     output  wire                wr_tlp_d_valid,
-    output  wire    [31:0]      wr_tlp_d_data,
-    output  wire                wr_tlp_d_last
+    output  wire    [31:0]      wr_tlp_d_data
 );
     
 wire            tlp_h_ready;
@@ -124,7 +123,6 @@ dlsc_pcie_s6_outbound_write_alloc #(
     .wr_tlp_d_ready     ( wr_tlp_d_ready ),
     .wr_tlp_d_valid     ( wr_tlp_d_valid ),
     .wr_tlp_d_data      ( wr_tlp_d_data ),
-    .wr_tlp_d_last      ( wr_tlp_d_last ),
     .fc_sel             ( fc_sel ),
     .fc_ph              ( fc_ph ),
     .fc_pd              ( fc_pd ),

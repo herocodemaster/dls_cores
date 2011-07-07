@@ -31,9 +31,8 @@ module dlsc_pcie_s6_outbound_write_alloc #(
 
     // TLP payload to arbiter
     input   wire                wr_tlp_d_ready,
-    output  reg                 wr_tlp_d_valid,
-    output  reg     [31:0]      wr_tlp_d_data,
-    output  reg                 wr_tlp_d_last,
+    output  wire                wr_tlp_d_valid,
+    output  wire    [31:0]      wr_tlp_d_data,
 
     // PCIe link partner credit info
     output  wire    [2:0]       fc_sel,     // selects 'transmit credits available'
@@ -55,6 +54,13 @@ always @(posedge clk) begin
     fc_pd_r     <= fc_pd;
 end
 
+// write data goes straight through
+assign          tlp_d_ready     = wr_tlp_d_ready;
+assign          wr_tlp_d_valid  = tlp_d_valid;
+assign          wr_tlp_d_data   = tlp_d_data;
+
+
+wire            tlp_h_xfer      = tlp_h_ready && tlp_h_valid;
 
 // ** Compute required space **
 
@@ -69,7 +75,7 @@ always @(posedge clk) begin
         if(h_xfer) begin
             h_valid     <= 1'b0;
         end
-        if(tlp_h_ready && tlp_h_valid) begin
+        if(tlp_h_xfer) begin
             h_valid     <= 1'b1;
         end
     end
@@ -88,7 +94,7 @@ wire [9:0]      h_cpld_pre      =   ( {8'h0,tlp_h_addr[3:2]} + tlp_h_len + 10'd3
 assign          tlp_h_ready     = !h_valid && dma_en;
 
 always @(posedge clk) begin
-    if(tlp_h_ready && tlp_h_valid) begin
+    if(tlp_h_xfer) begin
         h_addr      <= tlp_h_addr;
         h_len       <= tlp_h_len;
         h_be_first  <= tlp_h_be_first;
@@ -106,46 +112,17 @@ end
 wire            cplh_okay       = ( !fc_ph_r[FCHB-1] && fc_ph_r[FCHB-2:0] != 0 );                               // cplh >= 1
 wire            cpld_okay       = ( !fc_pd_r[FCDB-1] && fc_pd_r[FCDB-2:0] >= { {(FCDB-1-9){1'b0}}, h_cpld } );  // cpld >= h_cpld
 
-reg             d_active        = 1'b0;
-reg             d_last          = 1'b0;
+assign          h_ready         = !wr_tlp_h_valid && cplh_okay && cpld_okay;
 
-assign          h_ready         = !d_active && cplh_okay && cpld_okay;
-
-assign          tlp_d_ready     = d_active && (!wr_tlp_d_valid || wr_tlp_d_ready);
-
-wire            tlp_d_xfer      = tlp_d_ready && tlp_d_valid;
-
-// header payload
 always @(posedge clk) begin
     if(h_xfer) begin
         wr_tlp_h_addr       <= h_addr;
         wr_tlp_h_len        <= h_len;
         wr_tlp_h_be_first   <= h_be_first;
         wr_tlp_h_be_last    <= h_be_last;
-        d_last              <= (h_len == 1);
-    end
-    if(tlp_d_xfer) begin
-        wr_tlp_h_len        <= wr_tlp_h_len - 1;
-        d_last              <= (wr_tlp_h_len == 2);
     end
 end
 
-// internal active flag
-always @(posedge clk) begin
-    if(rst) begin
-        d_active        <= 1'b0;
-    end else begin
-        if(tlp_d_xfer && d_last) begin
-            // done with tlp_h_ once last data is output
-            d_active        <= 1'b0;
-        end
-        if(h_xfer) begin
-            d_active        <= 1'b1;
-        end
-    end
-end
-
-// header valid
 always @(posedge clk) begin
     if(rst) begin
         wr_tlp_h_valid  <= 1'b0;
@@ -156,28 +133,6 @@ always @(posedge clk) begin
         if(h_xfer) begin
             wr_tlp_h_valid  <= 1'b1;
         end
-    end
-end
-
-// data valid
-always @(posedge clk) begin
-    if(rst) begin
-        wr_tlp_d_valid  <= 1'b0;
-    end else begin
-        if(wr_tlp_d_ready) begin
-            wr_tlp_d_valid  <= 1'b0;
-        end
-        if(tlp_d_xfer) begin
-            wr_tlp_d_valid  <= 1'b1;
-        end
-    end
-end
-
-// data payload
-always @(posedge clk) begin
-    if(tlp_d_xfer) begin
-        wr_tlp_d_data   <= tlp_d_data;
-        wr_tlp_d_last   <= d_last;
     end
 end
 

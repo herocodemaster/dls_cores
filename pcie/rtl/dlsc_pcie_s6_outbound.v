@@ -163,7 +163,6 @@ wire [3:0]      wr_tlp_h_be_last;
 wire            wr_tlp_d_ready;
 wire            wr_tlp_d_valid;
 wire [31:0]     wr_tlp_d_data;
-wire            wr_tlp_d_last;
 
 dlsc_pcie_s6_outbound_write #(
     .ADDR               ( ADDR ),
@@ -199,8 +198,7 @@ dlsc_pcie_s6_outbound_write #(
     .wr_tlp_h_be_last   ( wr_tlp_h_be_last ),
     .wr_tlp_d_ready     ( wr_tlp_d_ready ),
     .wr_tlp_d_valid     ( wr_tlp_d_valid ),
-    .wr_tlp_d_data      ( wr_tlp_d_data ),
-    .wr_tlp_d_last      ( wr_tlp_d_last )
+    .wr_tlp_d_data      ( wr_tlp_d_data )
 );
 
 
@@ -242,7 +240,6 @@ dlsc_pcie_s6_outbound_tlp #(
     .wr_tlp_d_ready     ( wr_tlp_d_ready ),
     .wr_tlp_d_valid     ( wr_tlp_d_valid ),
     .wr_tlp_d_data      ( wr_tlp_d_data ),
-    .wr_tlp_d_last      ( wr_tlp_d_last ),
     .tlp_ready          ( tx_ready ),
     .tlp_valid          ( tx_valid ),
     .tlp_data           ( tx_data ),
