@@ -38,11 +38,11 @@ module dlsc_pcie_s6_outbound_write_core #(
 
     // TLP header
     input   wire                tlp_h_ready,
-    output  wire                tlp_h_valid,
-    output  wire    [ADDR-1:2]  tlp_h_addr,
-    output  wire    [9:0]       tlp_h_len,
-    output  wire    [3:0]       tlp_h_be_first,
-    output  wire    [3:0]       tlp_h_be_last,
+    output  reg                 tlp_h_valid,
+    output  reg     [ADDR-1:2]  tlp_h_addr,
+    output  reg     [9:0]       tlp_h_len,
+    output  reg     [3:0]       tlp_h_be_first,
+    output  reg     [3:0]       tlp_h_be_last,
 
     // TLP payload
     input   wire                tlp_d_ready,
@@ -263,7 +263,7 @@ end
 
 // ** Create command stream **
 
-reg             cmd_ready;
+wire            cmd_ready;
 reg             cmd_valid       = 0;
 
 reg             next_cmd_valid;

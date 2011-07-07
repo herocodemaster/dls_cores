@@ -137,10 +137,10 @@ end
 assign          trans_req       = arb_valid;
 assign          trans_req_addr  = arb_addr;
 
-wire            h_ready;
+reg             h_ready;
 reg             h_valid         = 1'b0;
 
-assign          arb_ready       = !h_valid && trans_ack;
+assign          arb_ready       = trans_ack && (!h_valid || h_ready);
 
 reg             h_read          = 1'b0;
 reg  [63:2]     h_addr          = 0;
