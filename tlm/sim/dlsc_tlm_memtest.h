@@ -364,13 +364,15 @@ bool dlsc_tlm_memtest<DATATYPE>::find_region(
         if(++i == size) i = 0; // wrapping increment
     } while(i != begin && length != max);
 
+    if(length == 0) return false;
+
     // clamp to burst boundary
     unsigned int length_to_boundary = burst_boundary - ((base_addr/sizeof(DATATYPE) + index) % burst_boundary); // [1,burst_boundary]
     if(length > length_to_boundary) length = length_to_boundary;
 
     assert( (index+length) <= size );
 
-    return (length != 0);
+    return true;
 }
 
 // finishes a transaction and checks/updates results
