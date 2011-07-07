@@ -122,7 +122,7 @@ assign          axi_w_valid_s   = !fifo_w_full && axi_w_valid;
 // TODO: shiftreg isn't efficient for large MAX_SIZE
 dlsc_fifo_shiftreg #(
     .DATA           ( 33 ),
-    .DEPTH          ( MAX_SIZE/4 )
+    .DEPTH          ( MAX_SIZE/4 + 16 )
 ) dlsc_fifo_shiftreg_w (
     .clk            ( clk ),
     .rst            ( rst ),
