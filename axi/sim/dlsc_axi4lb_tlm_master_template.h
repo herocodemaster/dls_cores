@@ -116,7 +116,7 @@ dlsc_axi4lb_tlm_master_template<DATATYPE,ADDRTYPE>::dlsc_axi4lb_tlm_master_templ
     socket("socket")
 {
     target = new dlsc_tlm_target_nb<dlsc_axi4lb_tlm_master_template,DATATYPE>(
-        "target", this, &dlsc_axi4lb_tlm_master_template<DATATYPE,ADDRTYPE>::target_callback);
+        "target", this, &dlsc_axi4lb_tlm_master_template<DATATYPE,ADDRTYPE>::target_callback, 256);
     socket.bind(target->socket);
 
     ar_pct      = 95;
