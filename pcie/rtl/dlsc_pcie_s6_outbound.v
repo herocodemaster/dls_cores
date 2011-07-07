@@ -206,9 +206,15 @@ dlsc_pcie_s6_outbound_write #(
 
 wire            trans_req;
 wire [ADDR-1:2] trans_req_addr;
-wire            trans_ack       = trans_req;
-wire [63:2]     trans_ack_addr  = { {(64-ADDR){1'b0}}, trans_req_addr[ADDR-1:2] };
-wire            trans_ack_64    = 1'b0;
+reg             trans_ack       = 0;
+reg  [63:2]     trans_ack_addr  = 0;
+reg             trans_ack_64    = 1'b0;
+
+always @(posedge clk) begin
+    trans_ack       <= trans_req;
+    trans_ack_addr  <= { {(64-ADDR){1'b0}}, trans_req_addr[ADDR-1:2] };
+    trans_ack_64    <= 1'b0;
+end
 
 
 // ** TLP **
