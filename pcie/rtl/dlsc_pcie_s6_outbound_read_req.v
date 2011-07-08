@@ -27,9 +27,9 @@ module dlsc_pcie_s6_outbound_read_req #(
 
     // TLP header
     input   wire                tlp_h_ready,
-    output  reg                 tlp_h_valid,
-    output  reg     [ADDR-1:2]  tlp_h_addr,
-    output  reg     [9:0]       tlp_h_len
+    output  wire                tlp_h_valid,
+    output  wire    [ADDR-1:2]  tlp_h_addr,
+    output  wire    [9:0]       tlp_h_len
 );
 
 // must be able to split requests if they exceed 128 bytes
@@ -102,9 +102,9 @@ if(MERGING>0) begin:GEN_MERGE
 end else begin:GEN_NOMERGE
 
     assign          axi_ar_ready    = cmd_ready;
+    assign          cmd_valid       = axi_ar_valid;
 
     always @* begin
-        cmd_valid       = axi_ar_valid;
         cmd_addr        = axi_ar_addr[ADDR-1:2];
         cmd_len         = {{(11-LEN){1'b0}},axi_ar_len} + 11'd1;
     end
@@ -115,105 +115,52 @@ endgenerate
 
 // ** Split commands into TLPs **
 
-// Get maximum length
-reg  [10:0]  max_len            = 11'd32;
-
-always @(posedge clk) begin
-    case(max_read_request)
-        3'b101:  max_len <= ((MAX_SIZE_DW >= 11'd1024) ? 11'd1024 : MAX_SIZE_DW);
-        3'b100:  max_len <= ((MAX_SIZE_DW >= 11'd512 ) ? 11'd512  : MAX_SIZE_DW);
-        3'b011:  max_len <= ((MAX_SIZE_DW >= 11'd256 ) ? 11'd256  : MAX_SIZE_DW);
-        3'b010:  max_len <= ((MAX_SIZE_DW >= 11'd128 ) ? 11'd128  : MAX_SIZE_DW);
-        3'b001:  max_len <= ((MAX_SIZE_DW >= 11'd64  ) ? 11'd64   : MAX_SIZE_DW);
-        default: max_len <= ((MAX_SIZE_DW >= 11'd32  ) ? 11'd32   : MAX_SIZE_DW);
-    endcase
-end
-
-// Split
-wire            split_ready;
-reg             split_valid     = 0;
-reg  [ADDR-1:2] split_addr      = 0;
-reg  [10:0]     split_len       = 0;
-reg             split_last      = 1'b1;
-
 generate
 if(SPLITTING>0) begin:GEN_SPLIT
 
-    reg  [ADDR-1:2] next_split_addr;
-    reg  [10:0]     next_split_len;
-    reg             next_split_last;
-
-    always @* begin
-        if(!split_valid) begin
-            next_split_addr     = cmd_addr;
-            next_split_len      = cmd_len;
-            next_split_last     = ({cmd_len,1'b0} <= {max_len,1'b0});
-        end else begin
-            next_split_addr     = { split_addr[ADDR-1:12], (split_addr[11:2] + max_len[9:0]) };
-            next_split_len      = split_len - max_len;
-            next_split_last     = ({1'b0,split_len} <= {max_len,1'b0});
-        end
-    end
-
-    assign          cmd_ready       = !split_valid;
+    // Get maximum length
+    reg  [10:0]  max_len            = 11'd32;
 
     always @(posedge clk) begin
-        if(rst) begin
-            split_valid     <= 1'b0;
-        end else begin
-            if(split_ready && split_last) begin
-                split_valid     <= 1'b0;
-            end
-            if(cmd_ready && cmd_valid) begin
-                split_valid     <= 1'b1;
-            end
-        end
+        case(max_read_request)
+            3'b101:  max_len <= ((MAX_SIZE_DW >= 11'd1024) ? 11'd1024 : MAX_SIZE_DW);
+            3'b100:  max_len <= ((MAX_SIZE_DW >= 11'd512 ) ? 11'd512  : MAX_SIZE_DW);
+            3'b011:  max_len <= ((MAX_SIZE_DW >= 11'd256 ) ? 11'd256  : MAX_SIZE_DW);
+            3'b010:  max_len <= ((MAX_SIZE_DW >= 11'd128 ) ? 11'd128  : MAX_SIZE_DW);
+            3'b001:  max_len <= ((MAX_SIZE_DW >= 11'd64  ) ? 11'd64   : MAX_SIZE_DW);
+            default: max_len <= ((MAX_SIZE_DW >= 11'd32  ) ? 11'd32   : MAX_SIZE_DW);
+        endcase
     end
 
-    always @(posedge clk) begin
-        if(!split_valid || split_ready) begin
-            split_addr      <= next_split_addr;
-            split_len       <= next_split_len;
-            split_last      <= next_split_last;
-        end
-    end
+    // Split
+    dlsc_pcie_s6_cmdsplit #(
+        .ADDR       ( ADDR ),
+        .LEN        ( 10 ),
+        .OUT_SUB    ( 0 )
+    ) dlsc_pcie_s6_cmdsplit_inst (
+        .clk        ( clk ),
+        .rst        ( rst ),
+        .in_ready   ( cmd_ready ),
+        .in_valid   ( cmd_valid ),
+        .in_addr    ( cmd_addr ),
+        .in_len     ( cmd_len ),
+        .in_meta    ( 1'b0 ),
+        .max_len    ( max_len ),
+        .out_ready  ( tlp_h_ready ),
+        .out_valid  ( tlp_h_valid ),
+        .out_addr   ( tlp_h_addr ),
+        .out_len    ( tlp_h_len )
+    );
 
 end else begin:GEN_NOSPLIT
 
-    assign          cmd_ready       = split_ready;
-
-    always @* begin
-        split_valid     = cmd_valid;
-        split_addr      = cmd_addr;
-        split_len       = cmd_len;
-        split_last      = 1'b1;
-    end
+    assign          cmd_ready       = tlp_h_ready;
+    assign          tlp_h_valid     = cmd_valid;
+    assign          tlp_h_addr      = cmd_addr;
+    assign          tlp_h_len       = cmd_len;
 
 end
 endgenerate
-
-// TLP
-assign          split_ready     = !tlp_h_valid;
-
-always @(posedge clk) begin
-    if(rst) begin
-        tlp_h_valid     <= 1'b0;
-    end else begin
-        if(tlp_h_ready) begin
-            tlp_h_valid     <= 1'b0;
-        end
-        if(split_ready && split_valid) begin
-            tlp_h_valid     <= 1'b1;
-        end
-    end
-end
-
-always @(posedge clk) begin
-    if(split_ready && split_valid) begin
-        tlp_h_addr      <= split_addr;
-        tlp_h_len       <= split_last ? split_len[9:0] : max_len[9:0];
-    end
-end
 
 endmodule
 
