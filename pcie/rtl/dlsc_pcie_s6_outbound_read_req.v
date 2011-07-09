@@ -45,28 +45,28 @@ localparam [10:0] MAX_SIZE_DW = (MAX_SIZE < 1024) ? (MAX_SIZE/4) : 11'd1024;
 wire            cmd_ready;
 wire            cmd_valid;
 
-reg  [ADDR-1:2] cmd_addr        = 0;
-reg  [10:0]     cmd_len         = 0;
+reg  [ADDR-1:2] cmd_addr;
+reg  [9:0]      cmd_len;
 
 generate
 if(MERGING>0) begin:GEN_MERGE
     
-    reg             cmd_present     = 1'b0;
-    reg  [11:2]     cmd_addr_last   = 0;
+    reg             cmd_present;
+    reg  [11:2]     cmd_addr_last;
 
     reg  [ADDR-1:2] next_cmd_addr;
     reg  [11:2]     next_cmd_addr_last;
-    reg  [10:0]     next_cmd_len;
+    reg  [9:0]      next_cmd_len;
 
     always @* begin
         if(!cmd_present) begin
             next_cmd_addr       = axi_ar_addr[ADDR-1:2];
             next_cmd_addr_last  = { {(10-LEN){1'b0}}, axi_ar_len } + 10'd1 + axi_ar_addr[11:2];
-            next_cmd_len        = { {(11-LEN){1'b0}}, axi_ar_len } + 11'd1;
+            next_cmd_len        = { {(10-LEN){1'b0}}, axi_ar_len } + 10'd1;
         end else begin
             next_cmd_addr       = cmd_addr;
             next_cmd_addr_last  = { {(10-LEN){1'b0}}, axi_ar_len } + 10'd1 + cmd_addr_last;
-            next_cmd_len        = { {(11-LEN){1'b0}}, axi_ar_len } + 11'd1 + cmd_len;
+            next_cmd_len        = { {(10-LEN){1'b0}}, axi_ar_len } + 10'd1 + cmd_len;
         end
     end
 
@@ -106,7 +106,7 @@ end else begin:GEN_NOMERGE
 
     always @* begin
         cmd_addr        = axi_ar_addr[ADDR-1:2];
-        cmd_len         = {{(11-LEN){1'b0}},axi_ar_len} + 11'd1;
+        cmd_len         = {{(10-LEN){1'b0}},axi_ar_len} + 10'd1;
     end
 
 end
@@ -118,25 +118,12 @@ endgenerate
 generate
 if(SPLITTING>0) begin:GEN_SPLIT
 
-    // Get maximum length
-    reg  [10:0]  max_len            = 11'd32;
-
-    always @(posedge clk) begin
-        case(max_read_request)
-            3'b101:  max_len <= ((MAX_SIZE_DW >= 11'd1024) ? 11'd1024 : MAX_SIZE_DW);
-            3'b100:  max_len <= ((MAX_SIZE_DW >= 11'd512 ) ? 11'd512  : MAX_SIZE_DW);
-            3'b011:  max_len <= ((MAX_SIZE_DW >= 11'd256 ) ? 11'd256  : MAX_SIZE_DW);
-            3'b010:  max_len <= ((MAX_SIZE_DW >= 11'd128 ) ? 11'd128  : MAX_SIZE_DW);
-            3'b001:  max_len <= ((MAX_SIZE_DW >= 11'd64  ) ? 11'd64   : MAX_SIZE_DW);
-            default: max_len <= ((MAX_SIZE_DW >= 11'd32  ) ? 11'd32   : MAX_SIZE_DW);
-        endcase
-    end
-
-    // Split
     dlsc_pcie_s6_cmdsplit #(
         .ADDR       ( ADDR ),
         .LEN        ( 10 ),
-        .OUT_SUB    ( 0 )
+        .OUT_SUB    ( 0 ),
+        .MAX_SIZE   ( MAX_SIZE ),
+        .ALIGN      ( 0 )
     ) dlsc_pcie_s6_cmdsplit_inst (
         .clk        ( clk ),
         .rst        ( rst ),
@@ -145,11 +132,12 @@ if(SPLITTING>0) begin:GEN_SPLIT
         .in_addr    ( cmd_addr ),
         .in_len     ( cmd_len ),
         .in_meta    ( 1'b0 ),
-        .max_len    ( max_len ),
+        .max_size   ( max_read_request),
         .out_ready  ( tlp_h_ready ),
         .out_valid  ( tlp_h_valid ),
         .out_addr   ( tlp_h_addr ),
-        .out_len    ( tlp_h_len )
+        .out_len    ( tlp_h_len ),
+        .out_meta   (  )
     );
 
 end else begin:GEN_NOSPLIT
