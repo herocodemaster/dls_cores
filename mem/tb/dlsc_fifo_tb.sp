@@ -103,15 +103,16 @@ void __MODULE__::fifo_method() {
         }
     }
 
+    // check count
+    dlsc_assert_equals(rd_count,fifo.size());
+
     // check empty flags
     if(fifo.empty()) {
         dlsc_assert_equals(rd_empty,1);
         dlsc_assert_equals(rd_almost_empty,1);
-    } else if(fifo.size() > 1) {
+    } else if(fifo.size() > 1 || !wr_push) {
         dlsc_assert_equals(rd_empty,0);
         dlsc_assert_equals(rd_almost_empty,(fifo.size() <= ALMOST_EMPTY));
-    } else {
-        // TODO
     }
 
     // check full flags

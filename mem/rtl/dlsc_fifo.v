@@ -19,7 +19,8 @@ module dlsc_fifo #(
     input   wire                rd_pop,
     output  wire    [DATA-1:0]  rd_data,
     output  reg                 rd_empty,
-    output  wire                rd_almost_empty
+    output  wire                rd_almost_empty,
+    output  wire    [ADDR:0]    rd_count
 );
 
 `include "dlsc_synthesis.vh"
@@ -107,6 +108,8 @@ reg             almost_full;
 
 assign          rd_almost_empty = (ALMOST_EMPTY==0) ? rd_empty : almost_empty;
 assign          wr_almost_full  = (ALMOST_FULL ==0) ? wr_full  : almost_full;
+
+assign          rd_count        = cnt;
 
 always @(posedge clk) begin
     if(rst) begin
