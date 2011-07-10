@@ -25,7 +25,6 @@ struct req_type {
     uint32_t    len;
     uint32_t    be_first;
     uint32_t    be_last;
-    uint32_t    token;
 };
 
 struct cplh_type {
@@ -44,6 +43,8 @@ struct cpld_type {
 struct ar_type {
     uint64_t    addr;
     uint32_t    len;
+    uint32_t    token;
+    bool        last;
 };
 
 struct r_type {
@@ -71,6 +72,11 @@ private:
     int                     r_cnt;
 
     bool                    st_cplh;
+
+    uint32_t                token_next;
+    std::deque<uint32_t>    token_queue;
+
+    bool                    get_token(uint32_t &token, bool write);
 
     /*AUTOSUBCELL_DECL*/
     /*AUTOSIGNAL*/
@@ -107,6 +113,21 @@ SP_CTOR_IMP(__MODULE__) : clk("clk",16,SC_NS) /*AUTOINIT*/ {
     SC_THREAD(watchdog_thread);
 }
 
+bool __MODULE__::get_token(uint32_t &token, bool write) {
+
+    if(write) {
+        uint32_t token_next_p1 = (token_next+1) & ((1<<TOKN)-1);
+        if(token_next_p1 == (token_oldest ^ (1<<(TOKN-1))))
+            return false;
+
+        token_next  = token_next_p1;
+    }
+    
+    token       = token_next;
+
+    return true;
+}
+
 void __MODULE__::send_tlp() {
 
     // random length
@@ -132,7 +153,6 @@ void __MODULE__::send_tlp() {
 
     req_type req;
 
-    req.token       = 0;        // TODO
     req.addr        = addr;
     req.len         = len;
     req.be_first    = 0xF;
@@ -166,6 +186,7 @@ void __MODULE__::send_tlp() {
 
 void __MODULE__::clk_method() {
     if(rst) {
+        token_wr        = 0;
         req_h_valid     = 0;
         req_h_addr      = 0;
         req_h_len       = 0;
@@ -186,14 +207,19 @@ void __MODULE__::clk_method() {
         r_queue.clear();
         st_cplh         = true;
         r_cnt           = 0;
+        token_next      = 0;
+        token_queue.clear();
         return;
     }
 
-    int mps_dw     = (32<<max_payload_size.read());
-    int rcb_max    = std::min(mps_dw,RCB_MAX_SIZE_DW)*4;
+    int mps_dw      = (32<<max_payload_size.read());
+    int ar_max_dw   = std::min(mps_dw,AR_MAX_SIZE_DW);
+    int rcb_max     = std::min(mps_dw,RCB_MAX_SIZE_DW)*4;
+
+    uint32_t token;
 
     if(!req_h_valid || req_h_ready) {
-        if(!req_queue.empty() && (rand()%100) < 95) {
+        if(!req_queue.empty() && (rand()%100) < 95 && get_token(token,false)) {
 
             // drive request
             req_type req = req_queue.front();
@@ -203,12 +229,14 @@ void __MODULE__::clk_method() {
             req_h_len       = req.len;
             req_h_be_first  = req.be_first;
             req_h_be_last   = req.be_last;
-            req_h_token     = req.token;
+            req_h_token     = token;
 
             // create expected AR and R
             ar_type art;
             art.len         = 0;
             art.addr        = req.addr;
+            art.token       = token;
+            art.last        = false;
 
             std::deque<r_type> data;
             r_type  rt;
@@ -220,7 +248,8 @@ void __MODULE__::clk_method() {
                 rt.data         = rand();
                 rt.resp         = allow_err ? (rand() & 0x3) : 0;
                 rt.last         = false;
-                if(art.len == AR_MAX_SIZE_DW || req.len == 0) {
+                if(art.len == ar_max_dw || req.len == 0) {
+                    art.last        = (req.len == 0);
                     ar_queue.push_back(art);
                     art.addr        += art.len*4;
                     art.len         = 0;
@@ -324,7 +353,8 @@ void __MODULE__::clk_method() {
         } else {
             cplh_type cplh = cplh_queue.front(); cplh_queue.pop_front();
             dlsc_assert_equals(cpl_h_addr,cplh.addr);
-            dlsc_assert_equals(cpl_h_len,cplh.len);
+            uint32_t len = (cplh.len==1024) ? 0 : cplh.len;
+            dlsc_assert_equals(cpl_h_len,len);
             uint32_t bytes = (cplh.bytes==4096) ? 0 : cplh.bytes;
             dlsc_assert_equals(cpl_h_bytes,bytes);
             dlsc_assert_equals(cpl_h_last,cplh.last);
@@ -372,10 +402,21 @@ void __MODULE__::clk_method() {
             dlsc_assert_equals(axi_ar_addr,art.addr);
             dlsc_assert_equals(axi_ar_len,(art.len-1));
             r_cnt += art.len;
+            if( (token_wr - art.token) & (1<<(TOKN-1)) ) {
+                dlsc_error("read passed write; token_wr: " << std::dec << token_wr << ", art.token: " << std::dec << art.token);
+            }
         }
     }
 
     axi_ar_ready    = (rand()%100) < 95;
+
+    if( (rand()%1000) < 10 && get_token(token,true) ) {
+        token_queue.push_back(token);
+    }
+
+    if( (rand()%5000) < (token_queue.size()) && !token_queue.empty() ) {
+        token_wr = token_queue.front(); token_queue.pop_front();
+    }
 }
 
 void __MODULE__::stim_thread() {
@@ -409,7 +450,7 @@ void __MODULE__::stim_thread() {
 }
 
 void __MODULE__::watchdog_thread() {
-    wait(20,SC_MS);
+    wait(100,SC_MS);
 
     dlsc_error("watchdog timeout");
 

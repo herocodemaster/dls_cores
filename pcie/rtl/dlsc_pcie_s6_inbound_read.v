@@ -3,6 +3,7 @@ module dlsc_pcie_s6_inbound_read #(
     parameter ADDR      = 32,
     parameter LEN       = 4,
     parameter BUFA      = 8,
+    parameter MOT       = 16,
     parameter TOKN      = 4
 ) (
     // System
@@ -15,8 +16,9 @@ module dlsc_pcie_s6_inbound_read #(
     // Config
     input   wire    [2:0]       max_payload_size,
 
-    // Write token interlock
-    input   wire    [TOKN-1:0]  wr_token,
+    // Transaction ordering token interlock
+    output  reg     [TOKN-1:0]  token_oldest,
+    input   wire    [TOKN-1:0]  token_wr,
 
     // Request header from dispatcher
     output  wire                req_h_ready,
@@ -55,6 +57,8 @@ module dlsc_pcie_s6_inbound_read #(
     input   wire    [31:0]      axi_r_data,
     input   wire    [1:0]       axi_r_resp
 );
+
+`include "dlsc_clog2.vh"
 
 localparam  AXI_RESP_OKAY       = 2'b00,
             AXI_RESP_SLVERR     = 2'b10,
@@ -263,8 +267,8 @@ wire            resp_almost_full;
 
 dlsc_rvh_fifo #(
     .DATA           ( 7+10+12+1+2 ),
-    .DEPTH          ( 32 ),
-    .ALMOST_FULL    ( 16 )  // TODO
+    .DEPTH          ( MOT*2 ),
+    .ALMOST_FULL    ( MOT )
 ) dlsc_rvh_fifo_cplh (
     .clk            ( clk ),
     .rst            ( rst ),
@@ -334,18 +338,56 @@ end
 
 // Check MOT
 
-// TODO
+localparam      MOTB            = `dlsc_clog2(MOT);
+reg  [MOTB-1:0] mot_cnt;
+reg             mot_max;
+wire            mot_inc         = cmd_ready && cmd_valid;
+wire            mot_dec         = axi_r_ready && axi_r_valid && axi_r_last;
+
+/* verilator lint_off WIDTH */
+always @(posedge clk) begin
+    if(rst) begin
+        mot_cnt     <= 0;
+        mot_max     <= 1'b0;
+    end else begin
+        if( mot_inc && !mot_dec) begin
+            mot_cnt     <= mot_cnt + 1;
+            mot_max     <= (mot_cnt == MOT-1);
+        end
+        if(!mot_inc &&  mot_dec) begin
+            mot_cnt     <= mot_cnt - 1;
+            mot_max     <= 1'b0;
+        end
+    end
+end
+/* verilator lint_on WIDTH */
 
 
 // Check token
 
-wire [TOKN-1:0] token_sub       = wr_token - cmd_token;
+wire [TOKN-1:0] token_sub       = token_wr - cmd_token;
 wire            token_okay      = !token_sub[TOKN-1];
+
+always @(posedge clk) begin
+    if(rst) begin
+        token_oldest    <= 0;
+    end else begin
+        if(cmd_ready && cmd_valid && cmd_last) begin
+            // issued last transaction for this request; update oldest token
+            token_oldest    <= cmd_token;
+        end
+        if(!cmd_valid && !axi_h_valid && !req_h_valid) begin
+            // no pending requests; oldest token is same as last completed write
+            token_oldest    <= token_wr;
+        end
+    end
+end
 
 
 // Handshaking
 
-assign          cmd_ready       = (!axi_ar_valid || axi_ar_ready) && mem_free_okay && token_okay && !resp_almost_full;
+assign          cmd_ready       = (!axi_ar_valid || axi_ar_ready) && mem_free_okay &&
+                                    token_okay && !mot_max && !resp_almost_full;
 
 
 endmodule
