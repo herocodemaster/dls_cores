@@ -5,7 +5,8 @@ module dlsc_pcie_s6_cmdsplit #(
     parameter OUT_SUB       = 0,    // value to subtract from output length (e.g. for AXI, set to 1)
     parameter MAX_SIZE      = 128,  // maximum output length (regardless of max_size input); must be power-of-2 if ALIGN is set
     parameter ALIGN         = 0,    // if larger than max_size, align to max_size boundaries
-    parameter META          = 1     // width of metadata ports
+    parameter META          = 1,    // width of metadata ports
+    parameter REGISTER      = 1     // register outputs
 ) (
     // System
     input   wire                clk,
@@ -26,7 +27,8 @@ module dlsc_pcie_s6_cmdsplit #(
     output  reg                 out_valid,
     output  reg     [ADDR-1:2]  out_addr,
     output  reg     [LEN-1:0]   out_len,
-    output  reg     [META-1:0]  out_meta
+    output  reg     [META-1:0]  out_meta,
+    output  reg                 out_last
 );
 
 /* verilator lint_off WIDTH */
@@ -50,7 +52,7 @@ always @(posedge clk) begin
 end
 
 // handshake
-wire            split_ready     = (!out_valid || out_ready);
+wire            split_ready;
 reg             split_valid;
 assign          in_ready        = !split_valid;
 
@@ -144,29 +146,52 @@ always @(posedge clk) begin
     end
 end
 
-// drive valid
-always @(posedge clk) begin
-    if(rst) begin
-        out_valid   <= 1'b0;
-    end else begin
-        if(out_ready) begin
+
+wire [LEN-1:0]  next_out_len    = (split_last ? split_len[LEN-1:0] : split_inc[LEN-1:0]) - OUT_SUB;
+
+generate
+if(REGISTER>0) begin:GEN_REG
+
+    assign          split_ready     = (!out_valid || out_ready);
+
+    // drive valid
+    always @(posedge clk) begin
+        if(rst) begin
             out_valid   <= 1'b0;
+        end else begin
+            if(out_ready) begin
+                out_valid   <= 1'b0;
+            end
+            if(split_ready && split_valid) begin
+                out_valid   <= 1'b1;
+            end
         end
+    end
+
+    // drive output
+    always @(posedge clk) begin
         if(split_ready && split_valid) begin
-            out_valid   <= 1'b1;
+            out_meta    <= split_meta;
+            out_addr    <= split_addr;
+            out_len     <= next_out_len;
+            out_last    <= split_last;
         end
     end
-end
 
-// drive output
-always @(posedge clk) begin
-    if(split_ready && split_valid) begin
-        out_meta    <= split_meta;
-        out_addr    <= split_addr;
-        out_len     <= (split_last ? split_len[LEN-1:0] : split_inc[LEN-1:0]) - OUT_SUB;
+end else begin:GEN_NOREG
+
+    assign          split_ready     = out_ready;
+
+    always @* begin
+        out_valid   = split_valid;
+        out_meta    = split_meta;
+        out_addr    = split_addr;
+        out_len     = next_out_len;
+        out_last    = split_last;
     end
-end
 
+end
+endgenerate
 
 endmodule
 

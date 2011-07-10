@@ -137,7 +137,8 @@ if(SPLITTING>0) begin:GEN_SPLIT
         .out_valid  ( tlp_h_valid ),
         .out_addr   ( tlp_h_addr ),
         .out_len    ( tlp_h_len ),
-        .out_meta   (  )
+        .out_meta   (  ),
+        .out_last   (  )
     );
 
 end else begin:GEN_NOSPLIT
