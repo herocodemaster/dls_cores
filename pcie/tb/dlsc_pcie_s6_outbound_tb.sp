@@ -11,7 +11,15 @@
 
 /*AUTOSUBCELL_CLASS*/
 
-#define WB_PIPELINE     PARAM_WB_PIPELINE
+#define ADDR            PARAM_ADDR
+#define LEN             PARAM_LEN
+#define TAG             PARAM_TAG
+#define WRITE_SIZE      PARAM_WRITE_SIZE
+#define READ_MOT        PARAM_READ_MOT
+#define READ_SIZE       PARAM_READ_SIZE
+#define READ_CPLH       PARAM_READ_CPLH
+#define READ_CPLD       PARAM_READ_CPLD
+#define READ_TIMEOUT    PARAM_READ_TIMEOUT
 
 
 SC_MODULE (__MODULE__) {
@@ -61,9 +69,9 @@ SP_CTOR_IMP(__MODULE__) : sys_clk("sys_clk",10,SC_NS) /*AUTOINIT*/ {
         /*AUTOINST*/
 
     // tie-off
-    max_payload_size    = 0;    // 128 bytes
-    max_read_request    = 0;    // 128 bytes
-    rcb                 = 0;    // 64 bytes
+    max_payload_size    = 2;    // 512 bytes
+    max_read_request    = 5;    // 4096 bytes
+    rcb                 = 1;    // 128 bytes
     dma_en              = 1;
     
     SP_CELL(axi_master,dlsc_axi4lb_tlm_master_32b);
@@ -88,8 +96,8 @@ SP_CTOR_IMP(__MODULE__) : sys_clk("sys_clk",10,SC_NS) /*AUTOINIT*/ {
     tx_cfg_gnt      = 1;
     rx_np_ok        = 1;
     
-    memtest = new dlsc_tlm_memtest<uint32_t>("memtest",16);
-    initiator = new dlsc_tlm_initiator_nb<uint32_t>("initiator",16);
+    memtest = new dlsc_tlm_memtest<uint32_t>("memtest",(1<<LEN));
+    initiator = new dlsc_tlm_initiator_nb<uint32_t>("initiator",(1<<LEN));
 
 #ifdef MEMTEST
     memtest->socket.bind(axi_master->socket);
@@ -99,7 +107,7 @@ SP_CTOR_IMP(__MODULE__) : sys_clk("sys_clk",10,SC_NS) /*AUTOINIT*/ {
     initiator->socket.bind(axi_master->socket);
 #endif
 
-    memory = new dlsc_tlm_memory<uint32_t>("memory",4*1024*1024,0,sc_core::sc_time(2.5,SC_NS),sc_core::sc_time(20,SC_NS));
+    memory = new dlsc_tlm_memory<uint32_t>("memory",4*1024*1024,0,sc_core::sc_time(1.0,SC_NS),sc_core::sc_time(20,SC_NS));
 
     pcie->initiator_socket.bind(memory->socket);
 
@@ -135,7 +143,7 @@ void __MODULE__::stim_thread() {
 #ifdef MEMTEST
     memtest->set_max_outstanding(16);   // more MOT for improved performance
     memtest->set_strobe_rate(1);        // sparse strobes are very slow over PCIe
-    memtest->test(0,4*4096,1*1000*100);
+    memtest->test(0,4*4096,1*1000*1);
 #else
 
     std::deque<uint32_t> data;
