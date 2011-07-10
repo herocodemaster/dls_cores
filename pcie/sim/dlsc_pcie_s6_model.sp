@@ -218,7 +218,7 @@ SP_CTOR_IMP(__MODULE__) /*AUTOINIT*/,
     SC_METHOD(clk_method);
         sensitive << user_clk_out.pos();
 
-    max_payload_size    = 128;
+    max_payload_size    = 512;
     max_read_request    = 4096;
     rcb                 = 128;  // 128 or 64
     rcb_mask            = (rcb==128) ? 0x7F: 0x3F; // [6:0] : [5:0]
@@ -546,9 +546,9 @@ void __MODULE__::ini_launch(ini_type &ini) {
         else                         bytes_remaining -= 3;
     } else {
         // consider only first BE field
-        if(tlp->be_first & 0x9)
+        if((tlp->be_first & 0x9) == 0x9)
             bytes_remaining = 4;
-        else if( (tlp->be_first & 0x5) || (tlp->be_first & 0xA) )
+        else if( ((tlp->be_first & 0x5) == 0x5) || ((tlp->be_first & 0xA) == 0xA) )
             bytes_remaining = 3;
         else if( (tlp->be_first == 0x3) || (tlp->be_first == 0x6) || (tlp->be_first == 0xC) )
             bytes_remaining = 2;
