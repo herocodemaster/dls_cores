@@ -10,6 +10,7 @@ module dlsc_pcie_s6_inbound_read_rcb #(
     // TLP header input
     output  wire                tlp_h_ready,
     input   wire                tlp_h_valid,
+    input   wire                tlp_h_mem,
     input   wire    [11:2]      tlp_h_addr,
     input   wire    [9:0]       tlp_h_len,
     input   wire    [3:0]       tlp_h_be_first,
@@ -31,6 +32,7 @@ module dlsc_pcie_s6_inbound_read_rcb #(
 // split into completions (reads only)
 
 wire [11:2]     split_rcb_addr;
+wire            split_mem;
 
 dlsc_pcie_s6_cmdsplit #(
     .ADDR           ( 12 ),
@@ -47,13 +49,13 @@ dlsc_pcie_s6_cmdsplit #(
     .in_valid       ( tlp_h_valid ),
     .in_addr        ( tlp_h_addr ),
     .in_len         ( tlp_h_len ),
-    .in_meta        ( 1'b0 ),
+    .in_meta        ( tlp_h_mem ),
     .max_size       ( max_payload_size ),
     .out_ready      ( rcb_ready ),
     .out_valid      ( rcb_valid ),
     .out_addr       ( split_rcb_addr ),
     .out_len        ( rcb_len ),
-    .out_meta       (  ),
+    .out_meta       ( split_mem ),
     .out_last       ( rcb_last )
 );
 
@@ -86,20 +88,24 @@ end
 reg  [11:0]     bytes_remaining;
 
 always @* begin
-    if(tlp_h_len == 10'd1) begin
-        // consider only 1st BE
-        casez(tlp_h_be_first)
-            4'b1??1: bytes_remaining = 12'd4;
-            4'b01?1: bytes_remaining = 12'd3;
-            4'b1?10: bytes_remaining = 12'd3;
-            4'b0011: bytes_remaining = 12'd2;
-            4'b0110: bytes_remaining = 12'd2;
-            4'b1100: bytes_remaining = 12'd2;
-            default: bytes_remaining = 12'd1;
-        endcase
+    if(tlp_h_mem) begin
+        if(tlp_h_len == 10'd1) begin
+            // consider only 1st BE
+            casez(tlp_h_be_first)
+                4'b1??1: bytes_remaining = 12'd4;
+                4'b01?1: bytes_remaining = 12'd3;
+                4'b1?10: bytes_remaining = 12'd3;
+                4'b0011: bytes_remaining = 12'd2;
+                4'b0110: bytes_remaining = 12'd2;
+                4'b1100: bytes_remaining = 12'd2;
+                default: bytes_remaining = 12'd1;
+            endcase
+        end else begin
+            // consider both BEs
+            bytes_remaining = {tlp_h_len,2'd0} - {10'd0,bef_sub} - {10'd0,bel_sub};
+        end
     end else begin
-        // consider both BEs
-        bytes_remaining = {tlp_h_len,2'd0} - {10'd0,bef_sub} - {10'd0,bel_sub};
+        bytes_remaining = 12'd4;
     end
 end
 
@@ -118,7 +124,7 @@ end
 // update bytes_remaining field
 reg  [1:0]      rcb_boff;
 
-assign          rcb_addr        = { split_rcb_addr[6:2], rcb_boff[1:0] };
+assign          rcb_addr        = split_mem ? { split_rcb_addr[6:2], rcb_boff[1:0] } : 7'd0;
 
 always @(posedge clk) begin
     if(tlp_h_ready && tlp_h_valid) begin

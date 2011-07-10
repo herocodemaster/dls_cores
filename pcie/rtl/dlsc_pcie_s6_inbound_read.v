@@ -23,6 +23,7 @@ module dlsc_pcie_s6_inbound_read #(
     // Request header from dispatcher
     output  wire                req_h_ready,
     input   wire                req_h_valid,
+    input   wire                req_h_mem,
     input   wire    [ADDR-1:2]  req_h_addr,
     input   wire    [9:0]       req_h_len,
     input   wire    [3:0]       req_h_be_first,
@@ -110,12 +111,13 @@ wire [11:2]     rcb_h_addr;
 wire [9:0]      rcb_h_len;
 wire [3:0]      rcb_h_be_first;
 wire [3:0]      rcb_h_be_last;
+wire            rcb_h_mem;
 
 wire            rcb_h_almost_full;
 assign          rx_np_ok        = !rcb_h_almost_full;
 
 dlsc_rvh_fifo #(
-    .DATA           ( 10+10+8 ),
+    .DATA           ( 10+10+8+1 ),
     .DEPTH          ( 16 ),
     .ALMOST_FULL    ( 4 )
 ) dlsc_rvh_fifo_rcbh (
@@ -127,7 +129,8 @@ dlsc_rvh_fifo #(
         req_h_addr[11:2],
         req_h_len,
         req_h_be_first,
-        req_h_be_last } ),
+        req_h_be_last,
+        req_h_mem } ),
     .in_almost_full ( rcb_h_almost_full ),
     .out_ready      ( rcb_h_ready ),
     .out_valid      ( rcb_h_valid ),
@@ -135,7 +138,8 @@ dlsc_rvh_fifo #(
         rcb_h_addr,
         rcb_h_len,
         rcb_h_be_first,
-        rcb_h_be_last } ),
+        rcb_h_be_last,
+        rcb_h_mem } ),
     .out_almost_empty (  )
 );
 
@@ -215,6 +219,7 @@ dlsc_pcie_s6_inbound_read_rcb #(
     .rst            ( rst ),
     .tlp_h_ready    ( rcb_h_ready ),
     .tlp_h_valid    ( rcb_h_valid ),
+    .tlp_h_mem      ( rcb_h_mem ),
     .tlp_h_addr     ( rcb_h_addr ),
     .tlp_h_len      ( rcb_h_len ),
     .tlp_h_be_first ( rcb_h_be_first ),
@@ -311,7 +316,8 @@ dlsc_fifo #(
     .rd_pop             ( cpl_d_ready && cpl_d_valid ),
     .rd_data            ( { cpl_d_last, cpl_d_data } ),
     .rd_empty           ( rd_empty ),
-    .rd_almost_empty    (  )
+    .rd_almost_empty    (  ),
+    .rd_count           (  )
 );
 
 

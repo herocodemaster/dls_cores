@@ -21,6 +21,7 @@
 // SC_MODULE
 
 struct req_type {
+    bool        mem;
     uint64_t    addr;
     uint32_t    len;
     uint32_t    be_first;
@@ -157,6 +158,7 @@ void __MODULE__::send_tlp() {
     req.len         = len;
     req.be_first    = 0xF;
     req.be_last     = (len == 1) ? 0x0 : 0xF;
+    req.mem         = (len > 1) || (rand()%100) < 50;
 
     if( (rand()%100) < 30 ) {
         // strobed
@@ -188,6 +190,7 @@ void __MODULE__::clk_method() {
     if(rst) {
         token_wr        = 0;
         req_h_valid     = 0;
+        req_h_mem       = 0;
         req_h_addr      = 0;
         req_h_len       = 0;
         req_h_be_first  = 0;
@@ -225,6 +228,7 @@ void __MODULE__::clk_method() {
             req_type req = req_queue.front();
 
             req_h_valid     = 1;
+            req_h_mem       = req.mem;
             req_h_addr      = req.addr >> 2;
             req_h_len       = req.len;
             req_h_be_first  = req.be_first;
@@ -328,6 +332,11 @@ void __MODULE__::clk_method() {
                     data.pop_front();
                     cpld.last = (i==cplh.len);
                     cpld_queue.push_back(cpld);
+                }
+                
+                if(!req.mem) {
+                    cplh.addr   = 0;
+                    cplh.bytes  = 4;
                 }
 
                 cplh_queue.push_back(cplh);
