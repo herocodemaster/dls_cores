@@ -16,8 +16,8 @@ module dlsc_pcie_s6_inbound_tlp
 
     // Write completion header (non-posted only)
     output  wire                wr_h_ready,
-    input   reg                 wr_h_valid,
-    input   reg     [1:0]       wr_h_resp,
+    input   wire                wr_h_valid,
+    input   wire    [1:0]       wr_h_resp,
 
     // Read completion header
     output  wire                rd_h_ready,
@@ -29,7 +29,7 @@ module dlsc_pcie_s6_inbound_tlp
     input   wire    [1:0]       rd_h_resp,
 
     // Read completion data
-    output  wire                rd_d_ready,
+    output  reg                 rd_d_ready,
     input   wire                rd_d_valid,
     input   wire    [31:0]      rd_d_data,
     input   wire                rd_d_last,
@@ -84,9 +84,9 @@ dlsc_rvh_fifo #(
 // Buffer TLP output
 
 wire            tlp_ready;
-wire            tlp_valid;
-wire [31:0]     tlp_data;
-wire            tlp_last;
+reg             tlp_valid;
+reg  [31:0]     tlp_data;
+reg             tlp_last;
 
 reg             tlp_drop;
 

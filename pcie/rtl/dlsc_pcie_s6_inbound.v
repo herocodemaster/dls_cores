@@ -59,7 +59,7 @@ module dlsc_pcie_s6_inbound #(
     input   wire    [2:0]       func_number,
 
     // TLP receive input (requests only)
-    output  reg                 rx_ready,
+    output  wire                rx_ready,
     input   wire                rx_valid,
     input   wire    [31:0]      rx_data,
     input   wire                rx_last,

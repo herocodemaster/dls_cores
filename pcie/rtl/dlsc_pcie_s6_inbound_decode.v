@@ -35,13 +35,13 @@ module dlsc_pcie_s6_inbound_decode #(
 
     // TLP ID to completer (non-posted only)
     input   wire                tlp_id_ready,
-    output  wire                tlp_id_valid,
+    output  reg                 tlp_id_valid,
     output  wire                tlp_id_write,
     output  wire    [28:0]      tlp_id_data,
 
     // TLP data payload (writes only)
     input   wire                tlp_d_ready,
-    output  wire                tlp_d_valid,
+    output  reg                 tlp_d_valid,
     output  wire                tlp_d_last,
     output  wire    [31:0]      tlp_d_data,
     output  reg     [3:0]       tlp_d_strb
