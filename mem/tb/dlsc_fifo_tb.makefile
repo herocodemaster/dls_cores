@@ -12,6 +12,10 @@ V_PARAMS_DEF    += \
     ADDR=4 \
     ALMOST_FULL=0 \
     ALMOST_EMPTY=0 \
+    COUNT=0 \
+    FREE=0 \
+    FAST_FLAGS=0 \
+    FULL_IN_RESET=0 \
     BRAM=0
 
 sims0:

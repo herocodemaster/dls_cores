@@ -1,192 +1,149 @@
-module dlsc_fifo #(
-    parameter DATA          = 8,    // width of data in FIFO
-    parameter ADDR          = 4,    // depth of FIFO is 2**ADDR
-    parameter ALMOST_FULL   = 0,    // assert almost_full when <= ALMOST_FULL free spaces remain (0 makes it equivalent to full)
-    parameter ALMOST_EMPTY  = 0,    // assert almost_empty when <= ALMOST_EMPTY valid entries remain (0 makes it equivalent to empty)
-    parameter BRAM          = (DATA*(2**ADDR)>=4096) // use block RAM (instead of distributed RAM)
-) (
-    // system
-    input   wire                clk,
-    input   wire                rst,
-    
-    // input
-    input   wire                wr_push,
-    input   wire    [DATA-1:0]  wr_data,
-    output  reg                 wr_full,
-    output  wire                wr_almost_full,
+// 
+// Copyright (c) 2011, Daniel Strother < http://danstrother.com/ >
+// All rights reserved.
+// 
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are met:
+//   - Redistributions of source code must retain the above copyright notice,
+//     this list of conditions and the following disclaimer.
+//   - Redistributions in binary form must reproduce the above copyright
+//     notice, this list of conditions and the following disclaimer in the
+//     documentation and/or other materials provided with the distribution.
+//   - The name of the author may not be used to endorse or promote products
+//     derived from this software without specific prior written permission.
+// 
+// THIS SOFTWARE IS PROVIDED BY THE AUTHOR "AS IS" AND ANY EXPRESS OR IMPLIED
+// WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+// MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
+// EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+// PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+// LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+// NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+//
 
-    // output
-    input   wire                rd_pop,
-    output  wire    [DATA-1:0]  rd_data,
-    output  reg                 rd_empty,
-    output  wire                rd_almost_empty,
-    output  wire    [ADDR:0]    rd_count
+// Module Description:
+// Generic synchronous FIFO wrapper. Selects best (shiftreg or RAM) FIFO based
+// on parameters.
+
+module dlsc_fifo (
+    clk,
+    rst,
+    wr_push,
+    wr_data,
+    wr_full,
+    wr_almost_full,
+    wr_free,
+    rd_pop,
+    rd_data,
+    rd_empty,
+    rd_almost_empty,
+    rd_count
 );
 
-`include "dlsc_synthesis.vh"
+`include "dlsc_clog2.vh"
 
-localparam DEPTH    = (2**ADDR);
+// ** Parameters **
+
+// one of these must be set:
+parameter DEPTH         = 0;                    // depth of FIFO (if unset, will default to 2**ADDR)
+parameter ADDR          = `dlsc_clog2(DEPTH);   // address bits (if unset, will be set appropriately for DEPTH)
+                                                // (width of count/free ports is ADDR+1)
+
+localparam DEPTHI   = (DEPTH==0) ? (2**ADDR) : DEPTH;
+
+parameter DATA          = 8;                    // width of data in FIFO
+parameter ALMOST_FULL   = 0;                    // assert almost_full when <= ALMOST_FULL free spaces remain
+parameter ALMOST_EMPTY  = 0;                    // assert almost_empty when <= ALMOST_EMPTY valid entries remain
+parameter COUNT         = 0;                    // enable rd_count port
+parameter FREE          = 0;                    // enable wr_free port
+parameter FAST_FLAGS    = 0;                    // disallow pessimistic flags
+parameter FULL_IN_RESET = 0;                    // force full flags to be set when in reset
+parameter BRAM          = ((DATA*DEPTHI)>=4096);// use block RAM (instead of distributed RAM)
 
 
-// ** storage memory **
+// ** Ports **
 
-reg  [ADDR-1:0] wr_addr;
-wire [ADDR-1:0] rd_addr_next;
-wire            rd_en;
+// system
+input   wire                clk;
+input   wire                rst;
+
+// input
+input   wire                wr_push;
+input   wire    [DATA-1:0]  wr_data;
+output  wire                wr_full;
+output  wire                wr_almost_full;
+output  wire    [ADDR:0]    wr_free;
+
+// output
+input   wire                rd_pop;
+output  wire    [DATA-1:0]  rd_data;
+output  wire                rd_empty;
+output  wire                rd_almost_empty;
+output  wire    [ADDR:0]    rd_count;
+
+
+// ** Implementation **
+
+localparam  USE_SHIFTREG    = (DEPTHI <= 16 || DEPTHI != (2**ADDR)) && !(COUNT || FREE);
 
 generate
-if(!BRAM) begin:GEN_LUTRAM
+if(USE_SHIFTREG) begin:GEN_FIFO_SHIFTREG
 
-    `DLSC_LUTRAM reg [DATA-1:0] mem[DEPTH-1:0];
+    dlsc_fifo_shiftreg #(
+        .DATA           ( DATA ),
+        .DEPTH          ( DEPTHI ),
+        .ALMOST_FULL    ( ALMOST_FULL ),
+        .ALMOST_EMPTY   ( ALMOST_EMPTY ),
+        .FULL_IN_RESET  ( FULL_IN_RESET )
+    ) dlsc_fifo_shiftreg_inst (
+        .clk            ( clk ),
+        .rst            ( rst ),
+        .push_en        ( wr_push ),
+        .push_data      ( wr_data ),
+        .full           ( wr_full ),
+        .almost_full    ( wr_almost_full ),
+        .pop_en         ( rd_pop ),
+        .pop_data       ( rd_data ),
+        .empty          ( rd_empty ),
+        .almost_empty   ( rd_almost_empty )
+    );
+    
+    // TODO: wr_free, rd_count
 
-    reg  [DATA-1:0] mem_rd_data;
-    assign          rd_data         = mem_rd_data;
+    assign wr_free  = 0;
+    assign rd_count = 0;
 
-    always @(posedge clk) begin
-        if(wr_push) begin
-            mem[wr_addr]    <= wr_data;
-        end
-    end
-    always @(posedge clk) begin
-        if(rd_en) begin
-            mem_rd_data     <= mem[rd_addr_next];
-        end
-    end
+end else begin:GEN_FIFO_RAM
 
-end else begin:GEN_BRAM
-
-    dlsc_ram_dp #(
+    dlsc_fifo_ram #(
         .DATA           ( DATA ),
         .ADDR           ( ADDR ),
-        .PIPELINE_WR    ( 0 ),
-        .PIPELINE_RD    ( 1 ),
-        .WARNINGS       ( 0 )
-    ) dlsc_ram_dp_inst (
-        .write_clk      ( clk ),
-        .write_en       ( wr_push ),
-        .write_addr     ( wr_addr ),
-        .write_data     ( wr_data ),
-        .read_clk       ( clk ),
-        .read_en        ( rd_en ),
-        .read_addr      ( rd_addr_next ),
-        .read_data      ( rd_data )
+        .ALMOST_FULL    ( ALMOST_FULL ),
+        .ALMOST_EMPTY   ( ALMOST_EMPTY ),
+        .FAST_FLAGS     ( FAST_FLAGS ),
+        .FULL_IN_RESET  ( FULL_IN_RESET ),
+        .BRAM           ( BRAM )
+    ) dlsc_fifo_ram_inst (
+        .clk            ( clk ),
+        .rst            ( rst ),
+        .wr_push        ( wr_push ),
+        .wr_data        ( wr_data ),
+        .wr_full        ( wr_full ),
+        .wr_almost_full ( wr_almost_full ),
+        .wr_free        ( wr_free ),
+        .rd_pop         ( rd_pop ),
+        .rd_data        ( rd_data ),
+        .rd_empty       ( rd_empty ),
+        .rd_almost_empty( rd_almost_empty ),
+        .rd_count       ( rd_count )
     );
 
 end
 endgenerate
 
-
-// ** address generation **
-
-reg  [ADDR-1:0] rd_addr;
-reg  [ADDR-1:0] rd_addr_p1;
-
-assign          rd_addr_next    = rd_pop ? rd_addr_p1 : rd_addr;
-
-always @(posedge clk) begin
-    if(rst) begin
-        wr_addr     <= 0;
-        rd_addr     <= 0;
-        rd_addr_p1  <= 1;
-    end else begin
-        if(wr_push) begin
-            wr_addr     <= wr_addr + 1;
-        end
-        if(rd_pop) begin
-            rd_addr     <= rd_addr_p1;
-            rd_addr_p1  <= rd_addr_p1 + 1;
-        end
-    end
-end
-
-
-// ** flags **
-
-reg  [ADDR:0]   cnt;        // 1 extra bit, since we want to store [0,DEPTH] (not just DEPTH-1)
-reg             almost_empty;
-reg             almost_full;
-
-assign          rd_almost_empty = (ALMOST_EMPTY==0) ? rd_empty : almost_empty;
-assign          wr_almost_full  = (ALMOST_FULL ==0) ? wr_full  : almost_full;
-
-assign          rd_count        = cnt;
-
-always @(posedge clk) begin
-    if(rst) begin
-        wr_full         <= 1'b0;
-        rd_empty        <= 1'b1;
-        cnt             <= 0;
-        almost_full     <= 1'b0;
-        almost_empty    <= 1'b1;
-    end else begin
-
-        // pushed; count increments
-        if( wr_push && !rd_pop) begin
-            cnt             <= cnt + 1;
-            wr_full         <= (cnt == (DEPTH-1));  // cnt will be DEPTH (full)
-            if(cnt == (      ALMOST_EMPTY  )) almost_empty <= 1'b0;
-            if(cnt == (DEPTH-ALMOST_FULL -1)) almost_full  <= 1'b1;
-        end
-
-        // popped; count decrements
-        if(!wr_push &&  rd_pop) begin
-            cnt             <= cnt - 1;
-            wr_full         <= 1'b0;                // can't be full on pop
-            if(cnt == (      ALMOST_EMPTY+1)) almost_empty <= 1'b1;
-            if(cnt == (DEPTH-ALMOST_FULL   )) almost_full  <= 1'b0;
-        end
-
-        // special empty flag handling..
-        // (since the RAM doesn't support simultaneously reading from the same
-        //  address that is being written to)
-        if(cnt == 1) begin
-            if(rd_pop) begin
-                rd_empty    <= 1'b1;
-            end else begin
-                rd_empty    <= 1'b0;
-            end
-        end
-
-    end
-end
-
-// read on pop, or after first entry is written
-assign          rd_en           = rd_pop || (rd_empty && cnt == 1);
-
-
-// ** simulation checks **
-
-`ifdef DLSC_SIMULATION
-`include "dlsc_sim_top.vh"
-
-always @(posedge clk) begin
-
-    if( wr_push && !rd_pop && wr_full ) begin
-        `dlsc_error("overflow");
-    end
-    if(             rd_pop && rd_empty) begin
-        `dlsc_error("underflow");
-    end
-
-end
-
-integer max_cnt;
-always @(posedge clk) begin
-    if(rst) begin
-        max_cnt = 0;
-    end else if(cnt > max_cnt) begin
-        max_cnt = cnt;
-    end
-end
-
-task report;
-begin
-    `dlsc_info("max usage: %0d%% (%0d/%0d)",((max_cnt*100)/DEPTH),max_cnt,DEPTH);
-end
-endtask
-
-`include "dlsc_sim_bot.vh"
-`endif
 
 endmodule
 

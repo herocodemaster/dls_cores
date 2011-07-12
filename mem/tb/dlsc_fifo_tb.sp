@@ -11,6 +11,10 @@
 #define DEPTH           (1<<PARAM_ADDR)
 #define ALMOST_FULL     PARAM_ALMOST_FULL
 #define ALMOST_EMPTY    PARAM_ALMOST_EMPTY
+#define COUNT           PARAM_COUNT
+#define FREE            PARAM_FREE
+#define FAST_FLAGS      PARAM_FAST_FLAGS
+#define FULL_IN_RESET   PARAM_FULL_IN_RESET
 
 SC_MODULE (__MODULE__) {
 private:
@@ -77,8 +81,8 @@ void __MODULE__::fifo_method() {
         // check reset values
         dlsc_assert_equals(rd_empty,1);
         dlsc_assert_equals(rd_almost_empty,1);
-        dlsc_assert_equals(wr_full,0);
-        dlsc_assert_equals(wr_almost_full,0);
+        dlsc_assert_equals(wr_full,FULL_IN_RESET);
+        dlsc_assert_equals(wr_almost_full,FULL_IN_RESET);
         fifo.clear();
         return;
     }
@@ -103,14 +107,19 @@ void __MODULE__::fifo_method() {
         }
     }
 
-    // check count
-    dlsc_assert_equals(rd_count,fifo.size());
+    if(FREE) {
+        dlsc_assert_equals(wr_free,(DEPTH-fifo.size()));
+    }
+
+    if(COUNT) {
+        dlsc_assert_equals(rd_count,fifo.size());
+    }
 
     // check empty flags
     if(fifo.empty()) {
         dlsc_assert_equals(rd_empty,1);
         dlsc_assert_equals(rd_almost_empty,1);
-    } else if(fifo.size() > 1 || !wr_push) {
+    } else if(FAST_FLAGS || fifo.size() > 1 || !wr_push) {
         dlsc_assert_equals(rd_empty,0);
         dlsc_assert_equals(rd_almost_empty,(fifo.size() <= ALMOST_EMPTY));
     }
@@ -134,8 +143,8 @@ void __MODULE__::stim_method() {
         return;
     }
 
-    bool read_en    = ((rand()%100) >= read_pct ) && !rd_empty;
-    bool write_en   = ((rand()%100) >= write_pct) && (read_en || !wr_full);
+    bool read_en    = ((rand()%100) < read_pct ) && !rd_empty;
+    bool write_en   = ((rand()%100) < write_pct) && (read_en || !wr_full);
 
     if(read_en) {
         rd_pop          = 1;
@@ -156,7 +165,7 @@ void __MODULE__::stim_thread() {
     rst     = 1;
     wait(100,SC_NS);
 
-    for(int i=0;i<20;++i) {
+    for(int i=0;i<25;++i) {
         wait(clk.negedge_event());
         rst     = 1;
 
@@ -166,7 +175,7 @@ void __MODULE__::stim_thread() {
         wait(clk.negedge_event());
         rst     = 0;
 
-        wait(10,SC_US);
+        wait(25,SC_US);
     }
 
     wait(1,SC_US);
@@ -175,7 +184,7 @@ void __MODULE__::stim_thread() {
 }
 
 void __MODULE__::watchdog_thread() {
-    wait(1,SC_MS);
+    wait(10,SC_MS);
 
     dlsc_error("watchdog timeout");
 
