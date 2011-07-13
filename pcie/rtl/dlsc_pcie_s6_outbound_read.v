@@ -109,7 +109,7 @@ wire            alloc_valid;
 wire [TAG:0]    alloc_tag;
 wire [9:0]      alloc_len;
 wire [6:2]      alloc_addr;
-wire [BUFA-1:0] alloc_bufa;
+wire [BUFA:0]   alloc_bufa;
 
 // cpl -> buffer
 wire            cpl_ready;

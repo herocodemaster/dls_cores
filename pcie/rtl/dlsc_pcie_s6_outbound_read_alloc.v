@@ -18,7 +18,7 @@ module dlsc_pcie_s6_outbound_read_alloc #(
     output  reg     [TAG:0]     alloc_tag,
     output  reg     [9:0]       alloc_len,
     output  reg     [6:2]       alloc_addr,
-    output  reg     [BUFA-1:0]  alloc_bufa,
+    output  reg     [BUFA:0]    alloc_bufa,
 
     // feedback from _cpl
     input   wire                dealloc_cplh,       // freed a header credit
@@ -178,8 +178,8 @@ localparam      LEN_PAD         = (BUFA>10) ? (BUFA-10) : 0;
 reg  [BUFA:0]   buf_avail       = (2**BUFA);
 wire [BUFS:0]   buf_avail_sub   = { {BUFA_PAD{1'b0}}, buf_avail } - { {LEN_PAD{1'b0}}, h_len };
 
-reg  [BUFA-1:0] buf_addr        = 0;
-wire [BUFS:0]   buf_addr_add    = { {BUFA_PAD{1'b0}}, 1'b0, buf_addr } + { {LEN_PAD{1'b0}}, h_len };
+reg  [BUFA:0]   buf_addr        = 0;
+wire [BUFS:0]   buf_addr_add    = { {BUFA_PAD{1'b0}}, buf_addr } + { {LEN_PAD{1'b0}}, h_len };
 
 wire            buf_okay        = !buf_avail_sub[BUFS];
 
@@ -190,7 +190,7 @@ always @(posedge clk) begin
     end else begin
 
         if(h_xfer) begin
-            buf_addr        <= buf_addr_add[BUFA-1:0];
+            buf_addr        <= buf_addr_add[BUFA:0];
             buf_avail       <= buf_avail_sub[BUFA:0] + { {BUFA{1'b0}}, dealloc_data };
         end else begin
             buf_avail       <= buf_avail             + { {BUFA{1'b0}}, dealloc_data };

@@ -153,7 +153,7 @@ void __MODULE__::clk_method() {
 
         tag_next            = (tag_next + 1) & ((2<<TAG)-1);
         tag_free            -= 1;
-        buf_addr            = (buf_addr + ar_len_accum) & ((1<<BUFA)-1);
+        buf_addr            = (buf_addr + ar_len_accum) & ((1<<(BUFA+1))-1);
         buf_free            -= ar_len_accum;
 
         ar_len_accum        = 0;
