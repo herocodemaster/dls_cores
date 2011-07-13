@@ -52,7 +52,7 @@ module dlsc_pcie_s6_inbound_read #(
     output  reg     [LEN-1:0]   axi_ar_len,
 
     // AXI read response
-    output  wire                axi_r_ready,
+    output  reg                 axi_r_ready,
     input   wire                axi_r_valid,
     input   wire                axi_r_last,
     input   wire    [31:0]      axi_r_data,
@@ -74,6 +74,8 @@ localparam  RCB_MAX_SIZE_DW     = (2**BUFA)/2;
 
 // Buffer request TLPs for AXI
 
+wire            axi_h_in_ready;
+
 wire            axi_h_ready;
 wire            axi_h_valid;
 wire [ADDR-1:2] axi_h_addr;
@@ -86,7 +88,7 @@ dlsc_rvh_fifo #(
 ) dlsc_rvh_fifo_axih (
     .clk            ( clk ),
     .rst            ( rst ),
-    .in_ready       (  ),   // fifo_rcbh should always become unready before fifo_axih becomes unready
+    .in_ready       ( axi_h_in_ready ),
     .in_valid       ( req_h_ready && req_h_valid ),
     .in_data        ( {
         req_h_addr,
@@ -104,6 +106,8 @@ dlsc_rvh_fifo #(
 
 
 // Buffer request TLPs for RCB
+
+wire            rcb_h_in_ready;
 
 wire            rcb_h_ready;
 wire            rcb_h_valid;
@@ -123,8 +127,8 @@ dlsc_rvh_fifo #(
 ) dlsc_rvh_fifo_rcbh (
     .clk            ( clk ),
     .rst            ( rst ),
-    .in_ready       ( req_h_ready ),
-    .in_valid       ( req_h_valid ),
+    .in_ready       ( rcb_h_in_ready ),
+    .in_valid       ( req_h_ready && req_h_valid ),
     .in_data        ( {
         req_h_addr[11:2],
         req_h_len,
@@ -142,6 +146,8 @@ dlsc_rvh_fifo #(
         rcb_h_mem } ),
     .out_almost_empty (  )
 );
+
+assign          req_h_ready     = axi_h_in_ready && rcb_h_in_ready;
 
 
 // Create AXI commands
@@ -204,8 +210,6 @@ end
 wire            rcb_ready;
 wire            rcb_valid;
 
-assign          axi_r_ready     = rcb_valid;
-
 wire [6:0]      rcb_addr;
 wire [9:0]      rcb_len;
 wire [11:0]     rcb_bytes;
@@ -234,19 +238,55 @@ dlsc_pcie_s6_inbound_read_rcb #(
 );
 
 
+// Register response headers and create axi_r_ready
+
+reg  [6:0]      r_addr;
+reg  [9:0]      r_len;
+reg  [11:0]     r_bytes;
+reg             r_last;
+
+wire            resp_almost_full;
+wire            r_len_last;
+
+assign          rcb_ready       = (!axi_r_ready || (axi_r_valid && r_len_last)) && !resp_almost_full;
+
+always @(posedge clk) begin
+    if(rst) begin
+        axi_r_ready     <= 1'b0;
+    end else begin
+        if(axi_r_valid && r_len_last) begin
+            axi_r_ready     <= 1'b0;
+        end
+        if(rcb_ready && rcb_valid) begin
+            axi_r_ready     <= 1'b1;
+        end
+    end
+end
+
+always @(posedge clk) begin
+    if(rcb_ready && rcb_valid) begin
+        r_addr      <= rcb_addr;
+        r_len       <= rcb_len;
+        r_bytes     <= rcb_bytes;
+        r_last      <= rcb_last;
+    end
+end
+
+
 // Track boundaries in read data
 
 reg  [9:0]      r_cnt;
-wire            r_cnt_last      = (r_cnt == rcb_len);
-
-assign          rcb_ready       = axi_r_ready && axi_r_valid && r_cnt_last;
+assign          r_len_last      = (r_cnt == r_len);
 
 always @(posedge clk) begin
-    if(rst || rcb_ready) begin
+    if(rst) begin
         r_cnt    <= 1;
     end else begin
-        if(axi_r_ready && axi_r_valid) begin
+        if(axi_r_ready && axi_r_valid && !r_len_last) begin
             r_cnt    <= r_cnt + 1;
+        end
+        if(rcb_ready && rcb_valid) begin
+            r_cnt   <= 1;
         end
     end
 end
@@ -255,35 +295,37 @@ end
 // Aggregate read response
 
 reg  [1:0]      r_resp;
-wire [1:0]      r_resp_accum    = (axi_r_ready && axi_r_valid && axi_r_resp != AXI_RESP_OKAY) ? axi_r_resp : r_resp;
+wire [1:0]      r_resp_accum    = (axi_r_resp != AXI_RESP_OKAY) ? axi_r_resp : r_resp;
 
 always @(posedge clk) begin
-    if(rst || rcb_ready) begin
+    if(rst) begin
         r_resp      <= AXI_RESP_OKAY;
-    end else begin
-        r_resp      <= r_resp_accum;
+    end else if(axi_r_ready && axi_r_valid) begin
+        if(r_len_last) begin
+            r_resp      <= AXI_RESP_OKAY;
+        end else begin
+            r_resp      <= r_resp_accum;
+        end
     end
 end
 
 
 // Buffer response headers
 
-wire            resp_almost_full;
-
 dlsc_rvh_fifo #(
     .DATA           ( 7+10+12+1+2 ),
-    .DEPTH          ( MOT*2 ),
-    .ALMOST_FULL    ( MOT )
+    .DEPTH          ( 16 ),
+    .ALMOST_FULL    ( 1 )
 ) dlsc_rvh_fifo_cplh (
     .clk            ( clk ),
     .rst            ( rst ),
     .in_ready       (  ),
-    .in_valid       ( rcb_ready ),
+    .in_valid       ( axi_r_ready && axi_r_valid && r_len_last ),
     .in_data        ( {
-        rcb_addr,
-        rcb_len,
-        rcb_bytes,
-        rcb_last,
+        r_addr,
+        r_len,
+        r_bytes,
+        r_last,
         r_resp_accum } ),
     .in_almost_full ( resp_almost_full ),
     .out_ready      ( cpl_h_ready ),
@@ -310,7 +352,7 @@ dlsc_fifo #(
     .clk                ( clk ),
     .rst                ( rst ),
     .wr_push            ( axi_r_ready && axi_r_valid ),
-    .wr_data            ( { r_cnt_last, axi_r_data } ),
+    .wr_data            ( { r_len_last, axi_r_data } ),
     .wr_full            (  ),
     .wr_almost_full     (  ),
     .rd_pop             ( cpl_d_ready && cpl_d_valid ),
@@ -393,7 +435,7 @@ end
 // Handshaking
 
 assign          cmd_ready       = (!axi_ar_valid || axi_ar_ready) && mem_free_okay &&
-                                    token_okay && !mot_max && !resp_almost_full;
+                                    token_okay && !mot_max;
 
 
 endmodule
