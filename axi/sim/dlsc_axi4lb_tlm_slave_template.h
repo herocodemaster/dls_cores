@@ -227,7 +227,7 @@ void dlsc_axi4lb_tlm_slave_template<DATATYPE,ADDRTYPE>::w_method() {
         aw_queue.pop_front();
 
         if(cmd.len != w_data_queue.size()) {
-            dlsc_error("AW/W length mismatch");
+            dlsc_error("AW/W length mismatch; expected: " << std::dec << cmd.len << ", but got: " << w_data_queue.size());
             w_data_queue.resize(cmd.len);
             w_strb_queue.resize(cmd.len);
         }
