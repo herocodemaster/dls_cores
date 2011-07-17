@@ -209,7 +209,7 @@ reg             soft_rst_req;
 reg             soft_rst;
 assign          rst_dma         = rst || soft_rst;
 
-wire            halt_i          = halt || soft_rst_req;
+wire            halt_i          = halt || soft_rst_req || error;
 assign          cmd_halt        = halt_i;
 assign          rd_halt         = halt_i;
 assign          wr_halt         = halt_i;
@@ -234,7 +234,7 @@ always @(posedge clk) begin
     end
 end
 
-wire [31:0]     csr_control     = { 30'd0, soft_rst_req, halt };
+wire [31:0]     csr_control     = { 30'd0, soft_rst_req, halt_i };
 
 
 // Counts
@@ -257,11 +257,11 @@ always @(posedge clk) begin
             cnt_write       <= wr_cmd_done ?    1 :    0;
             cnt_write_zero  <= wr_cmd_done ? 1'b0 : 1'b1;
         end else begin
-            if(rd_cmd_done) begin
+            if(rd_cmd_done && !(&cnt_read)) begin
                 cnt_read        <= cnt_read + 1;
                 cnt_read_zero   <= 1'b0;
             end
-            if(wr_cmd_done) begin
+            if(wr_cmd_done && !(&cnt_write)) begin
                 cnt_write       <= cnt_write + 1;
                 cnt_write_zero  <= 1'b0;
             end
