@@ -6,7 +6,7 @@
 #include <tlm.h>
 #include <tlm_utils/multi_passthrough_target_socket.h>
 
-#include <vector>
+#include <deque>
 #include <map>
 #include <algorithm>
 #include <boost/shared_array.hpp>
@@ -28,6 +28,37 @@ public:
         const sc_core::sc_time          access_latency  = sc_core::SC_ZERO_TIME);   // time it takes to setup a burst
 
     void set_error_rate(const int error_rate) { assert(error_rate >= 0 && error_rate <= 100); this->error_rate = error_rate; }
+
+
+    // Backdoor memory access
+    
+    template <class InputIterator>
+    void nb_read(
+        uint64_t addr,
+        InputIterator first,
+        const InputIterator last);
+    
+    inline void nb_read(
+        const uint64_t addr,
+        const unsigned int length,
+        std::deque<DATATYPE> &data)
+    {
+        data.resize(length);
+        nb_read(addr,data.begin(),data.end());
+    }
+
+    template <class InputIterator>
+    void nb_write(
+        uint64_t addr,
+        InputIterator first,
+        const InputIterator last);
+
+    inline void nb_write(
+        const uint64_t addr,
+        std::deque<DATATYPE> &data)
+    {
+        nb_write(addr,data.begin(),data.end());
+    }
 
     void end_of_elaboration();
 
@@ -105,6 +136,58 @@ dlsc_tlm_memory<DATATYPE>::dlsc_tlm_memory(
     delay_enabled   = byte_latency != sc_core::SC_ZERO_TIME || access_latency != sc_core::SC_ZERO_TIME;
 
     error_rate      = 0;
+}
+
+template <typename DATATYPE> template <class InputIterator>
+void dlsc_tlm_memory<DATATYPE>::nb_read(
+    uint64_t addr,
+    InputIterator first,
+    const InputIterator last)
+{
+    unsigned int lim;
+    DATATYPE *ptr;
+
+    addr &= ~((uint64_t)(sizeof(DATATYPE)-1));
+
+    while(first != last) {
+        lim     = block_size - (addr & block_mask);
+        lim     /= sizeof(DATATYPE);
+        if(lim > (last-first))
+            lim     = (last-first);
+
+        ptr     = reinterpret_cast<DATATYPE*>(get_block_ptr(addr));
+
+        std::copy(ptr,ptr+lim,first);
+
+        addr    += (lim*sizeof(DATATYPE));
+        first   += lim;
+    }
+}
+    
+template <typename DATATYPE> template <class InputIterator>
+void dlsc_tlm_memory<DATATYPE>::nb_write(
+    uint64_t addr,
+    InputIterator first,
+    const InputIterator last)
+{
+    unsigned int lim;
+    DATATYPE *ptr;
+
+    addr &= ~((uint64_t)(sizeof(DATATYPE)-1));
+
+    while(first != last) {
+        lim     = block_size - (addr & block_mask);
+        lim     /= sizeof(DATATYPE);
+        if(lim > (last-first))
+            lim     = (last-first);
+
+        ptr     = reinterpret_cast<DATATYPE*>(get_block_ptr(addr));
+
+        std::copy(first,first+lim,ptr);
+
+        addr    += (lim*sizeof(DATATYPE));
+        first   += lim;
+    }
 }
 
 template <typename DATATYPE>
