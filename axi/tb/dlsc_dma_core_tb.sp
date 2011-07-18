@@ -59,6 +59,7 @@ private:
 
     void int_thread();
     void clk_method();
+    void error_thread();
     
     dlsc_tlm_memory<uint32_t> *cmd_memory;
     dlsc_tlm_memory<uint32_t> *rd_memory;
@@ -75,6 +76,8 @@ private:
 
     void dma_check(std::deque<dma_desc> src_descs, std::deque<dma_desc> dest_descs);
     void do_dma();
+
+    void soft_reset();
 
     // allocator
     uint8_t *mem_cmd_busy;
@@ -187,8 +190,30 @@ SP_CTOR_IMP(__MODULE__) : clk("clk",10,SC_NS), mem_size(1024*1024) /*AUTOINIT*/ 
     SC_METHOD(clk_method);
         sensitive << clk.posedge_event();
 
+    SC_THREAD(error_thread);
+
     SC_THREAD(stim_thread);
     SC_THREAD(watchdog_thread);
+}
+
+void __MODULE__::soft_reset() {
+    reg_write(REG_TRIG_IN_ACK, 0xFFFF);
+    reg_write(REG_TRIG_OUT_ACK, 0xFFFF);
+    reg_write(REG_CONTROL,0x2);
+    
+    while(!trig_queue.empty()) {
+        pend_queue.push_front(trig_queue.back()); trig_queue.pop_back();
+    }
+    while(!check_queue.empty()) {
+        pend_queue.push_front(check_queue.back()); check_queue.pop_back();
+    }
+
+    trig_in_busy    = 0;
+    trig_out_busy   = 0;
+    
+    std::fill(mem_cmd_busy,mem_cmd_busy+mem_size,0);
+    std::fill(mem_rd_busy ,mem_rd_busy +mem_size,0);
+    std::fill(mem_wr_busy ,mem_wr_busy +mem_size,0);
 }
 
 void __MODULE__::int_thread() {
@@ -199,6 +224,8 @@ void __MODULE__::int_thread() {
 
     dlsc_assert_equals(int_out,0);
 
+    bool ae_enabled = false;
+
     while(true) {
         
         wait(clk.posedge_event());
@@ -207,54 +234,66 @@ void __MODULE__::int_thread() {
             uint32_t fl = reg_read(REG_INT_FLAGS);
             uint32_t ack = 0;
 
-            if( (fl & (1<<19)) && (fl & (1<<17)) && !pend_queue.empty() ) {
+            if( (fl & (1<<31)) ) {
+                dlsc_info("error flag set; performing soft reset");
+                reg_write(REG_INT_SELECT,0x8000FFFF);
+                ae_enabled = false;
+                soft_reset();
+                while(int_out) wait(clk.posedge_event());
+                uint32_t d_reg_control = reg_read(REG_CONTROL);
+                dlsc_assert_equals(d_reg_control,0);
+            } else {
+                if( (fl & (1<<19)) && (fl & (1<<17)) && !pend_queue.empty() ) {
 
-                uint32_t cnt = reg_read(REG_COUNTS);
-                uint32_t frd_free = ((cnt >> 16) & 0xFF);
-                uint32_t fwr_free = ((cnt >> 24) & 0xFF);
+                    uint32_t cnt = reg_read(REG_COUNTS);
+                    uint32_t frd_free = ((cnt >> 16) & 0xFF);
+                    uint32_t fwr_free = ((cnt >> 24) & 0xFF);
 
-                dlsc_assert(frd_free >= 4);
-                dlsc_assert(fwr_free >= 4);
+                    dlsc_assert(frd_free >= 4);
+                    dlsc_assert(fwr_free >= 4);
 
-                while(frd_free > 0 && fwr_free > 0 && !pend_queue.empty() && trig_in_busy != TRIG_MASK && trig_out_busy != TRIG_MASK) {
-                    dma_op op = pend_queue.front(); pend_queue.pop_front();
-                    op_pend(op);
-                    reg_write(REG_FRD_LO,op->src_cmd_addr);
-                    reg_write(REG_FRD_HI,op->src_cmd_addr>>32);
-                    reg_write(REG_FWR_LO,op->dest_cmd_addr);
-                    reg_write(REG_FWR_HI,op->dest_cmd_addr>>32);
-                    trig_queue.push_back(op);
-                    frd_free--;
-                    fwr_free--;
+                    while(frd_free > 0 && fwr_free > 0 && !pend_queue.empty() && trig_in_busy != TRIG_MASK && trig_out_busy != TRIG_MASK) {
+                        dma_op op = pend_queue.front(); pend_queue.pop_front();
+                        op_pend(op);
+                        reg_write(REG_FRD_LO,op->src_cmd_addr);
+                        reg_write(REG_FRD_HI,op->src_cmd_addr>>32);
+                        reg_write(REG_FWR_LO,op->dest_cmd_addr);
+                        reg_write(REG_FWR_HI,op->dest_cmd_addr>>32);
+                        trig_queue.push_back(op);
+                        frd_free--;
+                        fwr_free--;
+                    }
+                }
+
+                while(!check_queue.empty() && (check_queue.front()->destq.back().trig_out & fl)) {
+                    dma_op op = check_queue.front(); check_queue.pop_front();
+                    ack |= op->destq.back().trig_out;
+                    op_check(op);
+                }
+
+                if(ack) {
+                    dlsc_assert_equals( (trig_out.read() & ack) , ack );
+                    reg_write(REG_TRIG_OUT_ACK,ack);
+                    wait(clk.posedge_event());
+                    dlsc_assert_equals( (trig_out.read() & ack) , 0 );
+                    trig_out_busy &= ~ack;
                 }
             }
+        }
+        
+        bool ops_ready = (!pend_queue.empty() && trig_in_busy != TRIG_MASK && trig_out_busy != TRIG_MASK);
 
-            while(!check_queue.empty() && (check_queue.front()->destq.back().trig_out & fl)) {
-                dma_op op = check_queue.front(); check_queue.pop_front();
-                ack |= op->destq.back().trig_out;
-                op_check(op);
-            }
-
-            if(ack) {
-                dlsc_assert_equals( (trig_out.read() & ack) , ack );
-                reg_write(REG_TRIG_OUT_ACK,ack);
-                wait(clk.posedge_event());
-                dlsc_assert_equals( (trig_out.read() & ack) , 0 );
-                trig_out_busy &= ~ack;
-            }
-
-            if(pend_queue.empty()) {
-                // mask empty interrupt
-                reg_write(REG_INT_SELECT,0x8000FFFF);
-            }
-        } else {
-            if(!pend_queue.empty() && trig_queue.empty() && check_queue.empty()) {
-                // unmask empty interrupt
-                reg_write(REG_INT_SELECT,0x800FFFFF);
-            }
+        if(ops_ready && !ae_enabled) {
+            // unmask empty interrupt
+            reg_write(REG_INT_SELECT,0x8008FFFF);
+            ae_enabled = true;
+        } else if(!ops_ready && ae_enabled) {
+            // mask empty interrupt
+            reg_write(REG_INT_SELECT,0x8000FFFF);
+            ae_enabled = false;
         }
 
-        wait(1,SC_US);
+        wait(10,SC_US);
     }
 }
 
@@ -521,7 +560,7 @@ void __MODULE__::do_dma() {
 
     op->id = next_id++;
 
-    dlsc_info("performing DMA operation, length: " << std::dec << length);
+    dlsc_info("performing DMA operation " << std::dec << (op->id) << ", length: " << std::dec << length);
 
 
     // source
@@ -599,13 +638,35 @@ uint32_t __MODULE__::reg_read(uint32_t addr) {
     return data;
 }
 
+void __MODULE__::error_thread() {
+
+    while(true) {
+
+        wait(10+(rand()%100),SC_US);
+
+        cmd_memory->set_error_rate(0);
+        rd_memory->set_error_rate(0);
+        wr_memory->set_error_rate(0);
+
+        if( (rand()%1000) < 10 ) {
+            switch(rand()%3) {
+                case 0: cmd_memory->set_error_rate(1); break;
+                case 1: rd_memory->set_error_rate(1); break;
+                case 2: wr_memory->set_error_rate(1); break;
+            }
+        }
+
+    }
+
+}
+
 void __MODULE__::stim_thread() {
     rst     = 1;
     wait(100,SC_NS);
     wait(clk.posedge_event());
     rst     = 0;
 
-    for(int i=0;i<20;++i) {
+    for(int i=0;i<100;++i) {
         do_dma();
     }
 
