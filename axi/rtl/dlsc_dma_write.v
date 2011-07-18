@@ -32,6 +32,7 @@ module dlsc_dma_write #(
     output  wire                    fifo_rd_pop,
     input   wire    [DATA-1:0]      fifo_rd_data,
     input   wire    [BUFA:0]        fifo_rd_count,
+    input   wire                    fifo_rd_empty,
     
     // AXI write command
     input   wire                    axi_aw_ready,
@@ -95,7 +96,7 @@ dlsc_dma_rwcontrol #(
 
 // Check FIFO space
 
-assign          cs_okay         = (!axi_w_valid || axi_w_ready) && axi_w_last && (fifo_rd_count >= { {(BUFA-LEN){1'b0}}, cs_len});
+assign          cs_okay         = (!axi_w_valid || axi_w_ready) && axi_w_last && !fifo_rd_empty && (fifo_rd_count >= { {(BUFA-LEN){1'b0}}, cs_len});
 
 assign          fifo_rd_pop     = (!axi_w_valid || axi_w_ready) && (!axi_w_last || cs_pop);
 

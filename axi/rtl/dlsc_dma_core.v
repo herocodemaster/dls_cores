@@ -239,6 +239,7 @@ wire    [DATA-1:0]      fifo_wr_data;
 wire                    fifo_rd_pop;
 wire    [DATA-1:0]      fifo_rd_data;
 wire    [BUFA:0]        fifo_rd_count;
+wire                    fifo_rd_empty;
 
 dlsc_fifo #(
     .DATA               ( DATA ),
@@ -253,7 +254,7 @@ dlsc_fifo #(
     .wr_free            (  ),
     .rd_pop             ( fifo_rd_pop ),
     .rd_data            ( fifo_rd_data ),
-    .rd_empty           (  ),
+    .rd_empty           ( fifo_rd_empty ),
     .rd_almost_empty    (  ),
     .rd_count           ( fifo_rd_count )
 );
@@ -323,6 +324,7 @@ dlsc_dma_write #(
     .fifo_rd_pop        ( fifo_rd_pop ),
     .fifo_rd_data       ( fifo_rd_data ),
     .fifo_rd_count      ( fifo_rd_count ),
+    .fifo_rd_empty      ( fifo_rd_empty ),
     .axi_aw_ready       ( wr_aw_ready ),
     .axi_aw_valid       ( wr_aw_valid ),
     .axi_aw_addr        ( wr_aw_addr ),
