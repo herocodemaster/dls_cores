@@ -43,6 +43,9 @@ public:
         const unsigned int length,
         sc_core::sc_time delay_initial = sc_core::SC_ZERO_TIME);
 
+    // single word read
+    DATATYPE b_read(const uint64_t addr);
+
     // *** Writes (data only) ***
     template <class InputIterator>
     transaction nb_write(
@@ -66,6 +69,9 @@ public:
     {
         return nb_write(addr,data.begin(),data.end(),delay_initial);
     }
+
+    // single word write
+    bool b_write(const uint64_t addr, const DATATYPE data);
     
     // *** Writes (data and strobes) ***
     template <class DataIterator,class StrbIterator>
@@ -198,6 +204,15 @@ dlsc_tlm_initiator_nb<DATATYPE>::nb_read(
     return launch(trans,delay_initial);
 }
 
+// single word read
+template <typename DATATYPE>
+DATATYPE dlsc_tlm_initiator_nb<DATATYPE>::b_read(const uint64_t addr) {
+    transaction ts = nb_read(addr,1);
+    DATATYPE d;
+    ts->b_read(d);
+    return d;
+}
+
 // *** Writes (data only) ***
 template <typename DATATYPE> template <class InputIterator>
 typename dlsc_tlm_initiator_nb<DATATYPE>::transaction
@@ -222,6 +237,14 @@ dlsc_tlm_initiator_nb<DATATYPE>::nb_write(
     // delay_initial is pass-by-value, so initiator's delay will NOT be modified
     // any delay annotated by the transaction will be accounted for on completion
     return launch(trans,delay_initial);
+}
+
+// single word write
+template <typename DATATYPE>
+bool dlsc_tlm_initiator_nb<DATATYPE>::b_write(const uint64_t addr, DATATYPE data) {
+    std::deque<DATATYPE> dq; dq.push_back(data);
+    transaction ts = nb_write(addr,dq);
+    return (ts->b_status() == tlm::TLM_OK_RESPONSE);
 }
 
 // *** Writes (data and strobes) ***
