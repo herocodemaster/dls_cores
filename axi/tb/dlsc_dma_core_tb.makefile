@@ -8,6 +8,7 @@ V_DUT           += dlsc_dma_core.v
 SP_TESTBENCH    += dlsc_dma_core_tb.sp
 
 SP_FILES        += dlsc_axi4lb_tlm_slave_32b.sp
+SP_FILES        += dlsc_apb_tlm_master_32b.sp
 
 V_PARAMS_DEF    += \
     APB_ADDR=32 \

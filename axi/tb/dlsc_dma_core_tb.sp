@@ -7,6 +7,7 @@
 #include <boost/shared_ptr.hpp>
 
 #include "dlsc_tlm_memory.h"
+#include "dlsc_tlm_initiator_nb.h"
 
 /*AUTOSUBCELL_CLASS*/
 
@@ -64,6 +65,8 @@ private:
     dlsc_tlm_memory<uint32_t> *cmd_memory;
     dlsc_tlm_memory<uint32_t> *rd_memory;
     dlsc_tlm_memory<uint32_t> *wr_memory;
+    
+    dlsc_tlm_initiator_nb<uint32_t> *apb;
 
     void reg_write(uint32_t addr, uint32_t data);
     uint32_t reg_read(uint32_t addr);
@@ -148,6 +151,9 @@ SP_CTOR_IMP(__MODULE__) : clk("clk",10,SC_NS), mem_size(1024*1024) /*AUTOINIT*/ 
     SP_CELL(dut,DLSC_DUT);
         /*AUTOINST*/
 
+    SP_CELL(apb_master,dlsc_apb_tlm_master_32b);
+        /*AUTOINST*/
+
     SP_CELL(axi_slave_cmd,dlsc_axi4lb_tlm_slave_32b);
         /*AUTOINST*/
     SP_TEMPLATE(axi_slave_cmd,"axi_(.*)","cmd_$1");
@@ -169,6 +175,11 @@ SP_CTOR_IMP(__MODULE__) : clk("clk",10,SC_NS), mem_size(1024*1024) /*AUTOINIT*/ 
     
     wr_memory = new dlsc_tlm_memory<uint32_t>("wr_memory",4*mem_size,0,sc_core::sc_time(1.0,SC_NS),sc_core::sc_time(100,SC_NS));
     axi_slave_wr->socket.bind(wr_memory->socket);
+    
+    
+    apb = new dlsc_tlm_initiator_nb<uint32_t>("apb",1);
+    apb->socket.bind(apb_master->socket);
+
 
     mem_cmd_busy    = new uint8_t[mem_size];
     mem_rd_busy     = new uint8_t[mem_size];
@@ -595,47 +606,11 @@ void __MODULE__::do_dma() {
 }
 
 void __MODULE__::reg_write(uint32_t addr, uint32_t data) {
-    apb_sel     = 1;
-    apb_enable  = 0;
-    apb_write   = 1;
-    apb_addr    = addr << 2;
-    apb_wdata   = data;
-
-    wait(clk.posedge_event());
-    apb_enable  = 1;
-
-    do {
-        wait(clk.posedge_event());
-    } while(!apb_ready);
-
-    apb_sel     = 0;
-    apb_enable  = 0;
-    
-    dlsc_verb("write to 0x" << std::hex << addr << ": 0x" << std::hex << data);
+    apb->b_write(addr<<2,data);
 }
 
 uint32_t __MODULE__::reg_read(uint32_t addr) {
-    apb_sel     = 1;
-    apb_enable  = 0;
-    apb_write   = 0;
-    apb_addr    = addr << 2;
-    apb_wdata   = 0;
-
-    wait(clk.posedge_event());
-    apb_enable  = 1;
-
-    do {
-        wait(clk.posedge_event());
-    } while(!apb_ready);
-
-    apb_sel     = 0;
-    apb_enable  = 0;
-
-    uint32_t data = apb_rdata.read();
-
-    dlsc_verb("read from 0x" << std::hex << addr << ": 0x" << std::hex << data);
-
-    return data;
+    return apb->b_read(addr<<2);
 }
 
 void __MODULE__::error_thread() {
