@@ -31,7 +31,8 @@
 
 module dlsc_domaincross_rvh #(
     parameter   DATA    = 32,
-    parameter   RESET   = {DATA{1'b0}}
+    parameter   RESET   = {DATA{1'b0}},
+    parameter   RESET_ON_TRANSFER = 0       // reset out_data after it is accepted
 ) (
     // source domain
     input   wire                in_clk,
@@ -77,7 +78,8 @@ end
 `DLSC_KEEP_REG reg  out_ackx   = 1'b1;
 
 wire out_flag;
-wire out_en = (out_flag != out_ack) && (out_ready || !out_valid);
+wire out_en         = (out_flag != out_ack) && (out_ready || !out_valid);
+wire out_rst_data   = out_rst || (RESET_ON_TRANSFER && !out_en && out_ready && out_valid);
 
 always @(posedge out_clk) begin
     if(out_rst) begin
@@ -113,7 +115,7 @@ generate
             .in_en      ( in_en ),
             .in_data    ( in_data[j] ),
             .out_clk    ( out_clk ),
-            .out_rst    ( out_rst ),
+            .out_rst    ( out_rst_data ),
             .out_en     ( out_en ),
             .out_data   ( out_data[j] )
         );

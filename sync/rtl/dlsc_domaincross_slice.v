@@ -86,9 +86,9 @@ always @(posedge out_clk) begin
     if(!out_rst && out_en && in_reg_prev != in_reg) begin
         `dlsc_error("in_reg must be stable when out_en is asserted");
     end
-    if(!out_rst && out_rst_prev && (in_reg != RESET || in_reg_prev != RESET)) begin
-        `dlsc_error("in_reg must be stable at RESET (%0x) when out_rst is deasserted", RESET);
-    end
+//    if(!out_rst && out_rst_prev && (in_reg != RESET || in_reg_prev != RESET)) begin
+//        `dlsc_error("in_reg must be stable at RESET (%0x) when out_rst is deasserted", RESET);
+//    end
 end
 
 `include "dlsc_sim_bot.vh"
