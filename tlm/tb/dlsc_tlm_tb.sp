@@ -38,6 +38,8 @@ SP_CTOR_IMP(__MODULE__) /*AUTOINIT*/ {
     SP_AUTO_CTOR;
     
     /*AUTOTIEOFF*/
+    SP_CELL(dut,DLSC_DUT);
+        /*AUTOINST*/
 
     memtest = new dlsc_tlm_memtest<uint32_t>("memtest");
     
