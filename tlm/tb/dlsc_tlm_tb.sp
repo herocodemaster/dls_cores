@@ -5,6 +5,7 @@
 
 #include "dlsc_tlm_memtest.h"
 #include "dlsc_tlm_memory.h"
+#include "dlsc_tlm_channel.h"
 
 /*AUTOSUBCELL_CLASS*/
 
@@ -15,6 +16,8 @@ private:
 
     dlsc_tlm_memtest<uint32_t> *memtest;
     dlsc_tlm_memory<uint32_t> *memory;
+
+    dlsc_tlm_channel<uint32_t> *channel;
 
     /*AUTOSUBCELL_DECL*/
     /*AUTOSIGNAL*/
@@ -44,8 +47,12 @@ SP_CTOR_IMP(__MODULE__) /*AUTOINIT*/ {
     memtest = new dlsc_tlm_memtest<uint32_t>("memtest");
     
     memory = new dlsc_tlm_memory<uint32_t>("memory",128*1024*1024,0,sc_core::sc_time(10,SC_NS),sc_core::sc_time(10,SC_NS));
+
+    channel = new dlsc_tlm_channel<uint32_t>("channel");
     
-    memtest->socket.bind(memory->socket);
+    memtest->socket.bind(channel->in_socket);
+    channel->out_socket.bind(memory->socket);
+    
     memtest->socket.bind(memory->socket);
     memtest->socket.bind(memory->socket);
     memtest->socket.bind(memory->socket);
