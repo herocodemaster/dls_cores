@@ -54,13 +54,18 @@ SP_CTOR_IMP(__MODULE__) : clk("clk",10,SC_NS) /*AUTOINIT*/ {
         /*AUTOINST*/
 
     memtest = new dlsc_tlm_memtest<uint32_t>("memtest");
-    memtest->socket.bind(axi_master->socket);
 
     SP_CELL(axi_slave,dlsc_axi4lb_tlm_slave_32b);
         /*AUTOINST*/
 
     memory = new dlsc_tlm_memory<uint32_t>("memory",4*1024*1024,0,sc_core::sc_time(2.5,SC_NS),sc_core::sc_time(20,SC_NS));
 
+    memtest->socket.bind(axi_master->socket);
+    memtest->socket.bind(axi_master->socket);
+    memtest->socket.bind(axi_master->socket);
+
+    axi_slave->socket.bind(memory->socket);
+    axi_slave->socket.bind(memory->socket);
     axi_slave->socket.bind(memory->socket);
 
     // allow a few errors

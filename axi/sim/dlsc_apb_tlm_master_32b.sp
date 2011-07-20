@@ -19,7 +19,9 @@ public:
     sc_core::sc_in<uint32_t>    apb_rdata;
     sc_core::sc_in<bool>        apb_slverr;
 
-    tlm::tlm_target_socket<32>  socket;
+    typedef dlsc_apb_tlm_master_template<uint32_t,uint32_t>::socket_type socket_type;
+
+    socket_type socket;
     
     /*AUTOMETHODS*/
 

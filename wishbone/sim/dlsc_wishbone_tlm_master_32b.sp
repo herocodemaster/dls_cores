@@ -24,7 +24,9 @@ public:
     sc_core::sc_in<bool>        wb_err_i;
     sc_core::sc_in<uint32_t>    wb_dat_i;
 
-    tlm::tlm_target_socket<32>  socket;
+    typedef dlsc_wishbone_tlm_master_template<uint32_t,uint32_t>::socket_type socket_type;
+
+    socket_type socket;
     
     void set_pipelined(const bool p) { master->set_pipelined(p); }
     

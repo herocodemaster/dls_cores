@@ -32,7 +32,9 @@ public:
     sc_core::sc_in<bool>        wb_err_i;
     sc_core::sc_in<DATATYPE>    wb_dat_i;
     
-    tlm::tlm_target_socket<sizeof(DATATYPE)*8> socket;
+    typedef typename dlsc_tlm_target_nb<dlsc_wishbone_tlm_master_template,DATATYPE>::socket_type socket_type;
+
+    socket_type socket;
     
     dlsc_tlm_target_nb<dlsc_wishbone_tlm_master_template,DATATYPE> *target;
 

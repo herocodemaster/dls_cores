@@ -5,7 +5,7 @@
 #include <systemc>
 #include <tlm.h>
 #include <tlm_utils/peq_with_get.h>
-#include <tlm_utils/simple_target_socket.h>
+#include <tlm_utils/multi_passthrough_target_socket.h>
 
 #include <vector>
 #include <deque>
@@ -20,7 +20,9 @@ template <typename MODULE, typename DATATYPE = uint32_t>
 class dlsc_tlm_target_nb : public sc_core::sc_module {
 public:
 
-    tlm_utils::simple_target_socket<dlsc_tlm_target_nb<MODULE,DATATYPE>,sizeof(DATATYPE)*8,tlm::tlm_base_protocol_types> socket;
+    typedef tlm_utils::multi_passthrough_target_socket<dlsc_tlm_target_nb<MODULE,DATATYPE>,sizeof(DATATYPE)*8,tlm::tlm_base_protocol_types> socket_type;
+
+    socket_type socket;
 
     class transaction_state;
     typedef boost::shared_ptr<transaction_state> transaction;
@@ -38,11 +40,16 @@ public:
         MODULE *mod,
         void (MODULE::*cb)(transaction),
         const unsigned int max_length = 16);
-    
-    virtual tlm::tlm_sync_enum nb_transport_fw(tlm::tlm_generic_payload &trans,tlm::tlm_phase &phase,sc_time &delay);
-//    virtual void b_transport(tlm::tlm_generic_payload &trans,sc_time &delay);
+  
+    // multi_passthrough_target_socket callbacks
+    tlm::tlm_sync_enum nb_transport_fw(int id,tlm::tlm_generic_payload &trans, tlm::tlm_phase &phase, sc_core::sc_time &delay);
+//    void b_transport(int id,tlm::tlm_generic_payload &trans, sc_core::sc_time &delay);
+//    unsigned int transport_dbg(int id,tlm::tlm_generic_payload &trans);
+//    bool get_direct_mem_ptr(int id,tlm::tlm_generic_payload &trans, tlm::tlm_dmi &dmi_data);
     
     SC_HAS_PROCESS(dlsc_tlm_target_nb);
+
+    void end_of_elaboration();
 
 private:
     // no copying/assigning
@@ -155,9 +162,16 @@ void dlsc_tlm_target_nb<MODULE,DATATYPE>::construct_common() {
     socket.register_nb_transport_fw(this,&dlsc_tlm_target_nb<MODULE,DATATYPE>::nb_transport_fw);
 }
 
+template <typename MODULE, typename DATATYPE>
+void dlsc_tlm_target_nb<MODULE,DATATYPE>::end_of_elaboration() {
+    dlsc_info("initiators bound: " << socket.size());
+    assert(socket.size() > 0);
+}
+
 // nb_transport_fw callback
 template <typename MODULE, typename DATATYPE>
 tlm::tlm_sync_enum dlsc_tlm_target_nb<MODULE,DATATYPE>::nb_transport_fw(
+    int id,
     tlm::tlm_generic_payload &trans,
     tlm::tlm_phase &phase,
     sc_time &delay)
@@ -165,7 +179,7 @@ tlm::tlm_sync_enum dlsc_tlm_target_nb<MODULE,DATATYPE>::nb_transport_fw(
     assert(phase != tlm::END_REQ && phase != tlm::BEGIN_RESP); // we generate these phases
 
     if(phase == tlm::BEGIN_REQ) {
-        transaction ts(new transaction_state(this,&trans,delay));
+        transaction ts(new transaction_state(this,&trans,delay,id));
         outstanding[&trans] = ts;
 
         if(!validate_payload(trans)) {
@@ -267,7 +281,7 @@ void dlsc_tlm_target_nb<MODULE,DATATYPE>::complete_method() {
         sc_core::sc_time delay = sc_core::SC_ZERO_TIME;
         ts->calc_complete_delay(delay);
 
-        if(socket->nb_transport_bw(*(ts->get_payload()),phase,delay) == tlm::TLM_COMPLETED || phase == tlm::END_RESP) {
+        if(socket[ts->get_socket_id()]->nb_transport_bw(*(ts->get_payload()),phase,delay) == tlm::TLM_COMPLETED || phase == tlm::END_RESP) {
             // response acknowledged by initiator; complete it here
             complete(ts);
         } else {
@@ -333,12 +347,12 @@ public:
 
     inline void set_response_status(tlm::tlm_response_status status) { payload->set_response_status(status); }
 
+    // get transaction properties
     inline bool is_read() { return payload->is_read(); }
     inline bool is_write() { return payload->is_write(); }
-
     inline uint64_t get_address() { return payload->get_address(); }
-
     inline unsigned int size() { return payload->get_data_length()/sizeof(DATATYPE); }
+    inline int get_socket_id() { return socket_id; }
 
     // set payload data
     template <class InputIterator>
@@ -383,7 +397,8 @@ private:
     transaction_state(
         dlsc_tlm_target_nb<MODULE,DATATYPE> *parent,
         tlm::tlm_generic_payload *payload,
-        sc_core::sc_time ready_delay);
+        sc_core::sc_time ready_delay,
+        int socket_id);
 
     inline tlm::tlm_generic_payload* get_payload() { return payload; }
 
@@ -394,6 +409,8 @@ private:
     sc_core::sc_time                    complete_time;
 
     bool                                complete_flag;
+
+    const int                           socket_id;
 
     // invoked by public complete methods; notifies parent
     void complete_common();
@@ -487,10 +504,12 @@ template <typename MODULE, typename DATATYPE>
 dlsc_tlm_target_nb<MODULE,DATATYPE>::transaction_state::transaction_state(
     dlsc_tlm_target_nb<MODULE,DATATYPE> *parent,
     tlm::tlm_generic_payload *payload,
-    sc_core::sc_time ready_delay
+    sc_core::sc_time ready_delay,
+    int socket_id
 ) :
     parent(parent),
-    payload(payload)
+    payload(payload),
+    socket_id(socket_id)
 {
     assert(parent && payload);
     payload->acquire();

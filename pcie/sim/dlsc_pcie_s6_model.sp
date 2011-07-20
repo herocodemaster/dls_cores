@@ -107,14 +107,16 @@ public:
     // ********** TLM **********
 
     // ** Initiator **
-    dlsc_tlm_initiator_nb<uint32_t>::socket_type initiator_socket;
-    dlsc_tlm_initiator_nb<uint32_t> *initiator;
     typedef dlsc_tlm_initiator_nb<uint32_t>::transaction i_transaction;
+    typedef dlsc_tlm_initiator_nb<uint32_t>::socket_type i_socket_type;
+    i_socket_type initiator_socket;
+    dlsc_tlm_initiator_nb<uint32_t> *initiator;
 
     // ** Target **
-    tlm::tlm_target_socket<32> target_socket;
-    dlsc_tlm_target_nb<__MODULE__,uint32_t> *target;
     typedef dlsc_tlm_target_nb<__MODULE__,uint32_t>::transaction t_transaction;
+    typedef dlsc_tlm_target_nb<__MODULE__,uint32_t>::socket_type t_socket_type;
+    t_socket_type target_socket;
+    dlsc_tlm_target_nb<__MODULE__,uint32_t> *target;
     virtual void target_callback(t_transaction ts);
 
 
