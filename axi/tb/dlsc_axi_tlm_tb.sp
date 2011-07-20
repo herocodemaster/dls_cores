@@ -11,8 +11,6 @@
 
 /*AUTOSUBCELL_CLASS*/
 
-#define CHANNELS 4
-
 SC_MODULE (__MODULE__) {
 private:
     sc_clock clk;
@@ -24,7 +22,7 @@ private:
 
     dlsc_tlm_memory<uint32_t> *memory;
 
-    dlsc_tlm_channel<uint32_t> *channel[CHANNELS];
+    dlsc_tlm_channel<uint32_t> *channel;
 
     /*AUTOSUBCELL_DECL*/
     /*AUTOSIGNAL*/
@@ -62,22 +60,22 @@ SP_CTOR_IMP(__MODULE__) : clk("clk",10,SC_NS) /*AUTOINIT*/ {
     SP_CELL(axi_slave,dlsc_axi4lb_tlm_slave_32b);
         /*AUTOINST*/
 
-    memory = new dlsc_tlm_memory<uint32_t>("memory",4*1024*1024,0,sc_core::sc_time(2.5,SC_NS),sc_core::sc_time(20,SC_NS));
+    memory = new dlsc_tlm_memory<uint32_t>("memory",4*1024*1024,0,sc_core::sc_time(1.0,SC_NS),sc_core::sc_time(10,SC_NS));
+        
+    channel = new dlsc_tlm_channel<uint32_t>("channel");
 
-    for(int i=0;i<CHANNELS;++i) {
-        std::string name = "channel" + i;
-        channel[i] = new dlsc_tlm_channel<uint32_t>(name.c_str());
-        memtest->socket.bind(axi_master->socket);
-        axi_slave->socket.bind(channel[i]->in_socket);
-        channel[i]->out_socket.bind(memory->socket);
+    for(int i=0;i<4;++i) {
+        memtest->socket.bind(channel->in_socket);
+        channel->out_socket.bind(axi_master->socket);
+        axi_slave->socket.bind(memory->socket);
     }
-
-    channel[0]->set_request_delay(sc_core::sc_time(500,SC_NS),sc_core::sc_time(5000,SC_NS));
 
     // allow a few errors
     memory->set_error_rate(1);
     memtest->set_ignore_error(true);
+
     memtest->set_max_outstanding(16);
+    channel->set_delay(sc_core::sc_time(0,SC_NS),sc_core::sc_time(2000,SC_NS));
 
     rst         = 1;
 
