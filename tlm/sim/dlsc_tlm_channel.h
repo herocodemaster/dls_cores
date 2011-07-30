@@ -52,7 +52,10 @@ private:
     sc_core::sc_time bw_min_delay;
     sc_core::sc_time bw_max_delay;
 
-    sc_core::sc_time rand_delay(const sc_core::sc_time &min, const sc_core::sc_time &max);
+    sc_core::sc_time fw_next_delay;
+    sc_core::sc_time bw_next_delay;
+
+    sc_core::sc_time rand_delay(const sc_core::sc_time &min, const sc_core::sc_time &max, sc_core::sc_time &next);
 };
 
 // constructor
@@ -66,11 +69,14 @@ dlsc_tlm_channel<DATATYPE>::dlsc_tlm_channel(
     in_socket.register_nb_transport_fw(this,&dlsc_tlm_channel<DATATYPE>::nb_transport_fw);
     out_socket.register_nb_transport_bw(this,&dlsc_tlm_channel<DATATYPE>::nb_transport_bw);
 
-    sc_core::sc_time min_delay =             sc_core::sc_time(rand()%100,SC_NS);
-    sc_core::sc_time max_delay = min_delay + sc_core::sc_time(rand()%200,SC_NS);
+    sc_core::sc_time min_delay = sc_core::sc_time(10 ,SC_NS);
+    sc_core::sc_time max_delay = sc_core::sc_time(100,SC_NS);
 
     set_request_delay(min_delay,max_delay);
     set_response_delay(min_delay,max_delay);
+
+    fw_next_delay = sc_core::SC_ZERO_TIME;
+    bw_next_delay = sc_core::SC_ZERO_TIME;
 }
 
 template <typename DATATYPE>
@@ -103,10 +109,16 @@ void dlsc_tlm_channel<DATATYPE>::set_response_delay(
 template <typename DATATYPE>
 sc_core::sc_time dlsc_tlm_channel<DATATYPE>::rand_delay(
     const sc_core::sc_time &min,
-    const sc_core::sc_time &max
+    const sc_core::sc_time &max,
+    sc_core::sc_time &next
 ) {
     float scale = ((rand()%1000)/1000.0f);
     sc_core::sc_time delay = min + ((max-min) * scale);
+    if(next >= (delay+sc_core::sc_time_stamp())) {
+        // don't allow new transaction to pass old ones
+        delay = (next-sc_core::sc_time_stamp()) * 1.01f;
+    }
+    next = (delay+sc_core::sc_time_stamp());
     return delay;
 }
 
@@ -124,14 +136,14 @@ tlm::tlm_sync_enum dlsc_tlm_channel<DATATYPE>::nb_transport_fw(
     sc_core::sc_time delay_i = delay;
 
     // request prop delay
-    delay_i += rand_delay(fw_min_delay,fw_max_delay);
+    delay_i += rand_delay(fw_min_delay,fw_max_delay,fw_next_delay);
 
     // send on its way
     tlm::tlm_sync_enum status = out_socket[id]->nb_transport_fw(trans,phase,delay_i);
 
     if(phase == tlm::BEGIN_RESP || status == tlm::TLM_COMPLETED) {
         // completed; apply response delay as well
-        delay_i += rand_delay(bw_min_delay,bw_max_delay);
+        delay_i += rand_delay(bw_min_delay,bw_max_delay,bw_next_delay);
         delay   = delay_i;
     }
 
@@ -152,7 +164,7 @@ tlm::tlm_sync_enum dlsc_tlm_channel<DATATYPE>::nb_transport_bw(
     sc_core::sc_time delay_i = delay;
 
     // response prop delay
-    delay_i += rand_delay(bw_min_delay,bw_max_delay);
+    delay_i += rand_delay(bw_min_delay,bw_max_delay,bw_next_delay);
 
     // send on its way
     return in_socket[id]->nb_transport_bw(trans,phase,delay_i);
