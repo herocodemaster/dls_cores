@@ -141,9 +141,11 @@ void __MODULE__::stim_thread() {
     wait(clk.posedge_event());
 
 #ifdef MEMTEST
+    memory->set_error_rate_read(1.0);
+    memtest->set_ignore_error_read(true);
     memtest->set_max_outstanding(16);   // more MOT for improved performance
     memtest->set_strobe_rate(1);        // sparse strobes are very slow over PCIe
-    memtest->test(0,4*4096,1*1000*1);
+    memtest->test(0,4*4096,1*1000*10);
 #else
 
     std::deque<uint32_t> data;

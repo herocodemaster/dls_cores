@@ -88,8 +88,6 @@ reg             tlp_valid;
 reg  [31:0]     tlp_data;
 reg             tlp_last;
 
-reg             tlp_drop;
-
 dlsc_rvh_fifo #(
     .DATA           ( 33 ),
     .DEPTH          ( 16 )
@@ -97,7 +95,7 @@ dlsc_rvh_fifo #(
     .clk            ( clk ),
     .rst            ( rst ),
     .in_ready       ( tlp_ready ),
-    .in_valid       ( tlp_valid && !tlp_drop ),
+    .in_valid       ( tlp_valid ),
     .in_data        ( { tlp_last, tlp_data } ),
     .in_almost_full (  ),
     .out_ready      ( tx_ready ),
@@ -135,7 +133,7 @@ always @* begin
     if(id_write) begin
         h_err       = (wr_h_resp != AXI_RESP_OKAY);
     end else begin
-        h_err       = (rd_h_resp != AXI_RESP_OKAY) || tlp_drop; // latch error via drop
+        h_err       = (rd_h_resp != AXI_RESP_OKAY);
         h_addr      = rd_h_addr;
         h_len       = rd_h_len;
         h_bytes     = rd_h_bytes;
@@ -145,38 +143,22 @@ always @* begin
 end
 
 
-// Generate tlp_drop
-// after first error TLP, must not transmit any more
-
-always @(posedge clk) begin
-    if(rst) begin
-        tlp_drop    <= 1'b0;
-    end else if(h_ready && h_valid) begin
-        if(h_err) begin
-            tlp_drop    <= 1'b1;
-        end
-        if(h_last) begin
-            tlp_drop    <= 1'b0;
-        end
-    end
-end
-
-
 // Generate TLP
 
 localparam  ST_H0       = 0,
             ST_H1       = 1,
             ST_H2       = 2,
             ST_DATA     = 3,
-            ST_FLUSH    = 4;
+            ST_FLUSH_D  = 4,
+            ST_FLUSH_H  = 5;
 
-reg  [3:0]      st;
-reg  [3:0]      next_st;
+reg  [2:0]      st;
+reg  [2:0]      next_st;
 
 always @(posedge clk) begin
     if(rst) begin
         st          <= ST_H0;
-    end else if(tlp_ready && tlp_valid) begin
+    end else begin
         st          <= next_st;
     end
 end
@@ -202,7 +184,9 @@ always @* begin
 
         tlp_valid           = h_valid;
 
-        next_st             = ST_H1;
+        if(tlp_ready && h_valid) begin
+            next_st             = ST_H1;
+        end
     end
 
     if(st == ST_H1) begin
@@ -210,9 +194,11 @@ always @* begin
         tlp_data[15:13]     = h_err ? 3'b001 : 3'b000;  // UR or SC
         tlp_data[11:0]      = h_bytes;
 
-        tlp_valid           = h_valid;
+        tlp_valid           = 1'b1;
 
-        next_st             = ST_H2;
+        if(tlp_ready) begin
+            next_st             = ST_H2;
+        end
     end
 
     if(st == ST_H2) begin
@@ -220,12 +206,13 @@ always @* begin
         tlp_data[15:8]      = id_tag;
         tlp_data[6:0]       = h_addr;
 
-        tlp_valid           = h_valid;
+        tlp_valid           = 1'b1;
         tlp_last            = h_write || h_err;
 
-        h_ready             = tlp_ready;
-
-        next_st             = h_write ? ST_H0 : ( h_err ? ST_FLUSH : ST_DATA );
+        if(tlp_ready) begin
+            h_ready             = h_write ? 1'b1  : ( h_err ? 1'b0       : 1'b1 );
+            next_st             = h_write ? ST_H0 : ( h_err ? ST_FLUSH_D : ST_DATA );
+        end
     end
 
     if(st == ST_DATA) begin
@@ -235,12 +222,23 @@ always @* begin
         
         rd_d_ready          = tlp_ready;
 
-        next_st             = rd_d_last ? ST_H0 : ST_DATA;
+        if(tlp_ready && rd_d_valid && rd_d_last) begin
+            next_st             = ST_H0;
+        end
     end
 
-    if(st == ST_FLUSH) begin
+    if(st == ST_FLUSH_D) begin
         rd_d_ready          = 1'b1;
-        next_st             = (rd_d_valid && rd_d_last) ? ST_H0 : ST_FLUSH;
+        if(rd_d_valid && rd_d_last) begin
+            h_ready             = 1'b1;
+            next_st             = h_last ? ST_H0 : ST_FLUSH_H;
+        end
+    end
+
+    if(st == ST_FLUSH_H) begin
+        if(h_valid) begin
+            next_st             = ST_FLUSH_D;
+        end
     end
 end
 
