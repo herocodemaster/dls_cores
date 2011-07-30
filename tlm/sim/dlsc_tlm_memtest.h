@@ -26,7 +26,9 @@ public:
 
     bool test(uint64_t addr, unsigned int length, unsigned int iterations);
 
-    void set_ignore_error(const bool ignore_error) { this->ignore_error = ignore_error; }
+    void set_ignore_error(const bool ignore_error) { set_ignore_error_read(ignore_error); set_ignore_error_write(ignore_error); }
+    void set_ignore_error_read(const bool ignore_error_read) { this->ignore_error_read = ignore_error_read; }
+    void set_ignore_error_write(const bool ignore_error_write) { this->ignore_error_write = ignore_error_write; }
     void set_strobe_rate(const unsigned int strb_pct) { assert(strb_pct <= 100); this->strb_pct = strb_pct; }
     void set_max_outstanding(const unsigned int mot) { this->max_mots = mot; }
 
@@ -56,7 +58,8 @@ private:
     unsigned int        size;           // size of region-under-test
     const unsigned int  max_length;     // max burst length
     unsigned int        max_mots;       // max multiple-outstanding-transactions
-    bool                ignore_error;   // don't flag failed transactions as an error
+    bool                ignore_error_read;  // don't flag failed transactions as an error
+    bool                ignore_error_write; // ""
     unsigned int        strb_pct;       // use write strobes
 
     // clears all allocated memory
@@ -105,16 +108,17 @@ dlsc_tlm_memtest<DATATYPE>::dlsc_tlm_memtest(
     initiator = new dlsc_tlm_initiator_nb<DATATYPE>("initiator",max_length);
         initiator->socket.bind(socket);
 
-    mem_array       = 0;
-    init_done       = 0;
-    read_pending    = 0;
-    write_pending   = 0;
-    data            = 0;
-    strb            = 0;
+    mem_array           = 0;
+    init_done           = 0;
+    read_pending        = 0;
+    write_pending       = 0;
+    data                = 0;
+    strb                = 0;
 
-    ignore_error    = false;
-    strb_pct        = 20;
-    max_mots        = 4;
+    ignore_error_read   = false;
+    ignore_error_write  = false;
+    strb_pct            = 20;
+    max_mots            = 4;
 }
 
 template <typename DATATYPE>
@@ -210,7 +214,7 @@ bool dlsc_tlm_memtest<DATATYPE>::test(
         double mbps = ( bytes_read[i] + bytes_written[i] + 0.0 ) / (elapsed.to_seconds()*1000000.0);
         dlsc_info("For socket #" << std::dec << i << ": read: " << bytes_read[i] << ", wrote: " << bytes_written[i] << ", throughput: " << mbps << " MB/s");
         if(errors[i] > 0) {
-            if(ignore_error) {
+            if(ignore_error_read || ignore_error_write) {
                 dlsc_info("Bytes errored: " << errors[i] << " (but ignored)");
             } else {
                 dlsc_error("Bytes errored: " << errors[i]);
@@ -397,7 +401,7 @@ void dlsc_tlm_memtest<DATATYPE>::complete(transaction ts) {
 
         errors[ts->get_socket_id()] += length * sizeof(DATATYPE);
 
-        if(ignore_error) {
+        if( (ts->is_read() && ignore_error_read) || (ts->is_write() && ignore_error_write) ) {
             dlsc_verb ("transaction failed at 0x" << std::hex << ts->get_address() << ", length: " << std::dec << (ts->size()*sizeof(DATATYPE)) );
         } else {
             dlsc_error("transaction failed at 0x" << std::hex << ts->get_address() << ", length: " << std::dec << (ts->size()*sizeof(DATATYPE)) );

@@ -27,7 +27,9 @@ public:
         const sc_core::sc_time          byte_latency    = sc_core::SC_ZERO_TIME,    // time it takes to transfer a single byte
         const sc_core::sc_time          access_latency  = sc_core::SC_ZERO_TIME);   // time it takes to setup a burst
 
-    void set_error_rate(const int error_rate) { assert(error_rate >= 0 && error_rate <= 100); this->error_rate = error_rate; }
+    void set_error_rate(const float err) { set_error_rate_read(err); set_error_rate_write(err); }
+    void set_error_rate_read(const float err) { assert(err >= 0.0 && err <= 100.0); this->error_rate_read = (int)(err*10.0); }
+    void set_error_rate_write(const float err) { assert(err >= 0.0 && err <= 100.0); this->error_rate_write = (int)(err*10.0); }
 
 
     // Backdoor memory access
@@ -69,7 +71,8 @@ private:
     dlsc_tlm_memory(const dlsc_tlm_memory&);
     dlsc_tlm_memory& operator= (const dlsc_tlm_memory&);
 
-    int                         error_rate;     // percentage of transactions to have fail
+    int                         error_rate_read;    // percentage of transactions to have fail (0-1000)
+    int                         error_rate_write;   // percentage of transactions to have fail (0-1000)
 
     const unsigned int          bus_width;
 
@@ -135,7 +138,8 @@ dlsc_tlm_memory<DATATYPE>::dlsc_tlm_memory(
 
     delay_enabled   = byte_latency != sc_core::SC_ZERO_TIME || access_latency != sc_core::SC_ZERO_TIME;
 
-    error_rate      = 0;
+    error_rate_read     = 0;
+    error_rate_write    = 0;
 }
 
 template <typename DATATYPE> template <class InputIterator>
@@ -272,7 +276,9 @@ void dlsc_tlm_memory<DATATYPE>::b_transport(int id, tlm::tlm_generic_payload &tr
         }
     }
     
-    if(error_rate && (rand()%100) < error_rate) {
+    if( (trans.is_read()  && error_rate_read  > 0 && (rand()%1000) < error_rate_read ) ||
+        (trans.is_write() && error_rate_write > 0 && (rand()%1000) < error_rate_write) )
+    {
         // generate error
         trans.set_response_status(tlm::TLM_GENERIC_ERROR_RESPONSE);
         return;
