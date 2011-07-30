@@ -175,7 +175,8 @@ private:
     void                        tgt_method();
     void                        tgt_write(t_transaction &ts);
     void                        tgt_read(t_transaction &ts);
-    void                        tgt_read_complete(tlp_type &tlp);
+    void                        tgt_complete(tlp_type &tlp);
+    bool                        tgt_allow_io;
 
 };
 
@@ -227,6 +228,8 @@ SP_CTOR_IMP(__MODULE__) /*AUTOINIT*/,
 
     txi_pct             = 95;
     rxi_pct             = 95;
+
+    tgt_allow_io        = true;
 
     init_method();
 }
@@ -416,7 +419,7 @@ void __MODULE__::txi_tlp_process(tlp_type &tlp) {
 
     if(tlp->type_cpl) {
         // completion
-        tgt_read_complete(tlp);
+        tgt_complete(tlp);
         return;
     }
 
@@ -646,7 +649,7 @@ void __MODULE__::ini_complete(ini_type &ini) {
     
     tlp->set_type(TYPE_CPL);
     tlp->set_traffic_class(req_tlp->tc);
-    tlp->set_source(0); // TODO
+    tlp->set_source( rand() & 0xFFFF );
     tlp->set_destination(req_tlp->src_id);
     tlp->set_completion_tag(req_tlp->src_tag);
 
@@ -678,33 +681,15 @@ void __MODULE__::target_callback(t_transaction ts) {
 }
 
 void __MODULE__::tgt_method() {
+    if(!tgt_ts_queue.empty() && !tgt_tag_queue.empty()) {
+        t_transaction ts = tgt_ts_queue.front(); tgt_ts_queue.pop_front();
 
-    if(!tgt_ts_queue.empty()) {
-
-        bool ts_valid = false;
-        t_transaction ts;
-
-        for(std::deque<t_transaction>::iterator it = tgt_ts_queue.begin(); it != tgt_ts_queue.end(); it++) {
-
-            ts = (*it);
-
-            if(ts->is_write() || !tgt_tag_queue.empty()) {
-                tgt_ts_queue.erase(it);
-                ts_valid = true;
-                break;
-            }
+        if(ts->is_write()) {
+            tgt_write(ts);
+        } else {
+            tgt_read(ts);
         }
-
-        if(ts_valid) {
-            if(ts->is_write()) {
-                tgt_write(ts);
-            } else {
-                tgt_read(ts);
-            }
-        }
-
     }
-
 }
 
 void __MODULE__::tgt_write(t_transaction &ts) {
@@ -720,6 +705,8 @@ void __MODULE__::tgt_write(t_transaction &ts) {
 
     uint64_t addr = ts->get_address() & ~((uint64_t)0x3);
     unsigned int cnt = 0;
+
+    bool is_np = false;
 
     while(cnt < ts->size()) {
         unsigned int be_first = 0xF, be_last = 0xF;
@@ -756,10 +743,23 @@ void __MODULE__::tgt_write(t_transaction &ts) {
         tlp_type tlp(new pcie_tlp);
 
         tlp->set_type(TYPE_MEM);
-        tlp->set_source(0); // TODO
+        tlp->set_source( rand() & 0xFFFF );
         tlp->set_address(addr);
         tlp->set_byte_enables(be_first,be_last);
         tlp->set_data(data);
+
+        if(tgt_allow_io && !tlp->fmt_4dw && (ts->size() == 1) && (rand()%100) < 25) {
+            // I/O instead of MEM
+            tlp->set_type(TYPE_IO);
+            tlp->set_tag(tgt_tag_queue.front()); tgt_tag_queue.pop_front();
+            is_np = true;
+
+            // non-posted requires response
+            tgt_type tgt(new target_state);
+            tgt->ts     = ts;
+            tgt->tlp    = tlp;
+            tgt_queue.push_back(tgt);
+        }
 
         // send it
         rxi_tlp_queue.push_back(tlp);
@@ -768,10 +768,11 @@ void __MODULE__::tgt_write(t_transaction &ts) {
         addr    += data.size()*4;
     }
 
-    // success!
-    ts->set_response_status(tlm::TLM_OK_RESPONSE);
-    ts->complete();
-
+    if(!is_np) {
+        // success!
+        ts->set_response_status(tlm::TLM_OK_RESPONSE);
+        ts->complete();
+    }
 }
 
 void __MODULE__::tgt_read(t_transaction &ts) {
@@ -793,11 +794,16 @@ void __MODULE__::tgt_read(t_transaction &ts) {
     tgt->tlp    = tlp;
 
     tlp->set_type(TYPE_MEM);
-    tlp->set_source(0); // TODO
+    tlp->set_source( rand() & 0xFFFF );
     tlp->set_address(ts->get_address() & ~((uint64_t)0x3));
     tlp->set_byte_enables(0xF,(ts->size()>1) ? 0xF : 0);
     tlp->set_length(ts->size());
     tlp->set_tag(tgt_tag_queue.front()); tgt_tag_queue.pop_front();
+
+    if(tgt_allow_io && !tlp->fmt_4dw && (ts->size() == 1) && (rand()%100) < 25) {
+        // I/O instead of MEM
+        tlp->set_type(TYPE_IO);
+    }
 
     // send it
     rxi_tlp_queue.push_back(tlp);
@@ -805,7 +811,7 @@ void __MODULE__::tgt_read(t_transaction &ts) {
     tgt_queue.push_back(tgt);
 }
 
-void __MODULE__::tgt_read_complete(tlp_type &tlp) {
+void __MODULE__::tgt_complete(tlp_type &tlp) {
 
     // find the target_state
     tgt_type tgt;
@@ -828,49 +834,63 @@ void __MODULE__::tgt_read_complete(tlp_type &tlp) {
     }
 
     t_transaction ts = tgt->ts;
+    bool error = false;
 
     if(tlp->cpl_status != CPL_SC) {
         ts->set_response_status(tlm::TLM_GENERIC_ERROR_RESPONSE);
-        ts->complete();
-        // return tag to queue
-        tgt_tag_queue.push_back(tgt->tlp->src_tag);
-        return;
+        goto fin;
     }
 
-    bool error = false;
-
-    if(tlp->data.empty()) {
-        dlsc_error("successful completion with no data!");
-        error = true;
+    if(tgt->tlp->is_write()) {
+        // non-posted write
+        if(!tlp->data.empty()) {
+            dlsc_error("write completion with data!");
+            error = true;
+        }
     }
 
-    if(tlp->cpl_bytes != (ts->size() - tgt->data.size())*4) {
-        dlsc_assert_equals( tlp->cpl_bytes , (ts->size() - tgt->data.size())*4 );
-        error = true;
-    }
+    if(tgt->tlp->is_read()) {
+        // read
 
-    if(tlp->cpl_addr != ((tgt->tlp->dest_addr + tgt->data.size()*4) & 0x7F)) {
-        dlsc_assert_equals( tlp->cpl_addr , ((tgt->tlp->dest_addr + tgt->data.size()*4) & 0x7F) );
-        error = true;
-    }
+        if(tlp->data.empty()) {
+            dlsc_error("successful completion with no data!");
+            error = true;
+        }
 
-    if(!tgt->data.empty() && (tlp->cpl_addr & rcb_mask) != 0) {
-        dlsc_error("RCB violated");
-        error = true;
-    }
+        if(tlp->length > (ts->size() - tgt->data.size())) {
+            dlsc_error("returned data exceeds request");
+            error = true;
+        }
 
-    if(tlp->length > (ts->size() - tgt->data.size())) {
-        dlsc_error("returned data exceeds request");
-        error = true;
+        if(tgt->tlp->type_mem) {
+            // only memory read completions set cpl_bytes and cpl_addr
+            if(tlp->cpl_bytes != (ts->size() - tgt->data.size())*4) {
+                dlsc_assert_equals( tlp->cpl_bytes , (ts->size() - tgt->data.size())*4 );
+                error = true;
+            }
+
+            if(tlp->cpl_addr != ((tgt->tlp->dest_addr + tgt->data.size()*4) & 0x7F)) {
+                dlsc_assert_equals( tlp->cpl_addr , ((tgt->tlp->dest_addr + tgt->data.size()*4) & 0x7F) );
+                error = true;
+            }
+
+            if(!tgt->data.empty() && (tlp->cpl_addr & rcb_mask) != 0) {
+                dlsc_error("RCB violated");
+                error = true;
+            }
+        }
     }
 
     if(error) {
         dlsc_error("faulty TLP: " << *tlp);
         ts->set_response_status(tlm::TLM_INCOMPLETE_RESPONSE);
-        ts->complete();
-        // return tag to queue
-        tgt_tag_queue.push_back(tgt->tlp->src_tag);
-        return;
+        goto fin;
+    }
+
+    if(tgt->tlp->is_write()) {
+        // non-posted write
+        ts->set_response_status(tlm::TLM_OK_RESPONSE);
+        goto fin;
     }
 
     // append data
@@ -881,13 +901,18 @@ void __MODULE__::tgt_read_complete(tlp_type &tlp) {
         // done!
         ts->set_data(tgt->data);
         ts->set_response_status(tlm::TLM_OK_RESPONSE);
-        ts->complete();
-        // return tag to queue
-        tgt_tag_queue.push_back(tgt->tlp->src_tag);
+        goto fin;
     } else {
         // not done; put back on queue
         tgt_queue.push_back(tgt);
     }
+
+    return;
+
+fin:
+    ts->complete();
+    // return tag to queue
+    tgt_tag_queue.push_back(tgt->tlp->src_tag);
 }
 
 
