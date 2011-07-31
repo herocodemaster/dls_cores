@@ -8,13 +8,18 @@
 /*AUTOSUBCELL_CLASS*/
 
 #define DATA            PARAM_DATA
-#define DEPTH           (1<<PARAM_ADDR)
 #define ALMOST_FULL     PARAM_ALMOST_FULL
 #define ALMOST_EMPTY    PARAM_ALMOST_EMPTY
 #define COUNT           PARAM_COUNT
 #define FREE            PARAM_FREE
 #define FAST_FLAGS      PARAM_FAST_FLAGS
 #define FULL_IN_RESET   PARAM_FULL_IN_RESET
+
+#ifdef PARAM_DEPTH
+#define DEPTH           PARAM_DEPTH
+#else
+#define DEPTH           (1<<PARAM_ADDR)
+#endif
 
 SC_MODULE (__MODULE__) {
 private:
@@ -175,7 +180,7 @@ void __MODULE__::stim_thread() {
         wait(clk.negedge_event());
         rst     = 0;
 
-        wait(25,SC_US);
+        wait(100,SC_US);
     }
 
     wait(1,SC_US);
@@ -184,7 +189,7 @@ void __MODULE__::stim_thread() {
 }
 
 void __MODULE__::watchdog_thread() {
-    wait(10,SC_MS);
+    wait(50,SC_MS);
 
     dlsc_error("watchdog timeout");
 

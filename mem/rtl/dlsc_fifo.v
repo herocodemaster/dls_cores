@@ -87,7 +87,9 @@ output  wire    [ADDR:0]    rd_count;
 
 // ** Implementation **
 
-localparam  USE_SHIFTREG    = (DEPTHI <= 16 || DEPTHI != (2**ADDR)) && !(COUNT || FREE);
+localparam  USE_SHIFTREG    = ( (DEPTHI <= 16) || 
+                                (DEPTHI <= 32 && DATA <= 12) || 
+                                (DEPTHI != (2**ADDR)) ) && !(COUNT || FREE);
 
 generate
 if(USE_SHIFTREG) begin:GEN_FIFO_SHIFTREG
@@ -113,8 +115,8 @@ if(USE_SHIFTREG) begin:GEN_FIFO_SHIFTREG
     
     // TODO: wr_free, rd_count
 
-    assign wr_free  = 0;
-    assign rd_count = 0;
+    assign wr_free  = {(ADDR+1){1'bx}};
+    assign rd_count = {(ADDR+1){1'bx}};
 
 end else begin:GEN_FIFO_RAM
 
