@@ -176,38 +176,42 @@ generate
         wire txi_empty;
         assign txi_valid = !txi_empty;
 
-        dlsc_fifo_shiftreg #(
+        dlsc_fifo #(
             .DATA           ( DATA ),
             .DEPTH          ( FIFO_DEPTH )
-        ) dlsc_fifo_shiftreg_inst_tx (
+        ) dlsc_fifo_inst_tx (
             .clk            ( clk ),
             .rst            ( rst ),
-            .push_en        ( tx_push ),
-            .push_data      ( tx_data ),
-            .full           ( tx_full ),
-            .almost_full    (  ),
-            .pop_en         ( txi_ready && txi_valid ),
-            .pop_data       ( txi_data ),
-            .empty          ( txi_empty ),
-            .almost_empty   (  )
+            .wr_push        ( tx_push ),
+            .wr_data        ( tx_data ),
+            .wr_full        ( tx_full ),
+            .wr_almost_full (  ),
+            .wr_free        (  ),
+            .rd_pop         ( txi_ready && txi_valid ),
+            .rd_data        ( txi_data ),
+            .rd_empty       ( txi_empty ),
+            .rd_almost_empty(  ),
+            .rd_count       (  )
         );
 
         // ** receive buffer
 
-        dlsc_fifo_shiftreg #(
+        dlsc_fifo #(
             .DATA           ( DATA ),
             .DEPTH          ( FIFO_DEPTH )
-        ) dlsc_fifo_shiftreg_inst_rx (
+        ) dlsc_fifo_inst_rx (
             .clk            ( clk ),
             .rst            ( rst ),
-            .push_en        ( rxi_valid && !rxi_frame_error && !rxi_parity_error ),
-            .push_data      ( rxi_data ),
-            .full           (  ),
-            .almost_full    (  ),
-            .pop_en         ( rx_pop ),
-            .pop_data       ( rx_data ),
-            .empty          ( rx_empty ),
-            .almost_empty   (  )
+            .wr_push        ( rxi_valid && !rxi_frame_error && !rxi_parity_error ),
+            .wr_data        ( rxi_data ),
+            .wr_full        (  ),
+            .wr_almost_full (  ),
+            .wr_free        (  ),
+            .rd_pop         ( rx_pop ),
+            .rd_data        ( rx_data ),
+            .rd_empty       ( rx_empty ),
+            .rd_almost_empty(  ),
+            .rd_count       (  )
         );
 
     end

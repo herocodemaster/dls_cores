@@ -117,20 +117,23 @@ end
 wire [MAX_BITS-1:0] m_r_len;
 wire                m_full;
 
-dlsc_fifo_shiftreg #(
+dlsc_fifo #(
     .DATA           ( LEN_BITS ),
-    .DEPTH          ( MAX_OUTSTANDING )
-) dlsc_fifo_shiftreg_inst (
+    .DEPTH          ( MAX_OUTSTANDING ),
+    .FAST_FLAGS     ( 1 )
+) dlsc_fifo_inst (
     .clk            ( clk ),
     .rst            ( m_rst ),
-    .push_en        ( m_ar_ready && m_ar_valid ),
-    .push_data      ( m_ar_len ),
-    .pop_en         ( m_r_ready && m_r_valid && m_r_last ),
-    .pop_data       ( m_r_len ),
-    .empty          ( m_empty ),
-    .full           ( m_full ),
-    .almost_empty   (  ),
-    .almost_full    (  )
+    .wr_push        ( m_ar_ready && m_ar_valid ),
+    .wr_data        ( m_ar_len ),
+    .wr_full        ( m_full ),
+    .wr_almost_full (  ),
+    .wr_free        (  ),
+    .rd_pop         ( m_r_ready && m_r_valid && m_r_last ),
+    .rd_data        ( m_r_len ),
+    .rd_empty       ( m_empty ),
+    .rd_almost_empty(  ),
+    .rd_count       (  )
 );
 
 

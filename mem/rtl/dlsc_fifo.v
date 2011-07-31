@@ -89,6 +89,7 @@ output  wire    [ADDR:0]    rd_count;
 
 localparam  USE_SHIFTREG    = ( (DEPTHI <= 16) || 
                                 (DEPTHI <= 32 && DATA <= 12) || 
+                                (DEPTHI <= 64 && DATA <= 4) ||
                                 (DEPTHI != (2**ADDR)) ) && !(COUNT || FREE);
 
 generate
@@ -99,6 +100,7 @@ if(USE_SHIFTREG) begin:GEN_FIFO_SHIFTREG
         .DEPTH          ( DEPTHI ),
         .ALMOST_FULL    ( ALMOST_FULL ),
         .ALMOST_EMPTY   ( ALMOST_EMPTY ),
+//      .FAST_FLAGS     ( FAST_FLAGS ),     // fifo_shiftreg always has FAST_FLAGS
         .FULL_IN_RESET  ( FULL_IN_RESET )
     ) dlsc_fifo_shiftreg_inst (
         .clk            ( clk ),

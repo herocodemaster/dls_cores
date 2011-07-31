@@ -32,6 +32,7 @@ module dlsc_rvh_fifo #(
     parameter DEPTH         = 16,   // depth of FIFO
     parameter ALMOST_FULL   = 0,    // assert almost_full when <= ALMOST_FULL free spaces remain
     parameter ALMOST_EMPTY  = 0,    // assert almost_empty when <= ALMOST_EMPTY valid entries remain
+    parameter FAST_FLAGS    = 1,    // disallow pessimistic flags
     parameter REGISTER      = 1     // register output
 ) (
     // system
@@ -58,23 +59,26 @@ wire            empty;
 wire            pop;
 wire [DATA-1:0] pop_data;
 
-dlsc_fifo_shiftreg #(
+dlsc_fifo #(
     .DATA           ( DATA ),
     .DEPTH          ( DEPTH ),
     .ALMOST_FULL    ( ALMOST_FULL ),
     .ALMOST_EMPTY   ( ALMOST_EMPTY ),
-    .FULL_IN_RESET  ( 1 )
-) dlsc_fifo_shiftreg_inst (
+    .FULL_IN_RESET  ( 1 ),
+    .FAST_FLAGS     ( FAST_FLAGS )
+) dlsc_fifo_inst (
     .clk            ( clk ),
     .rst            ( rst ),
-    .push_en        ( in_ready && in_valid ),
-    .push_data      ( in_data ),
-    .pop_en         ( pop ),
-    .pop_data       ( pop_data ),
-    .empty          ( empty ),
-    .full           ( full ),
-    .almost_empty   ( out_almost_empty ),
-    .almost_full    ( in_almost_full )
+    .wr_push        ( in_ready && in_valid ),
+    .wr_data        ( in_data ),
+    .wr_full        ( full ),
+    .wr_almost_full ( in_almost_full ),
+    .wr_free        (  ),
+    .rd_pop         ( pop ),
+    .rd_data        ( pop_data ),
+    .rd_empty       ( empty ),
+    .rd_almost_empty( out_almost_empty ),
+    .rd_count       (  )
 );
 
 generate

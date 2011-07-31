@@ -243,7 +243,8 @@ wire                    fifo_rd_empty;
 
 dlsc_fifo #(
     .DATA               ( DATA ),
-    .ADDR               ( BUFA )
+    .ADDR               ( BUFA ),
+    .COUNT              ( 1 )
 ) dlsc_fifo_inst (
     .clk                ( clk ),
     .rst                ( rst_dma ),

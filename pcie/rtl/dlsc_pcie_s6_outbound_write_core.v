@@ -2,7 +2,7 @@
 module dlsc_pcie_s6_outbound_write_core #(
     parameter ADDR      = 32,
     parameter LEN       = 4,
-    parameter MAX_SIZE  = 128                       // maximum write payload size
+    parameter MAX_SIZE  = 128                       // maximum write payload size (internal buffer will be twice this)
 ) (
     // ** System **
 
@@ -119,21 +119,22 @@ wire [31:0]     fifo_w_data;
 assign          axi_w_ready     = !fifo_w_full && axi_w_ready_s;
 assign          axi_w_valid_s   = !fifo_w_full && axi_w_valid;
 
-// TODO: shiftreg isn't efficient for large MAX_SIZE
-dlsc_fifo_shiftreg #(
+dlsc_fifo #(
     .DATA           ( 33 ),
-    .DEPTH          ( MAX_SIZE/4 + 16 )
-) dlsc_fifo_shiftreg_w (
+    .DEPTH          ( MAX_SIZE/2 )
+) dlsc_fifo_w (
     .clk            ( clk ),
     .rst            ( rst ),
-    .push_en        ( fifo_w_push ),
-    .push_data      ( { axi_w_last, axi_w_data } ),
-    .pop_en         ( fifo_w_pop ),
-    .pop_data       ( { fifo_w_last, fifo_w_data } ),
-    .empty          ( fifo_w_empty ),
-    .full           ( fifo_w_full ),
-    .almost_empty   (  ),
-    .almost_full    (  )
+    .wr_push        ( fifo_w_push ),
+    .wr_data        ( { axi_w_last, axi_w_data } ),
+    .wr_full        ( fifo_w_full ),
+    .wr_almost_full (  ),
+    .wr_free        (  ),
+    .rd_pop         ( fifo_w_pop ),
+    .rd_data        ( { fifo_w_last, fifo_w_data } ),
+    .rd_empty       ( fifo_w_empty ),
+    .rd_almost_empty(  ),
+    .rd_count       (  )
 );
 
 always @(posedge clk) begin
@@ -222,20 +223,22 @@ wire            fifo_h_pop      = !fifo_h_empty && (!tlp_h_valid || tlp_h_ready)
 wire [ADDR+15:0] fifo_h_push_data;
 wire [ADDR+15:0] fifo_h_pop_data;
 
-dlsc_fifo_shiftreg #(
+dlsc_fifo #(
     .DATA           ( ADDR + 16 ),
     .DEPTH          ( 16 )
-) dlsc_fifo_shiftreg_tlp_h (
+) dlsc_fifo_tlp_h (
     .clk            ( clk ),
     .rst            ( rst ),
-    .push_en        ( fifo_h_push ),
-    .push_data      ( fifo_h_push_data ),
-    .pop_en         ( fifo_h_pop ),
-    .pop_data       ( fifo_h_pop_data ),
-    .empty          ( fifo_h_empty ),
-    .full           ( fifo_h_full ),
-    .almost_empty   (  ),
-    .almost_full    (  )
+    .wr_push        ( fifo_h_push ),
+    .wr_data        ( fifo_h_push_data ),
+    .wr_full        ( fifo_h_full ),
+    .wr_almost_full (  ),
+    .wr_free        (  ),
+    .rd_pop         ( fifo_h_pop ),
+    .rd_data        ( fifo_h_pop_data ),
+    .rd_empty       ( fifo_h_empty ),
+    .rd_almost_empty(  ),
+    .rd_count       (  )
 );
 
 always @(posedge clk) begin

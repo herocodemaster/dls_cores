@@ -77,7 +77,8 @@ wire [BUFA:0]   w_cnt;
 
 dlsc_fifo #(
     .DATA           ( 4+32 ),
-    .ADDR           ( BUFA )
+    .ADDR           ( BUFA ),
+    .COUNT          ( 1 )
 ) dlsc_fifo_w (
     .clk            ( clk ),
     .rst            ( rst ),
@@ -85,10 +86,11 @@ dlsc_fifo #(
     .wr_data        ( { req_d_strb, req_d_data } ),
     .wr_full        ( w_full ),
     .wr_almost_full (  ),
+    .wr_free        (  ),
     .rd_pop         ( w_pop ),
     .rd_data        ( { w_strb, w_data } ),
     .rd_empty       ( w_empty ),
-    .rd_almost_empty (  ),
+    .rd_almost_empty(  ),
     .rd_count       ( w_cnt )
 );
 
@@ -138,20 +140,22 @@ wire            b_np;
 wire            b_last;
 wire [TOKN-1:0] b_token;
 
-dlsc_fifo_shiftreg #(
+dlsc_fifo #(
     .DATA           ( TOKN+2 ),
     .DEPTH          ( MOT )
-) dlsc_fifo_shiftreg_b (
+) dlsc_fifo_b (
     .clk            ( clk ),
     .rst            ( rst ),
-    .push_en        ( cmd_ready && cmd_valid ),
-    .push_data      ( { cmd_np, cmd_token, cmd_last } ),
-    .pop_en         ( b_pop ),
-    .pop_data       ( { b_np, b_token, b_last } ),
-    .empty          (  ),
-    .full           ( b_full ),
-    .almost_empty   (  ),
-    .almost_full    (  )
+    .wr_push        ( cmd_ready && cmd_valid ),
+    .wr_data        ( { cmd_np, cmd_token, cmd_last } ),
+    .wr_full        ( b_full ),
+    .wr_almost_full (  ),
+    .wr_free        (  ),
+    .rd_pop         ( b_pop ),
+    .rd_data        ( { b_np, b_token, b_last } ),
+    .rd_empty       (  ),
+    .rd_almost_empty(  ),
+    .rd_count       (  )
 );
 
 
@@ -196,20 +200,22 @@ wire            ch_pop;
 wire [1:0]      ch_resp;
 wire            ch_np;
 
-dlsc_fifo_shiftreg #(
+dlsc_fifo #(
     .DATA           ( 3 ),
     .DEPTH          ( 4 )
-) dlsc_fifo_shiftreg_cplh (
+) dlsc_fifo_cplh (
     .clk            ( clk ),
     .rst            ( rst ),
-    .push_en        ( b_pop && b_last ),
-    .push_data      ( { b_np, resp_accum } ),
-    .pop_en         ( ch_pop ),
-    .pop_data       ( { ch_np, ch_resp } ),
-    .empty          ( ch_empty ),
-    .full           ( ch_full ),
-    .almost_empty   (  ),
-    .almost_full    (  )
+    .wr_push        ( b_pop && b_last ),
+    .wr_data        ( { b_np, resp_accum } ),
+    .wr_full        ( ch_full ),
+    .wr_almost_full (  ),
+    .wr_free        (  ),
+    .rd_pop         ( ch_pop ),
+    .rd_data        ( { ch_np, ch_resp } ),
+    .rd_empty       ( ch_empty ),
+    .rd_almost_empty(  ),
+    .rd_count       (  )
 );
 
 

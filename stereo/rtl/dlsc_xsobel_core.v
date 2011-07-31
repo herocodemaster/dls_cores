@@ -406,21 +406,23 @@ wire                fifo_out_pop;
 wire                fifo_out_empty;
 wire [OUT_DATA-1:0] fifo_out_px;
 
-dlsc_fifo_shiftreg #(
+dlsc_fifo #(
     .DATA           ( OUT_DATA ),
     .DEPTH          ( 16 ),
     .ALMOST_FULL    ( 12 )          // must be enough to accomodate full pipeline stall
-) dlsc_fifo_shiftreg_inst (
+) dlsc_fifo_inst (
     .clk            ( clk ),
     .rst            ( rst ),
-    .push_en        ( c9_en ),
-    .push_data      ( c9_px ),
-    .pop_en         ( fifo_out_pop ),
-    .pop_data       ( fifo_out_px ),
-    .empty          ( fifo_out_empty ),
-    .full           (  ),
-    .almost_empty   (  ),
-    .almost_full    ( fifo_out_busy )
+    .wr_push        ( c9_en ),
+    .wr_data        ( c9_px ),
+    .wr_full        (  ),
+    .wr_almost_full ( fifo_out_busy ),
+    .wr_free        (  ),
+    .rd_pop         ( fifo_out_pop ),
+    .rd_data        ( fifo_out_px ),
+    .rd_empty       ( fifo_out_empty ),
+    .rd_almost_empty(  ),
+    .rd_count       (  )
 );
 
 

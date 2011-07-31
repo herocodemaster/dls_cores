@@ -211,20 +211,23 @@ wire [MAX_BITS-1:0] s_w_len;
 wire s_push_en  = s_aw_ready && s_aw_valid;
 wire s_pop_en   = s_w_ready && s_w_valid && s_w_last;
 
-dlsc_fifo_shiftreg #(
+dlsc_fifo #(
     .DATA           ( LEN_BITS ),
-    .DEPTH          ( MAX_OUTSTANDING )
-) dlsc_fifo_shiftreg_inst (
+    .DEPTH          ( MAX_OUTSTANDING ),
+    .FAST_FLAGS     ( 1 )
+) dlsc_fifo_inst (
     .clk            ( clk ),
     .rst            ( s_rst ),
-    .push_en        ( s_push_en && !(s_pop_en && s_empty) ),    // don't push if popping when empty
-    .push_data      ( s_aw_len ),
-    .pop_en         ( s_pop_en && !s_empty ),                   // don't actually pop when empty
-    .pop_data       ( s_w_len ),
-    .empty          ( s_empty ),
-    .full           (  ),
-    .almost_empty   (  ),
-    .almost_full    (  )
+    .wr_push        ( s_push_en && !(s_pop_en && s_empty) ),    // don't push if popping when empty
+    .wr_data        ( s_aw_len ),
+    .wr_full        (  ),
+    .wr_almost_full (  ),
+    .wr_free        (  ),
+    .rd_pop         ( s_pop_en && !s_empty ),                   // don't actually pop when empty
+    .rd_data        ( s_w_len ),
+    .rd_empty       ( s_empty ),
+    .rd_almost_empty(  ),
+    .rd_count       (  )
 );
 
 

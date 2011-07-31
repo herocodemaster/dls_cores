@@ -305,20 +305,23 @@ wire            fifo_cmd_pop_en     = wb_resp_xfer;
 
 assign          wb_cyc_o            = !fifo_cmd_empty;
 
-dlsc_fifo_shiftreg #(
+dlsc_fifo #(
     .DATA           ( 2 ),
-    .DEPTH          ( CMD_FIFO_DEPTH )
-) dlsc_fifo_shiftreg_cmd (
+    .DEPTH          ( CMD_FIFO_DEPTH ),
+    .FAST_FLAGS     ( 1 )
+) dlsc_fifo_cmd (
     .clk            ( clk ),
     .rst            ( rst ),
-    .push_en        ( fifo_cmd_push_en ),
-    .push_data      ( { next_we_o, next_last } ),
-    .pop_en         ( fifo_cmd_pop_en ),
-    .pop_data       ( { fifo_cmd_wr, fifo_cmd_last } ),
-    .empty          ( fifo_cmd_empty ),
-    .full           ( fifo_cmd_full ),
-    .almost_empty   (  ),
-    .almost_full    (  )
+    .wr_push        ( fifo_cmd_push_en ),
+    .wr_data        ( { next_we_o, next_last } ),
+    .wr_full        ( fifo_cmd_full ),
+    .wr_almost_full (  ),
+    .wr_free        (  ),
+    .rd_pop         ( fifo_cmd_pop_en ),
+    .rd_data        ( { fifo_cmd_wr, fifo_cmd_last } ),
+    .rd_empty       ( fifo_cmd_empty ),
+    .rd_almost_empty(  ),
+    .rd_count       (  )
 );
 
 
@@ -350,29 +353,32 @@ wire            fifo_resp_push_en   = wb_resp_xfer && ( !fifo_cmd_wr || fifo_cmd
 wire            fifo_resp_pop_en    = !fifo_resp_empty && ( fifo_resp_wr ?
                                         (!axi_b_valid || axi_b_ready) :
                                         (!axi_r_valid || axi_r_ready) ); 
-dlsc_fifo_shiftreg #(
+dlsc_fifo #(
     .DATA           ( DATA+4 ),
     .DEPTH          ( RESP_FIFO_DEPTH ),
-    .ALMOST_FULL    ( CMD_FIFO_DEPTH )
-) dlsc_fifo_shiftreg_resp (
+    .ALMOST_FULL    ( CMD_FIFO_DEPTH ),
+    .FAST_FLAGS     ( 1 )
+) dlsc_fifo_resp (
     .clk            ( clk ),
     .rst            ( rst ),
-    .push_en        ( fifo_resp_push_en ),
-    .push_data      ( {
+    .wr_push        ( fifo_resp_push_en ),
+    .wr_data        ( {
         wb_dat_i,
         wb_resp_accum_next,
         fifo_cmd_last,
         fifo_cmd_wr } ),
-    .pop_en         ( fifo_resp_pop_en ),
-    .pop_data       ( {
+    .wr_full        (  ),
+    .wr_almost_full ( fifo_resp_full ),
+    .wr_free        (  ),
+    .rd_pop         ( fifo_resp_pop_en ),
+    .rd_data        ( {
         fifo_resp_data,
         fifo_resp_resp,
         fifo_resp_last,
         fifo_resp_wr } ),
-    .empty          ( fifo_resp_empty ),
-    .full           (  ),
-    .almost_empty   (  ),
-    .almost_full    ( fifo_resp_full )
+    .rd_empty       ( fifo_resp_empty ),
+    .rd_almost_empty(  ),
+    .rd_count       (  )
 );
 
 
