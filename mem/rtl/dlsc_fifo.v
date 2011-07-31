@@ -96,7 +96,30 @@ localparam  USE_SHIFTREG    = ( (DEPTHI <= 16) ||
                                 (DEPTHI != (2**ADDR)) ) && !(COUNT || FREE);
 
 generate
-if(USE_SHIFTREG) begin:GEN_FIFO_SHIFTREG
+if(DEPTHI==1) begin:GEN_FIFO_ONE
+    
+    dlsc_fifo_one #(
+        .DATA           ( DATA ),
+        .ALMOST_FULL    ( ALMOST_FULL ),
+        .ALMOST_EMPTY   ( ALMOST_EMPTY ),
+//      .FAST_FLAGS     ( FAST_FLAGS ),     // fifo_one always has FAST_FLAGS
+        .FULL_IN_RESET  ( FULL_IN_RESET )
+    ) dlsc_fifo_one_inst (
+        .clk            ( clk ),
+        .rst            ( rst ),
+        .wr_push        ( wr_push ),
+        .wr_data        ( wr_data ),
+        .wr_full        ( wr_full ),
+        .wr_almost_full ( wr_almost_full ),
+        .wr_free        ( wr_free ),
+        .rd_pop         ( rd_pop ),
+        .rd_data        ( rd_data ),
+        .rd_empty       ( rd_empty ),
+        .rd_almost_empty( rd_almost_empty ),
+        .rd_count       ( rd_count )
+    );
+
+end else if(USE_SHIFTREG) begin:GEN_FIFO_SHIFTREG
 
     dlsc_fifo_shiftreg #(
         .DATA           ( DATA ),
