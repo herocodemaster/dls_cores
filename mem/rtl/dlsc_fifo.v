@@ -131,14 +131,14 @@ end else if(USE_SHIFTREG) begin:GEN_FIFO_SHIFTREG
     ) dlsc_fifo_shiftreg_inst (
         .clk            ( clk ),
         .rst            ( rst ),
-        .push_en        ( wr_push ),
-        .push_data      ( wr_data ),
-        .full           ( wr_full ),
-        .almost_full    ( wr_almost_full ),
-        .pop_en         ( rd_pop ),
-        .pop_data       ( rd_data ),
-        .empty          ( rd_empty ),
-        .almost_empty   ( rd_almost_empty )
+        .wr_push        ( wr_push ),
+        .wr_data        ( wr_data ),
+        .wr_full        ( wr_full ),
+        .wr_almost_full ( wr_almost_full ),
+        .rd_pop         ( rd_pop ),
+        .rd_data        ( rd_data ),
+        .rd_empty       ( rd_empty ),
+        .rd_almost_empty( rd_almost_empty )
     );
     
     // TODO: wr_free, rd_count
