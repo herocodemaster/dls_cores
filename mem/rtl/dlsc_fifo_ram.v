@@ -231,40 +231,5 @@ end
 // read on pop, or after first entry is written
 assign          rd_en           = rd_pop || (rd_empty && cnt == 1);
 
-
-// ** simulation checks **
-
-`ifdef DLSC_SIMULATION
-`include "dlsc_sim_top.vh"
-
-always @(posedge clk) begin
-
-    if( wr_push && !rd_pop && wr_full ) begin
-        `dlsc_error("overflow");
-    end
-    if(             rd_pop && rd_empty) begin
-        `dlsc_error("underflow");
-    end
-
-end
-
-integer max_cnt;
-always @(posedge clk) begin
-    if(rst) begin
-        max_cnt = 0;
-    end else if(cnt > max_cnt) begin
-        max_cnt = cnt;
-    end
-end
-
-task report;
-begin
-    `dlsc_info("max usage: %0d%% (%0d/%0d)",((max_cnt*100)/DEPTH),max_cnt,DEPTH);
-end
-endtask
-
-`include "dlsc_sim_bot.vh"
-`endif
-
 endmodule
 

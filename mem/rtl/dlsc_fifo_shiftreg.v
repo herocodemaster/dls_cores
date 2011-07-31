@@ -147,38 +147,5 @@ end
 
 /* verilator lint_on WIDTH */
 
-
-`ifdef DLSC_SIMULATION
-`include "dlsc_sim_top.vh"
-
-always @(posedge clk) begin
-
-    if( push_en && !pop_en && full ) begin
-        `dlsc_error("overflow");
-    end
-    if(             pop_en && empty) begin
-        `dlsc_error("underflow");
-    end
-
-end
-
-integer max_cnt;
-always @(posedge clk) begin
-    if(rst) begin
-        max_cnt = 0;
-    end else if(!empty && addr >= max_cnt) begin
-        max_cnt = addr+1;
-    end
-end
-
-task report;
-begin
-    `dlsc_info("max usage: %0d%% (%0d/%0d)",((max_cnt*100)/DEPTH),max_cnt,DEPTH);
-end
-endtask
-
-`include "dlsc_sim_bot.vh"
-`endif
-
 endmodule
 
