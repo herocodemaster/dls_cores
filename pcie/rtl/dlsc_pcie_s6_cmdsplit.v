@@ -32,7 +32,7 @@ module dlsc_pcie_s6_cmdsplit #(
 );
 
 /* verilator lint_off WIDTH */
-localparam [10:0] MAX_SIZE_DW   = (MAX_SIZE < 1024) ? (MAX_SIZE/4) : 11'd1024;
+localparam [10:0] MAX_SIZE_DW   = (MAX_SIZE < 4096) ? (MAX_SIZE/4) : 11'd1024;
 localparam [9:0]  MAX_MASK      = (MAX_SIZE_DW-1);
 /* verilator lint_on WIDTH */
     
