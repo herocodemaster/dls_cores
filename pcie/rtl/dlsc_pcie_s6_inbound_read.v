@@ -82,26 +82,26 @@ wire [ADDR-1:2] axi_h_addr;
 wire [9:0]      axi_h_len;
 wire [TOKN-1:0] axi_h_token;
 
-dlsc_rvh_fifo #(
+dlsc_fifo_rvh #(
     .DATA           ( ADDR-2+10+TOKN ),
     .DEPTH          ( 16 )
-) dlsc_rvh_fifo_axih (
+) dlsc_fifo_rvh_axih (
     .clk            ( clk ),
     .rst            ( rst ),
-    .in_ready       ( axi_h_in_ready ),
-    .in_valid       ( req_h_ready && req_h_valid ),
-    .in_data        ( {
+    .wr_ready       ( axi_h_in_ready ),
+    .wr_valid       ( req_h_ready && req_h_valid ),
+    .wr_data        ( {
         req_h_addr,
         req_h_len,
         req_h_token } ),
-    .in_almost_full (  ),
-    .out_ready      ( axi_h_ready ),
-    .out_valid      ( axi_h_valid ),
-    .out_data       ( {
+    .wr_almost_full (  ),
+    .rd_ready       ( axi_h_ready ),
+    .rd_valid       ( axi_h_valid ),
+    .rd_data        ( {
         axi_h_addr,
         axi_h_len,
         axi_h_token } ),
-    .out_almost_empty (  )
+    .rd_almost_empty(  )
 );
 
 
@@ -120,31 +120,31 @@ wire            rcb_h_mem;
 wire            rcb_h_almost_full;
 assign          rx_np_ok        = !rcb_h_almost_full;
 
-dlsc_rvh_fifo #(
+dlsc_fifo_rvh #(
     .DATA           ( 10+10+8+1 ),
     .DEPTH          ( 16 ),
     .ALMOST_FULL    ( 4 )
-) dlsc_rvh_fifo_rcbh (
+) dlsc_fifo_rvh_rcbh (
     .clk            ( clk ),
     .rst            ( rst ),
-    .in_ready       ( rcb_h_in_ready ),
-    .in_valid       ( req_h_ready && req_h_valid ),
-    .in_data        ( {
+    .wr_ready       ( rcb_h_in_ready ),
+    .wr_valid       ( req_h_ready && req_h_valid ),
+    .wr_data        ( {
         req_h_addr[11:2],
         req_h_len,
         req_h_be_first,
         req_h_be_last,
         req_h_mem } ),
-    .in_almost_full ( rcb_h_almost_full ),
-    .out_ready      ( rcb_h_ready ),
-    .out_valid      ( rcb_h_valid ),
-    .out_data       ( {
+    .wr_almost_full ( rcb_h_almost_full ),
+    .rd_ready       ( rcb_h_ready ),
+    .rd_valid       ( rcb_h_valid ),
+    .rd_data        ( {
         rcb_h_addr,
         rcb_h_len,
         rcb_h_be_first,
         rcb_h_be_last,
         rcb_h_mem } ),
-    .out_almost_empty (  )
+    .rd_almost_empty(  )
 );
 
 assign          req_h_ready     = axi_h_in_ready && rcb_h_in_ready;
@@ -312,31 +312,31 @@ end
 
 // Buffer response headers
 
-dlsc_rvh_fifo #(
+dlsc_fifo_rvh #(
     .DATA           ( 7+10+12+1+2 ),
     .DEPTH          ( 16 ),
     .ALMOST_FULL    ( 1 )
-) dlsc_rvh_fifo_cplh (
+) dlsc_fifo_rvh_cplh (
     .clk            ( clk ),
     .rst            ( rst ),
-    .in_ready       (  ),
-    .in_valid       ( axi_r_ready && axi_r_valid && r_len_last ),
-    .in_data        ( {
+    .wr_ready       (  ),
+    .wr_valid       ( axi_r_ready && axi_r_valid && r_len_last ),
+    .wr_data        ( {
         r_addr,
         r_len,
         r_bytes,
         r_last,
         r_resp_accum } ),
-    .in_almost_full ( resp_almost_full ),
-    .out_ready      ( cpl_h_ready ),
-    .out_valid      ( cpl_h_valid ),
-    .out_data       ( {
+    .wr_almost_full ( resp_almost_full ),
+    .rd_ready       ( cpl_h_ready ),
+    .rd_valid       ( cpl_h_valid ),
+    .rd_data        ( {
         cpl_h_addr,
         cpl_h_len,
         cpl_h_bytes,
         cpl_h_last, 
         cpl_h_resp } ),
-    .out_almost_empty (  )
+    .rd_almost_empty(  )
 );
 
 

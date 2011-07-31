@@ -27,57 +27,92 @@
 // Module Description:
 // FIFO with ready/valid handshake interface on both input and output.
 
-module dlsc_rvh_fifo #(
-    parameter DATA          = 8,    // width of data in FIFO
-    parameter DEPTH         = 16,   // depth of FIFO
-    parameter ALMOST_FULL   = 0,    // assert almost_full when <= ALMOST_FULL free spaces remain
-    parameter ALMOST_EMPTY  = 0,    // assert almost_empty when <= ALMOST_EMPTY valid entries remain
-    parameter FAST_FLAGS    = 1,    // disallow pessimistic flags
-    parameter REGISTER      = 1     // register output
-) (
+module dlsc_fifo_rvh (
     // system
-    input   wire                clk,
-    input   wire                rst,
-
-    // source
-    output  wire                in_ready,
-    input   wire                in_valid,
-    input   wire    [DATA-1:0]  in_data,
-    output  wire                in_almost_full,
-
-    // sink
-    input   wire                out_ready,
-    output  wire                out_valid,
-    output  wire    [DATA-1:0]  out_data,
-    output  wire                out_almost_empty
+    clk,
+    rst,
+    // input
+    wr_ready,
+    wr_valid,
+    wr_data,
+    wr_almost_full,
+    // output
+    rd_ready,
+    rd_valid,
+    rd_data,
+    rd_almost_empty
 );
 
+`include "dlsc_clog2.vh"
+
+// ** Parameters **
+
+// one of these must be set:
+parameter DEPTH         = 0;                    // depth of FIFO (if unset, will default to 2**ADDR)
+parameter ADDR          = `dlsc_clog2(DEPTH);   // address bits (if unset, will be set appropriately for DEPTH)
+                                                // (width of count/free ports is ADDR+1)
+
+localparam DEPTHI       = (DEPTH==0) ? (2**ADDR) : DEPTH;
+
+parameter DATA          = 8;                    // width of data in FIFO
+parameter ALMOST_FULL   = 0;                    // assert almost_full when <= ALMOST_FULL free spaces remain
+parameter ALMOST_EMPTY  = 0;                    // assert almost_empty when <= ALMOST_EMPTY valid entries remain
+parameter FAST_FLAGS    = 1;                    // disallow pessimistic flags
+parameter BRAM          = ((DATA*DEPTHI)>=4096);// use block RAM (instead of distributed RAM)
+parameter REGISTER      = 1;                    // register output
+
+
+// ** Ports **
+
+// system
+input   wire                clk;
+input   wire                rst;
+
+// input
+output  wire                wr_ready;
+input   wire                wr_valid;
+input   wire    [DATA-1:0]  wr_data;
+output  wire                wr_almost_full;
+
+// output
+input   wire                rd_ready;
+output  wire                rd_valid;
+output  wire    [DATA-1:0]  rd_data;
+output  wire                rd_almost_empty;
+
+
+// ** Implementation **
+
 wire            full;
-assign          in_ready        = !full;
+assign          wr_ready        = !full;
 
 wire            empty;
 wire            pop;
 wire [DATA-1:0] pop_data;
 
 dlsc_fifo #(
-    .DATA           ( DATA ),
     .DEPTH          ( DEPTH ),
+    .ADDR           ( ADDR ),
+    .DATA           ( DATA ),
     .ALMOST_FULL    ( ALMOST_FULL ),
     .ALMOST_EMPTY   ( ALMOST_EMPTY ),
+    .COUNT          ( 0 ),
+    .FREE           ( 0 ),
+    .FAST_FLAGS     ( FAST_FLAGS ),
     .FULL_IN_RESET  ( 1 ),
-    .FAST_FLAGS     ( FAST_FLAGS )
+    .BRAM           ( BRAM )
 ) dlsc_fifo_inst (
     .clk            ( clk ),
     .rst            ( rst ),
-    .wr_push        ( in_ready && in_valid ),
-    .wr_data        ( in_data ),
+    .wr_push        ( wr_ready && wr_valid ),
+    .wr_data        ( wr_data ),
     .wr_full        ( full ),
-    .wr_almost_full ( in_almost_full ),
+    .wr_almost_full ( wr_almost_full ),
     .wr_free        (  ),
     .rd_pop         ( pop ),
     .rd_data        ( pop_data ),
     .rd_empty       ( empty ),
-    .rd_almost_empty( out_almost_empty ),
+    .rd_almost_empty( rd_almost_empty ),
     .rd_count       (  )
 );
 
@@ -87,15 +122,15 @@ if(REGISTER>0) begin:GEN_REG
     reg             valid;
     reg  [DATA-1:0] data;
 
-    assign          out_valid       = valid;
-    assign          out_data        = data;
-    assign          pop             = !empty && (!valid || out_ready);
+    assign          rd_valid        = valid;
+    assign          rd_data         = data;
+    assign          pop             = !empty && (!valid || rd_ready);
 
     always @(posedge clk) begin
         if(rst) begin
             valid   <= 1'b0;
         end else begin
-            if(out_ready) valid <= 1'b0;
+            if(rd_ready) valid <= 1'b0;
             if(pop)       valid <= 1'b1;
         end
     end
@@ -108,9 +143,9 @@ if(REGISTER>0) begin:GEN_REG
 
 end else begin:GEN_NOREG
 
-    assign          out_valid       = !empty;
-    assign          out_data        = pop_data;
-    assign          pop             = !empty && out_ready;
+    assign          rd_valid        = !empty;
+    assign          rd_data         = pop_data;
+    assign          pop             = !empty && rd_ready;
 
 end
 endgenerate

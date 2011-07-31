@@ -29,13 +29,16 @@
 // on parameters.
 
 module dlsc_fifo (
+    // system
     clk,
     rst,
+    // input
     wr_push,
     wr_data,
     wr_full,
     wr_almost_full,
     wr_free,
+    // output
     rd_pop,
     rd_data,
     rd_empty,
@@ -52,7 +55,7 @@ parameter DEPTH         = 0;                    // depth of FIFO (if unset, will
 parameter ADDR          = `dlsc_clog2(DEPTH);   // address bits (if unset, will be set appropriately for DEPTH)
                                                 // (width of count/free ports is ADDR+1)
 
-localparam DEPTHI   = (DEPTH==0) ? (2**ADDR) : DEPTH;
+localparam DEPTHI       = (DEPTH==0) ? (2**ADDR) : DEPTH;
 
 parameter DATA          = 8;                    // width of data in FIFO
 parameter ALMOST_FULL   = 0;                    // assert almost_full when <= ALMOST_FULL free spaces remain

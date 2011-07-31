@@ -63,21 +63,21 @@ wire            id_almost_full;
 
 assign          rx_np_ok        = !id_almost_full;
 
-dlsc_rvh_fifo #(
+dlsc_fifo_rvh #(
     .DATA           ( 30 ),
     .DEPTH          ( 16 ),
     .ALMOST_FULL    ( 4 )
-) dlsc_rvh_fifo_id (
+) dlsc_fifo_rvh_id (
     .clk            ( clk ),
     .rst            ( rst ),
-    .in_ready       ( tlp_id_ready ),
-    .in_valid       ( tlp_id_valid ),
-    .in_data        ( { tlp_id_write, tlp_id_data } ),
-    .in_almost_full ( id_almost_full ),
-    .out_ready      ( id_ready ),
-    .out_valid      ( id_valid ),
-    .out_data       ( { id_write, id_tc, id_attr, id_reqid, id_tag } ),
-    .out_almost_empty (  )
+    .wr_ready       ( tlp_id_ready ),
+    .wr_valid       ( tlp_id_valid ),
+    .wr_data        ( { tlp_id_write, tlp_id_data } ),
+    .wr_almost_full ( id_almost_full ),
+    .rd_ready       ( id_ready ),
+    .rd_valid       ( id_valid ),
+    .rd_data        ( { id_write, id_tc, id_attr, id_reqid, id_tag } ),
+    .rd_almost_empty(  )
 );
 
 
@@ -88,20 +88,20 @@ reg             tlp_valid;
 reg  [31:0]     tlp_data;
 reg             tlp_last;
 
-dlsc_rvh_fifo #(
+dlsc_fifo_rvh #(
     .DATA           ( 33 ),
     .DEPTH          ( 16 )
-) dlsc_rvh_fifo_tlp (
+) dlsc_fifo_rvh_tlp (
     .clk            ( clk ),
     .rst            ( rst ),
-    .in_ready       ( tlp_ready ),
-    .in_valid       ( tlp_valid ),
-    .in_data        ( { tlp_last, tlp_data } ),
-    .in_almost_full (  ),
-    .out_ready      ( tx_ready ),
-    .out_valid      ( tx_valid ),
-    .out_data       ( { tx_last, tx_data } ),
-    .out_almost_empty (  )
+    .wr_ready       ( tlp_ready ),
+    .wr_valid       ( tlp_valid ),
+    .wr_data        ( { tlp_last, tlp_data } ),
+    .wr_almost_full (  ),
+    .rd_ready       ( tx_ready ),
+    .rd_valid       ( tx_valid ),
+    .rd_data        ( { tx_last, tx_data } ),
+    .rd_almost_empty(  )
 );
 
 
