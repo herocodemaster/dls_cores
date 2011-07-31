@@ -124,22 +124,12 @@ BUFPLL_36to9_inst (
 
 wire rst_pre = !( pll_locked && locked_12to2 && locked_36to9 );
 
-dlsc_rstsync dlsc_rstsync_1x (
-    .clk        ( clk ),
+dlsc_rstsync #(
+    .DOMAINS    ( 3 )
+) dlsc_rstsync_inst (
     .rst_in     ( rst_pre ),
-    .rst_out    ( rst )
-);
-
-dlsc_rstsync dlsc_rstsync_2x (
-    .clk        ( clk_2x ),
-    .rst_in     ( rst_pre ),
-    .rst_out    ( rst_2x )
-);
-
-dlsc_rstsync dlsc_rstsync_9x (
-    .clk        ( clk_9x ),
-    .rst_in     ( rst_pre ),
-    .rst_out    ( rst_9x )
+    .clk        ( { clk_9x, clk_2x, clk } ),
+    .rst_out    ( { rst_9x, rst_2x, rst } )
 );
 
 

@@ -26,30 +26,57 @@
 
 // Module Description:
 // 2-level synchronizer flipflop for asynchronous domain crossing.
-// Based on Xilinx Language Templates "Asynchronous Input Synchronization".
 
-module dlsc_syncflop_slice #(
-    parameter RESET = 1'b0
-) (
-/* verilator lint_off SYNCASYNCNET */
-    input wire clk,
-    input wire rst,
-    (* TIG="TRUE", IOB="FALSE" *) input wire in,
-    output wire out
+module dlsc_syncflop_slice (
+    clk,
+    rst,
+    in,
+    out
 );
 
-reg out_r = 1'b0;
-assign out = out_r;
+/* verilator lint_off SYNCASYNCNET */
 
-(* ASYNC_REG="TRUE", SHIFT_EXTRACT="NO", HBLKNM="sync_reg" *) reg [1:0] sreg = {2{RESET[0]}};
+`include "dlsc_synthesis.vh"
 
-always @(posedge clk or posedge rst) begin
-    if(rst) begin
-        { out_r, sreg } <= {3{RESET[0]}};
-    end else begin
-        { out_r, sreg } <= { sreg, in };
+parameter RESET = 1'b0;
+parameter ASYNC = 0;        // asynchronous reset
+
+input   clk;
+input   rst;
+input   in;
+output  out;
+
+wire    clk;
+wire    rst;
+wire    in;
+
+`DLSC_PIPE_REG reg       out;
+
+`DLSC_SYNCFLOP reg [1:0] sreg;
+
+generate
+if(ASYNC==0) begin:GEN_SYNC_RESET
+
+    always @(posedge clk) begin
+        if(rst) begin
+            {out,sreg} <= {3{RESET[0]}};
+        end else begin
+            {out,sreg} <= {sreg,in};
+        end
     end
+
+end else begin:GEN_ASYNC_RESET
+
+    always @(posedge clk or posedge rst) begin
+        if(rst) begin
+            {out,sreg} <= {3{RESET[0]}};
+        end else begin
+            {out,sreg} <= {sreg,in};
+        end
+    end
+
 end
+endgenerate
 
 /* verilator lint_on SYNCASYNCNET */
 

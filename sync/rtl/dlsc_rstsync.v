@@ -62,10 +62,11 @@ generate
 
         for(j=0;j<DOMAINS;j=j+1) begin:GEN_SLICES
 
-            // synchronize incoming reset to each domain
-            dlsc_syncflop #(
-                .RESET      ( 1'b1 )
-            ) dlsc_syncflop_inst (
+            // drive incoming reset through each domain
+            dlsc_syncflop_slice #(
+                .RESET      ( 1'b1 ),
+                .ASYNC      ( 1 )
+            ) dlsc_syncflop_slice_inst (
                 .clk        ( clk[j] ),
                 .rst        ( rst_in ),
                 .in         ( 1'b0 ),

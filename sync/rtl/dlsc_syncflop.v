@@ -44,7 +44,8 @@ generate
     genvar j;
     for(j=0;j<DATA;j=j+1) begin:GEN_SYNCFLOPS
         dlsc_syncflop_slice #(
-            .RESET  ( RESET[j] )
+            .RESET  ( RESET[j] ),
+            .ASYNC  ( 0 )
         ) dlsc_syncflop_slice_inst  (
             .clk    ( clk ),
             .rst    ( rst ),

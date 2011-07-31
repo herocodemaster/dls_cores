@@ -29,44 +29,53 @@
 // register chain into reset state. Once reset is removed, chain clocks in the
 // non-reset value. Metastability is possible on first flop in chain (if reset
 // is removed near clock edge), so synchronizer flops are present.
-//
-// Based on Xilinx Language Templates "Asynchronous Input Synchronization".
 
-module dlsc_rstsync_slice #(
-    parameter DEPTH = 4             // TODO
-) (
-/* verilator lint_off SYNCASYNCNET */
-    input       wire    clk,        // clock (which the reset will be synchronized to)
-    input       wire    rst_in,     // asynchronous reset input
-    output      wire    rst_out     // synchronous reset output
+module dlsc_rstsync_slice (
+    clk,        // clock (which the reset will be synchronized to)
+    rst_in,     // asynchronous reset input
+    rst_out     // synchronous reset output
 );
+
+/* verilator lint_off SYNCASYNCNET */
 
 `include "dlsc_synthesis.vh"
 
+parameter DEPTH = 4;    // TODO
+
+input   clk;
+input   rst_in;
+output  rst_out;
+
+wire    clk;
+wire    rst_in;
+wire    rst_out;
+
 // synchronizer
-(* ASYNC_REG="TRUE", SHIFT_EXTRACT="NO", HBLKNM="sync_reg" *) reg [1:0] sreg = 2'b11;
-always @(posedge clk or posedge rst_in) begin
-    if(rst_in) begin
-        sreg    <= 2'b11;
-    end else begin
-        sreg    <= { sreg[0], 1'b0 };
-    end
-end
+wire    rst_sync;
+
+dlsc_syncflop_slice #(
+    .RESET      ( 1'b1 ),
+    .ASYNC      ( 1 )
+) dlsc_syncflop_slice_inst (
+    .clk        ( clk ),
+    .rst        ( rst_in ),
+    .in         ( 1'b0 ),
+    .out        ( rst_sync )
+);
 
 // fanout control
-`DLSC_FANOUT_REG(16) reg rst_f0;
-`DLSC_FANOUT_REG(16) reg rst_f1;
-`DLSC_FANOUT_REG(16) reg rst_f2;
-`DLSC_FANOUT_REG(16) reg rst_f3;
+`DLSC_FANOUT_REG reg rst_f0;
+`DLSC_FANOUT_REG reg rst_f1;
+`DLSC_FANOUT_REG reg rst_f2;
 always @(posedge clk or posedge rst_in) begin
     if(rst_in) begin
-        {rst_f3,rst_f2,rst_f1,rst_f0} <= {4{1'b1}};
+        {rst_f2,rst_f1,rst_f0} <= {3{1'b1}};
     end else begin
-        {rst_f3,rst_f2,rst_f1,rst_f0} <= {rst_f2,rst_f1,rst_f0,sreg[1]};
+        {rst_f2,rst_f1,rst_f0} <= {rst_f1,rst_f0,rst_sync};
     end
 end
 
-assign rst_out = rst_f3;
+assign rst_out = rst_f2;
 
 /* verilator lint_on SYNCASYNCNET */
 

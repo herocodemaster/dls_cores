@@ -98,8 +98,8 @@ generate
 
     if(PIPELINE_RD > 2) begin:GEN_RD_PIPE
 
-        `DLSC_FANOUT_REG(16) reg            c1_read_en_r;
-        `DLSC_FANOUT_REG(16) reg [ADDR-1:0] c1_read_addr_r;
+        `DLSC_FANOUT_REG reg            c1_read_en_r;
+        `DLSC_FANOUT_REG reg [ADDR-1:0] c1_read_addr_r;
 
         always @(posedge read_clk) begin
             c1_read_en_r    <= c0_read_en;
@@ -116,8 +116,8 @@ generate
 
     if(PIPELINE_WR > 0) begin:GEN_WR_PIPE
 
-        `DLSC_FANOUT_REG(16) reg            c1_write_en_r;
-        `DLSC_FANOUT_REG(16) reg [ADDR-1:0] c1_write_addr_r;
+        `DLSC_FANOUT_REG reg            c1_write_en_r;
+        `DLSC_FANOUT_REG reg [ADDR-1:0] c1_write_addr_r;
 
         always @(posedge write_clk) begin
             c1_write_en_r   <= c0_write_en;
@@ -134,7 +134,7 @@ generate
 
     if(PIPELINE_WR_DATA > 0) begin:GEN_WRDATA_PIPE
 
-        `DLSC_FANOUT_REG(16) reg [DATA-1:0] c1_write_data_r;
+        `DLSC_FANOUT_REG reg [DATA-1:0] c1_write_data_r;
 
         always @(posedge write_clk) begin
             c1_write_data_r <= c0_write_data;

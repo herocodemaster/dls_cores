@@ -34,9 +34,9 @@ localparam [ADDR:0] MSB = {1'b1,{ADDR{1'b0}}};
 
 // ** memory **
 
-`DLSC_FANOUT_REG(16) reg [ADDR  :0] wr_addr_r;
-`DLSC_FANOUT_REG(16) reg            wr_push_r;
-`DLSC_PIPE_REG       reg [DATA-1:0] wr_data_r;
+`DLSC_FANOUT_REG reg [ADDR  :0] wr_addr_r;
+`DLSC_FANOUT_REG reg            wr_push_r;
+`DLSC_PIPE_REG   reg [DATA-1:0] wr_data_r;
 
 `DLSC_LUTRAM         reg [DATA-1:0] mem[DEPTH-1:0];
 
@@ -46,7 +46,7 @@ always @(posedge wr_clk) begin
     end
 end
 
-`DLSC_FANOUT_REG(16) reg [ADDR  :0] rd_addr;
+`DLSC_FANOUT_REG reg [ADDR  :0] rd_addr;
 
 assign rd_data = mem[rd_addr[ADDR-1:0]];
 

@@ -27,24 +27,30 @@
 `ifndef DLSC_SYNTHESIS_INCLUDED
 
 `ifdef SYNTHESIS
+    `define DLSC_SYNTHESIS
 
-`ifdef XILINX
-    `define DLSC_SYNTHESIS_DEFINED
+    `ifdef XILINX
+        `define DLSC_SYNTHESIS_XILINX
+        `define DLSC_SYNTHESIS_DEFINED
 
-    `define DLSC_BRAM               (* ram_style = "block", RDADDR_COLLISION_HWCONFIG = "performance" *)
-    `define DLSC_LUTRAM             (* ram_style = "distributed" *)
-    `define DLSC_SHREG              (* shreg_extract = "yes" *)
-    `define DLSC_NO_SHREG           (* shreg_extract = "no" *)
-    `define DLSC_KEEP_REG           (* equivalent_register_removal = "no" *)
-    `define DLSC_PIPE_REG           (* equivalent_register_removal = "no", shreg_extract="no" *)
-    // TODO: macro argument not respected by XST; hard-coded to 16 for now
-    `define DLSC_FANOUT_REG(maxfan) (* equivalent_register_removal = "no", shreg_extract="no", register_duplication = "yes", max_fanout = "16" *)
+        `define DLSC_BRAM               (* ram_style = "block", RDADDR_COLLISION_HWCONFIG = "performance" *)
+        `define DLSC_LUTRAM             (* ram_style = "distributed" *)
+        `define DLSC_SHREG              (* shreg_extract = "yes" *)
+        `define DLSC_NO_SHREG           (* shreg_extract = "no" *)
+        `define DLSC_KEEP_REG           (* equivalent_register_removal = "no" *)
+        `define DLSC_PIPE_REG           (* equivalent_register_removal = "no", shreg_extract="no" *)
+        `define DLSC_FANOUT_REG         (* equivalent_register_removal = "no", shreg_extract="no", register_duplication = "yes", max_fanout = "reduce" *)
+        `define DLSC_SYNCFLOP           (* equivalent_register_removal = "no", shreg_extract="no", register_duplication = "no", ASYNC_REG = "TRUE", HBLKNM = "dlsc_syncflops_blknm", IOB = "FALSE", KEEP = "TRUE", OPTIMIZE = "OFF" *)
 
-`endif // XILINX
+    `endif // XILINX
 
-`ifdef ALTERA
-    // TODO
-`endif // ALTERA
+    `ifdef ALTERA
+        // TODO
+    `endif // ALTERA
+
+    `ifndef DLSC_SYNTHESIS_DEFINED
+        `define DLSC_SYNTHESIS_GENERIC
+    `endif // DLSC_SYNTHESIS_DEFINED
 
 `endif // SYNTHESIS
 
@@ -57,7 +63,8 @@
     `define DLSC_NO_SHREG
     `define DLSC_KEEP_REG
     `define DLSC_PIPE_REG
-    `define DLSC_FANOUT_REG(maxfan)
+    `define DLSC_FANOUT_REG
+    `define DLSC_SYNCFLOP
 
 `endif // DLSC_SYNTHESIS_DEFINED
 
