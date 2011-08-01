@@ -2,7 +2,7 @@
 module dlsc_pcie_s6_inbound_read #(
     parameter ADDR      = 32,
     parameter LEN       = 4,
-    parameter BUFA      = 8,
+    parameter BUFA      = 8,            // must be >= 6 (64 words; 256 bytes.. twice the RCB)
     parameter MOT       = 16,
     parameter TOKN      = 4
 ) (
@@ -74,7 +74,12 @@ localparam  RCB_MAX_SIZE_DW     = (2**BUFA)/2;
 
 // Buffer request TLPs for AXI
 
-wire            axi_h_in_ready;
+wire            axi_h_in_full;
+wire            rcb_h_in_full;
+
+assign          req_h_ready     = !axi_h_in_full && !rcb_h_in_full;
+
+wire            req_h_push      = req_h_ready && req_h_valid;
 
 wire            axi_h_ready;
 wire            axi_h_valid;
@@ -82,19 +87,20 @@ wire [ADDR-1:2] axi_h_addr;
 wire [9:0]      axi_h_len;
 wire [TOKN-1:0] axi_h_token;
 
-dlsc_fifo_rvh #(
+dlsc_fifo_rvho #(
     .DATA           ( ADDR-2+10+TOKN ),
     .DEPTH          ( 16 )
-) dlsc_fifo_rvh_axih (
+) dlsc_fifo_rvho_axih (
     .clk            ( clk ),
     .rst            ( rst ),
-    .wr_ready       ( axi_h_in_ready ),
-    .wr_valid       ( req_h_ready && req_h_valid ),
+    .wr_push        ( req_h_push ),
     .wr_data        ( {
         req_h_addr,
         req_h_len,
         req_h_token } ),
+    .wr_full        ( axi_h_in_full ),
     .wr_almost_full (  ),
+    .wr_free        (  ),
     .rd_ready       ( axi_h_ready ),
     .rd_valid       ( axi_h_valid ),
     .rd_data        ( {
@@ -107,8 +113,6 @@ dlsc_fifo_rvh #(
 
 // Buffer request TLPs for RCB
 
-wire            rcb_h_in_ready;
-
 wire            rcb_h_ready;
 wire            rcb_h_valid;
 wire [11:2]     rcb_h_addr;
@@ -120,22 +124,23 @@ wire            rcb_h_mem;
 wire            rcb_h_almost_full;
 assign          rx_np_ok        = !rcb_h_almost_full;
 
-dlsc_fifo_rvh #(
+dlsc_fifo_rvho #(
     .DATA           ( 10+10+8+1 ),
     .DEPTH          ( 16 ),
     .ALMOST_FULL    ( 4 )
-) dlsc_fifo_rvh_rcbh (
+) dlsc_fifo_rvho_rcbh (
     .clk            ( clk ),
     .rst            ( rst ),
-    .wr_ready       ( rcb_h_in_ready ),
-    .wr_valid       ( req_h_ready && req_h_valid ),
+    .wr_push        ( req_h_push ),
     .wr_data        ( {
         req_h_addr[11:2],
         req_h_len,
         req_h_be_first,
         req_h_be_last,
         req_h_mem } ),
+    .wr_full        ( rcb_h_in_full ),
     .wr_almost_full ( rcb_h_almost_full ),
+    .wr_free        (  ),
     .rd_ready       ( rcb_h_ready ),
     .rd_valid       ( rcb_h_valid ),
     .rd_data        ( {
@@ -146,8 +151,6 @@ dlsc_fifo_rvh #(
         rcb_h_mem } ),
     .rd_almost_empty(  )
 );
-
-assign          req_h_ready     = axi_h_in_ready && rcb_h_in_ready;
 
 
 // Create AXI commands
@@ -312,22 +315,23 @@ end
 
 // Buffer response headers
 
-dlsc_fifo_rvh #(
+dlsc_fifo_rvho #(
     .DATA           ( 7+10+12+1+2 ),
     .DEPTH          ( 16 ),
     .ALMOST_FULL    ( 1 )
-) dlsc_fifo_rvh_cplh (
+) dlsc_fifo_rvho_cplh (
     .clk            ( clk ),
     .rst            ( rst ),
-    .wr_ready       (  ),
-    .wr_valid       ( axi_r_ready && axi_r_valid && r_len_last ),
+    .wr_push        ( axi_r_ready && axi_r_valid && r_len_last ),
     .wr_data        ( {
         r_addr,
         r_len,
         r_bytes,
         r_last,
         r_resp_accum } ),
+    .wr_full        (  ),
     .wr_almost_full ( resp_almost_full ),
+    .wr_free        (  ),
     .rd_ready       ( cpl_h_ready ),
     .rd_valid       ( cpl_h_valid ),
     .rd_data        ( {
