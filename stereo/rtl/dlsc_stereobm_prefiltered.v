@@ -40,6 +40,9 @@
 //  alu/rtl/dlsc_multu.v
 //  common/rtl/dlsc_clog2.vh
 //  common/rtl/dlsc_synthesis.vh
+//  mem/rtl/dlsc_fifo.v
+//  mem/rtl/dlsc_fifo_one.v
+//  mem/rtl/dlsc_fifo_ram.v
 //  mem/rtl/dlsc_fifo_shiftreg.v
 //  mem/rtl/dlsc_pipedelay.v
 //  mem/rtl/dlsc_pipedelay_clken.v
