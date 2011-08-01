@@ -206,7 +206,7 @@ end
 
 
 // track command lengths (in order to produce correct w_last)
-wire [MAX_BITS-1:0] s_w_len;
+wire [LEN_BITS-1:0] s_w_len;
 
 wire s_push_en  = s_aw_ready && s_aw_valid;
 wire s_pop_en   = s_w_ready && s_w_valid && s_w_last;

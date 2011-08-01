@@ -11,6 +11,7 @@
 /*AUTOSUBCELL_CLASS*/
 
 #define DATA            PARAM_DATA
+#define LEN             PARAM_LEN
 
 #define DATA_MAX ((1<<DATA)-1)
 
@@ -74,7 +75,7 @@ SP_CTOR_IMP(__MODULE__) : clk("clk",10,SC_NS) /*AUTOINIT*/ {
     SP_TEMPLATE(axi_slave,"axi_(.*)","s_$1");
 
 
-    memtest = new dlsc_tlm_memtest<uint32_t>("memtest");
+    memtest = new dlsc_tlm_memtest<uint32_t>("memtest",(1<<LEN));
     memtest->socket.bind(axi_master->socket);
     
     memory = new dlsc_tlm_memory<uint32_t>("memory",4*1024*1024,0,sc_core::sc_time(2.5,SC_NS),sc_core::sc_time(20,SC_NS));

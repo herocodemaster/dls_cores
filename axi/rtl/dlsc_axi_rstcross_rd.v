@@ -114,7 +114,7 @@ end
 
 
 // track command lengths (in order to produce correct w_last)
-wire [MAX_BITS-1:0] m_r_len;
+wire [LEN_BITS-1:0] m_r_len;
 wire                m_full;
 
 dlsc_fifo #(
