@@ -25,7 +25,7 @@ module dlsc_pcie_s6_outbound_write_buffer #(
     // AXI write response output
     input   wire                axi_b_ready,
     output  reg                 axi_b_valid,
-    output  wire    [1:0]       axi_b_resp,
+    output  reg     [1:0]       axi_b_resp,
 
     // Write command to command splitter
     input   wire                cmd_aw_ready,
@@ -45,36 +45,51 @@ module dlsc_pcie_s6_outbound_write_buffer #(
     output  wire                tlp_d_axi_last,
 
     // TLP payload acknowledge
-    input   wire                tlp_d_axi_ack
+    input   wire                tlp_d_axi_ack,
+
+    // control/status
+    output  wire                wr_busy,
+    input   wire                wr_disable,
+    input   wire                wr_flush
 );
 
 `include "dlsc_clog2.vh"
 
-localparam MOTB = `dlsc_clog2(MOT);
+localparam  MOTB            = `dlsc_clog2(MOT);
+
+localparam  AXI_RESP_OKAY   = 2'b00,
+            AXI_RESP_SLVERR = 2'b10;
 
 
 // Track MOTs
 
 reg  [MOTB-1:0] mot_cnt;
+reg             mot_zero;
 reg             mot_full;
 
 reg  [MOTB-1:0] next_mot_cnt;
+reg             next_mot_zero;
 reg             next_mot_full;
 
 wire            mot_inc         = (axi_aw_ready && axi_aw_valid);
 wire            mot_dec         = (axi_b_ready && axi_b_valid);
 
+assign          wr_busy         = !mot_zero;
+
 always @* begin
     next_mot_cnt    = mot_cnt;
+    next_mot_zero   = mot_zero;
     next_mot_full   = mot_full;
     if(mot_inc && !mot_dec) begin
         next_mot_cnt    = mot_cnt + 1;
+        next_mot_zero   = 1'b0;
 /* verilator lint_off WIDTH */
         next_mot_full   = (mot_cnt == (MOT-1));
 /* verilator lint_on WIDTH */
     end
     if(!mot_inc && mot_dec) begin
         next_mot_cnt    = mot_cnt - 1;
+        next_mot_zero   = (mot_cnt == 1);
         next_mot_full   = 1'b0;
     end
 end
@@ -82,9 +97,11 @@ end
 always @(posedge clk) begin
     if(rst) begin
         mot_cnt     <= 0;
+        mot_zero    <= 1'b1;
         mot_full    <= 1'b0;
     end else begin
         mot_cnt     <= next_mot_cnt;
+        mot_zero    <= next_mot_zero;
         mot_full    <= next_mot_full;
     end
 end
@@ -124,7 +141,7 @@ always @(posedge clk) begin
         axi_aw_ready    <= 1'b0;
     end else begin
         // only ready if we have room for a maximum size burst
-        axi_aw_ready    <= |next_buf_free[BUFA:LEN] && !next_mot_full && !aw_almost_full;
+        axi_aw_ready    <= |next_buf_free[BUFA:LEN] && !next_mot_full && !aw_almost_full && !wr_disable;
     end
 end
 
@@ -217,26 +234,58 @@ dlsc_fifo_rvho #(
 // Buffer B
 
 reg  [MOTB-1:0] b_cnt;
-wire            b_inc           = tlp_d_axi_ack;
-wire            b_dec           = (axi_b_ready && axi_b_valid);
+reg             b_cnt_zero;
 
-assign          axi_b_resp      = 2'b00;    // always OKAY
+reg  [MOTB-1:0] next_b_cnt;
+reg             next_b_cnt_zero;
+
+wire            b_inc           = tlp_d_axi_ack && !wr_flush;
+wire            b_dec           = (axi_b_ready && axi_b_valid) && !b_cnt_zero;
+
+always @* begin
+    next_b_cnt      = b_cnt;
+    next_b_cnt_zero = b_cnt_zero;
+
+    if(b_inc && !b_dec) begin
+        next_b_cnt      = b_cnt + 1;
+        next_b_cnt_zero = 1'b0;
+    end
+    if(!b_inc && b_dec) begin
+        next_b_cnt      = b_cnt - 1;
+        next_b_cnt_zero = (b_cnt == 1);
+    end
+end
 
 always @(posedge clk) begin
     if(rst) begin
         b_cnt       <= 0;
-        axi_b_valid <= 1'b0;
+        b_cnt_zero  <= 1'b1;
     end else begin
-        if(b_inc && !b_dec) begin
-            b_cnt       <= b_cnt + 1;
+        b_cnt       <= next_b_cnt;
+        b_cnt_zero  <= next_b_cnt_zero;
+    end
+end
+
+always @(posedge clk) begin
+    if(rst) begin
+        axi_b_valid <= 1'b0;
+        axi_b_resp  <= AXI_RESP_OKAY;
+    end else if(axi_b_ready || !axi_b_valid) begin
+        if(!next_b_cnt_zero) begin
+            // successful completions
             axi_b_valid <= 1'b1;
-        end
-        if(!b_inc && b_dec) begin
-            b_cnt       <= b_cnt - 1;
-            axi_b_valid <= (b_cnt != 1);
+            axi_b_resp  <= AXI_RESP_OKAY;
+        end else if(!next_mot_zero && wr_flush) begin
+            // unsuccessful completion (lost to flush operation)
+            axi_b_valid <= 1'b1;
+            axi_b_resp  <= AXI_RESP_SLVERR;
+        end else begin
+            // idle
+            axi_b_valid <= 1'b0;
+            axi_b_resp  <= AXI_RESP_OKAY;
         end
     end
-end   
+end
 
 
 endmodule

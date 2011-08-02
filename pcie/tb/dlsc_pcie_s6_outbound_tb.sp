@@ -21,23 +21,38 @@
 #define READ_CPLD       PARAM_READ_CPLD
 #define READ_TIMEOUT    PARAM_READ_TIMEOUT
 
+#if (PARAM_ASYNC>0)
+#define ASYNC
+#else
+#define SYNC
+#endif
+
+#if (PARAM_WRITE_EN>0)
+#define WRITE_EN
+#endif
+
+#if (PARAM_READ_EN>0)
+#define READ_EN
+#endif
+
 SC_MODULE (__MODULE__) {
 private:
-    sc_clock sys_clk;
-    sc_clock async_clk;
-
+    sc_clock        sys_clk;
+    sc_signal<bool> sys_reset;
+    
+    sc_signal<bool> rst;
     sc_signal<bool> pcie_clk;
     sc_signal<bool> pcie_rst;
-    sc_signal<bool> clk;
-    sc_signal<bool> rst;
 
-    void clk_driver_method();
+#ifdef ASYNC
+    sc_clock        clk;
+#else
+    sc_signal<bool> clk;
+#endif
 
     void stim_thread();
     void watchdog_thread();
 
-    void pcie_clk_method();
-    
     dlsc_tlm_initiator_nb<uint32_t> *initiator;
     typedef dlsc_tlm_initiator_nb<uint32_t>::transaction transaction;
 
@@ -69,16 +84,25 @@ public:
 #define MEMTEST
 
 SP_CTOR_IMP(__MODULE__) :
-    sys_clk("sys_clk",10,SC_NS),
-    async_clk("async_clk",10,SC_NS) // TODO
+    sys_clk("sys_clk",10,SC_NS)
+#ifdef ASYNC
+    ,clk("clk",10,SC_NS) // TODO
+#endif
     /*AUTOINIT*/
 {
     SP_AUTO_CTOR;
 
     /*AUTOTIEOFF*/
     SP_CELL(dut,DLSC_DUT);
-        SP_PIN(dut,axi_clk,clk);
-        SP_PIN(dut,axi_rst,rst);
+#ifdef ASYNC
+        SP_PIN(dut,pcie_clk,pcie_clk);
+        SP_PIN(dut,pcie_rst,pcie_rst);
+#else
+        SP_PIN(dut,pcie_clk,clk);
+        SP_PIN(dut,pcie_rst,rst);
+#endif
+        SP_PIN(dut,ob_clk,clk);
+        SP_PIN(dut,ob_rst,rst);
         /*AUTOINST*/
 
     // tie-off
@@ -88,9 +112,17 @@ SP_CTOR_IMP(__MODULE__) :
     pcie_dma_en              = 1;
     
     SP_CELL(axi_master,dlsc_axi4lb_tlm_master_32b);
+        SP_TEMPLATE(axi_master,"axi_(.*)","ob_$1");
         /*AUTOINST*/
 
     SP_CELL(pcie,dlsc_pcie_s6_model);
+#ifdef ASYNC
+        SP_PIN(pcie,user_clk_out,pcie_clk);
+        SP_PIN(pcie,user_reset_out,pcie_rst);
+#else
+        SP_PIN(pcie,user_clk_out,clk);
+        SP_PIN(pcie,user_reset_out,rst);
+#endif
         // RX
         SP_PIN(pcie,m_axis_rx_tready,pcie_rx_ready);
         SP_PIN(pcie,m_axis_rx_tvalid,pcie_rx_valid);
@@ -105,6 +137,10 @@ SP_CTOR_IMP(__MODULE__) :
         SP_PIN(pcie,fc_sel,pcie_fc_sel);
         SP_PIN(pcie,fc_ph,pcie_fc_ph);
         SP_PIN(pcie,fc_pd,pcie_fc_pd);
+        // Error
+        SP_PIN(pcie,cfg_err_cpl_rdy,pcie_err_ready);
+        SP_PIN(pcie,cfg_err_cor,pcie_err_unexpected);
+        SP_PIN(pcie,cfg_err_cpl_timeout,pcie_err_timeout);
         /*AUTOINST*/
 
     // tie-off
@@ -126,47 +162,23 @@ SP_CTOR_IMP(__MODULE__) :
 
     pcie->initiator_socket.bind(memory->socket);
 
+#ifdef ASYNC
+    rst             = 1;
+#endif
     sys_reset       = 1;
-
-    SC_METHOD(clk_driver_method);
-        sensitive << user_clk_out;
-        sensitive << async_clk;
-
-    SC_METHOD(pcie_clk_method);
-        sensitive << pcie_clk.posedge_event();
 
     SC_THREAD(stim_thread);
     SC_THREAD(watchdog_thread);
 }
 
-void __MODULE__::clk_driver_method() {
-    pcie_clk.write(user_clk_out);
-    pcie_rst.write(user_reset_out);
-    rst.write(user_reset_out); // TODO
-#ifdef PARAM_ASYNC
-    clk.write(async_clk);
-#else
-    clk.write(user_clk_out);
-#endif
-}
-
-void __MODULE__::pcie_clk_method() {
-    if(pcie_rst) {
-        return;
-    }
-
-    if(pcie_err_ready && pcie_err_valid) {
-        dlsc_error("got error: unexpected = " << pcie_err_unexpected.read() << ", timeout = " << pcie_err_timeout.read());
-    }
-
-    pcie_err_ready       = (rand()%100) < 95;
-}
-
 void __MODULE__::stim_thread() {
-    sys_reset       = 1;
     wait(1,SC_US);
     wait(sys_clk.posedge_event());
     sys_reset       = 0;
+#ifdef ASYNC
+    wait(clk.posedge_event());
+    rst             = 0;
+#endif
     wait(sys_clk.posedge_event());
     wait(clk.posedge_event());
 

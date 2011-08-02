@@ -1,7 +1,6 @@
 
 module dlsc_pcie_s6_outbound #(
-    parameter ASYNC         = 0,                // axi_clk asynchronous to pcie_clk
-    parameter SAFE_RESET    = 1,                // include dlsc_axi_rstcross logic (only applicable for ASYNC)
+    parameter ASYNC         = 0,                // ob_clk asynchronous to pcie_clk
     parameter ADDR          = 32,               // width of AXI address bus
     parameter LEN           = 4,                // width of AXI length field
     parameter WRITE_EN      = 1,                // enable outbound write path
@@ -20,39 +19,45 @@ module dlsc_pcie_s6_outbound #(
     // ** AXI **
     
     // System
-    input   wire                axi_clk,
-    input   wire                axi_rst,
+    input   wire                ob_clk,         // == pcie_clk when !ASYNC
+    input   wire                ob_rst,         // == pcie_rst when !ASYNC
 
     // Read Command
-    output  wire                axi_ar_ready,
-    input   wire                axi_ar_valid,
-    input   wire    [ADDR-1:0]  axi_ar_addr,
-    input   wire    [LEN-1:0]   axi_ar_len,
+    output  wire                ob_ar_ready,
+    input   wire                ob_ar_valid,
+    input   wire    [ADDR-1:0]  ob_ar_addr,
+    input   wire    [LEN-1:0]   ob_ar_len,
 
     // Read response
-    input   wire                axi_r_ready,
-    output  wire                axi_r_valid,
-    output  wire                axi_r_last,
-    output  wire    [31:0]      axi_r_data,
-    output  wire    [1:0]       axi_r_resp,
+    input   wire                ob_r_ready,
+    output  wire                ob_r_valid,
+    output  wire                ob_r_last,
+    output  wire    [31:0]      ob_r_data,
+    output  wire    [1:0]       ob_r_resp,
     
     // Write Command
-    output  wire                axi_aw_ready,
-    input   wire                axi_aw_valid,
-    input   wire    [ADDR-1:0]  axi_aw_addr,
-    input   wire    [LEN-1:0]   axi_aw_len,
+    output  wire                ob_aw_ready,
+    input   wire                ob_aw_valid,
+    input   wire    [ADDR-1:0]  ob_aw_addr,
+    input   wire    [LEN-1:0]   ob_aw_len,
 
     // Write Data
-    output  wire                axi_w_ready,
-    input   wire                axi_w_valid,
-    input   wire                axi_w_last,
-    input   wire    [3:0]       axi_w_strb,
-    input   wire    [31:0]      axi_w_data,
+    output  wire                ob_w_ready,
+    input   wire                ob_w_valid,
+    input   wire                ob_w_last,
+    input   wire    [3:0]       ob_w_strb,
+    input   wire    [31:0]      ob_w_data,
 
     // Write Response
-    input   wire                axi_b_ready,
-    output  wire                axi_b_valid,
-    output  wire    [1:0]       axi_b_resp,
+    input   wire                ob_b_ready,
+    output  wire                ob_b_valid,
+    output  wire    [1:0]       ob_b_resp,
+
+    // Control/Status
+    input   wire                ob_rd_disable,
+    input   wire                ob_wr_disable,
+    output  wire                ob_rd_busy,
+    output  wire                ob_wr_busy,
     
     // ** PCIe **
 
@@ -105,8 +110,6 @@ localparam READ_BUFA = `dlsc_clog2(READ_SIZE/4);
 
 
 // ** Synchronized PCIe signals **
-
-wire            rst;
     
 // Status
 wire            tlp_pending;        // transactions pending
@@ -146,10 +149,15 @@ wire            err_valid;
 wire            err_unexpected;
 wire            err_timeout;
 
+// Local control
+wire            bridge_rst;
+wire            axi_disable;
+wire            axi_flush;
+
 generate
 if(ASYNC==0) begin:GEN_SYNC
 
-    assign          rst                 = pcie_rst;
+    assign          bridge_rst          = pcie_rst;
 
     assign          pcie_tlp_pending    = tlp_pending;
 
@@ -183,14 +191,16 @@ if(ASYNC==0) begin:GEN_SYNC
 
 end else begin:GEN_ASYNC
 
-    dlsc_syncflop #(
-        .DATA           ( 1 ),
-        .RESET          ( 1'b1 )
-    ) dlsc_syncflop_rst (
-        .in             ( pcie_rst ),
-        .clk            ( axi_clk ),
-        .rst            ( 1'b0 ),
-        .out            ( rst )
+    wire            cross_rst;
+
+    dlsc_pcie_s6_rstcontrol dlsc_pcie_s6_rstcontrol_inst (
+        .pcie_rst       ( pcie_rst ),
+        .clk            ( ob_clk ),
+        .rst            ( ob_rst ),
+        .cross_rst      ( cross_rst ),
+        .bridge_rst     ( bridge_rst ),
+        .axi_busy       ( ob_rd_busy || ob_wr_busy ),
+        .axi_flush      ( axi_flush )
     );
 
     dlsc_syncflop #(
@@ -217,8 +227,8 @@ end else begin:GEN_ASYNC
             pcie_func_number,
             pcie_fc_ph,
             pcie_fc_pd } ),
-        .out_clk        ( axi_clk ),
-        .out_rst        ( rst ),
+        .out_clk        ( ob_clk ),
+        .out_rst        ( cross_rst ),
         .out_data       ( {
             max_payload_size,
             max_read_request,
@@ -235,8 +245,8 @@ end else begin:GEN_ASYNC
         .DATA           ( 32 ),
         .ADDR           ( 4 )
     ) dlsc_pcie_s6_txfifo_inst (
-        .wr_clk         ( axi_clk ),
-        .wr_rst         ( rst ),
+        .wr_clk         ( ob_clk ),
+        .wr_rst         ( cross_rst ),
         .wr_ready       ( tx_ready ),
         .wr_valid       ( tx_valid ),
         .wr_last        ( tx_last ),
@@ -270,8 +280,8 @@ end else begin:GEN_ASYNC
             .wr_full        ( wr_full ),
             .wr_almost_full (  ),
             .wr_free        (  ),
-            .rd_clk         ( axi_clk ),
-            .rd_rst         ( rst ),
+            .rd_clk         ( ob_clk ),
+            .rd_rst         ( cross_rst ),
             .rd_pop         ( rd_pop ),
             .rd_data        ( { rx_err, rx_last, rx_data } ),
             .rd_empty       ( rd_empty ),
@@ -284,8 +294,8 @@ end else begin:GEN_ASYNC
             .RESET          ( 2'b00 ),
             .RESET_ON_TRANSFER ( 1 )
         ) dlsc_domaincross_rvh_err (
-            .in_clk         ( axi_clk ),
-            .in_rst         ( rst ),
+            .in_clk         ( ob_clk ),
+            .in_rst         ( cross_rst ),
             .in_ready       ( err_ready ),
             .in_valid       ( err_valid ),
             .in_data        ( { err_unexpected, err_timeout } ),
@@ -297,6 +307,7 @@ end else begin:GEN_ASYNC
         );
 
     end else begin:GEN_ASYNC_NOREAD
+
         assign          pcie_rx_ready       = 1'b0;
         assign          tx_valid            = 1'b0;
         assign          tx_data             = 32'd0;
@@ -306,6 +317,7 @@ end else begin:GEN_ASYNC
         assign          pcie_err_valid      = 1'b0;
         assign          pcie_err_unexpected = 1'b0;
         assign          pcie_err_timeout    = 1'b0;
+
     end
 
 end
@@ -313,63 +325,6 @@ endgenerate
 
 
 // ** Read **
-
-wire            rd_axi_ar_ready;
-wire            rd_axi_ar_valid;
-wire [ADDR-1:0] rd_axi_ar_addr;
-wire [LEN-1:0]  rd_axi_ar_len;
-wire            rd_axi_r_ready;
-wire            rd_axi_r_valid;
-wire            rd_axi_r_last;
-wire [31:0]     rd_axi_r_data;
-wire [1:0]      rd_axi_r_resp;
-
-generate
-if(ASYNC && SAFE_RESET && READ_EN) begin:GEN_READ_RSTCROSS
-
-    dlsc_axi_rstcross_rd #(
-        .AR_BITS            ( ADDR ),
-        .R_BITS             ( 2+32 ),
-        .R_PHONY            ( { 2'b10, 32'd0 } ),   // AXI_RESP_SLVERR
-        .LEN_BITS           ( LEN ),
-        .MAX_OUTSTANDING    ( READ_MOT )
-    ) dlsc_axi_rstcross_rd_inst (
-        .clk                ( axi_clk ),
-        .m_rst              ( axi_rst ),
-        .m_ar_ready         ( axi_ar_ready ),
-        .m_ar_valid         ( axi_ar_valid ),
-        .m_ar_len           ( axi_ar_len ),
-        .m_ar               ( axi_ar_addr ),
-        .m_r_ready          ( axi_r_ready ),
-        .m_r_valid          ( axi_r_valid ),
-        .m_r_last           ( axi_r_last ),
-        .m_r                ( { axi_r_resp, axi_r_data } ),
-        .s_rst              ( rst ),
-        .s_ar_ready         ( rd_axi_ar_ready ),
-        .s_ar_valid         ( rd_axi_ar_valid ),
-        .s_ar_len           ( rd_axi_ar_len ),
-        .s_ar               ( rd_axi_ar_addr ),
-        .s_r_ready          ( rd_axi_r_ready ),
-        .s_r_valid          ( rd_axi_r_valid ),
-        .s_r_last           ( rd_axi_r_last ),
-        .s_r                ( { rd_axi_r_resp, rd_axi_r_data } )
-    );
-
-end else begin:GEN_READ_NORSTCROSS
-
-    assign          axi_ar_ready        = rd_axi_ar_ready;
-    assign          rd_axi_ar_valid     = axi_ar_valid;
-    assign          rd_axi_ar_addr      = axi_ar_addr;
-    assign          rd_axi_ar_len       = axi_ar_len;
-
-    assign          rd_axi_r_ready      = axi_r_ready;
-    assign          axi_r_valid         = rd_axi_r_valid;
-    assign          axi_r_last          = rd_axi_r_last;
-    assign          axi_r_data          = rd_axi_r_data;
-    assign          axi_r_resp          = rd_axi_r_resp;
-
-end
-endgenerate
     
 wire            rd_tlp_h_ready;
 wire            rd_tlp_h_valid;
@@ -378,7 +333,6 @@ wire [9:0]      rd_tlp_h_len;
 wire [TAG-1:0]  rd_tlp_h_tag;
 wire [3:0]      rd_tlp_h_be_first;
 wire [3:0]      rd_tlp_h_be_last;
-
 
 generate
 if(READ_EN) begin:GEN_READ
@@ -395,17 +349,17 @@ if(READ_EN) begin:GEN_READ
         .FCDB               ( FCDB ),
         .TIMEOUT            ( READ_TIMEOUT )
     ) dlsc_pcie_s6_outbound_read_inst (
-        .clk                ( axi_clk ),
-        .rst                ( rst ),
-        .axi_ar_ready       ( rd_axi_ar_ready ),
-        .axi_ar_valid       ( rd_axi_ar_valid ),
-        .axi_ar_addr        ( rd_axi_ar_addr ),
-        .axi_ar_len         ( rd_axi_ar_len ),
-        .axi_r_ready        ( rd_axi_r_ready ),
-        .axi_r_valid        ( rd_axi_r_valid ),
-        .axi_r_last         ( rd_axi_r_last ),
-        .axi_r_data         ( rd_axi_r_data ),
-        .axi_r_resp         ( rd_axi_r_resp ),
+        .clk                ( ob_clk ),
+        .rst                ( bridge_rst ),
+        .axi_ar_ready       ( ob_ar_ready ),
+        .axi_ar_valid       ( ob_ar_valid ),
+        .axi_ar_addr        ( ob_ar_addr ),
+        .axi_ar_len         ( ob_ar_len ),
+        .axi_r_ready        ( ob_r_ready ),
+        .axi_r_valid        ( ob_r_valid ),
+        .axi_r_last         ( ob_r_last ),
+        .axi_r_data         ( ob_r_data ),
+        .axi_r_resp         ( ob_r_resp ),
         .tlp_pending        ( tlp_pending ),
         .max_read_request   ( max_read_request ),
         .rcb                ( rcb ),
@@ -428,13 +382,15 @@ if(READ_EN) begin:GEN_READ
         .err_timeout        ( err_timeout )
     );
 
+    assign          ob_rd_busy          = 1'b0;     // TODO
+
 end else begin:GEN_NOREAD
 
-    assign          rd_axi_ar_ready     = 1'b0;
-    assign          rd_axi_r_valid      = 1'b0;
-    assign          rd_axi_r_last       = 1'b0;
-    assign          rd_axi_r_data       = 32'd0;
-    assign          rd_axi_r_resp       = 2'b00;
+    assign          ob_ar_ready         = 1'b0;
+    assign          ob_r_valid          = 1'b0;
+    assign          ob_r_last           = 1'b0;
+    assign          ob_r_data           = 32'd0;
+    assign          ob_r_resp           = 2'b00;
 
     assign          tlp_pending         = 1'b0;
 
@@ -448,6 +404,8 @@ end else begin:GEN_NOREAD
     assign          rd_tlp_h_tag        = {TAG{1'b0}};
     assign          rd_tlp_h_be_first   = 4'd0;
     assign          rd_tlp_h_be_last    = 4'd0;
+
+    assign          ob_rd_busy          = 1'b0;
 
 end
 endgenerate
@@ -465,42 +423,68 @@ wire            wr_tlp_d_ready;
 wire            wr_tlp_d_valid;
 wire [31:0]     wr_tlp_d_data;
 
-dlsc_pcie_s6_outbound_write #(
-    .ADDR               ( ADDR ),
-    .LEN                ( LEN ),
-    .MAX_SIZE           ( WRITE_SIZE ),
-    .FCHB               ( FCHB ),
-    .FCDB               ( FCDB )
-) dlsc_pcie_s6_outbound_write_inst (
-    .clk                ( axi_clk ),
-    .rst                ( rst ),
-    .axi_aw_ready       ( axi_aw_ready ),
-    .axi_aw_valid       ( axi_aw_valid ),
-    .axi_aw_addr        ( axi_aw_addr ),
-    .axi_aw_len         ( axi_aw_len ),
-    .axi_w_ready        ( axi_w_ready ),
-    .axi_w_valid        ( axi_w_valid ),
-    .axi_w_last         ( axi_w_last ),
-    .axi_w_strb         ( axi_w_strb ),
-    .axi_w_data         ( axi_w_data ),
-    .axi_b_ready        ( axi_b_ready ),
-    .axi_b_valid        ( axi_b_valid ),
-    .axi_b_resp         ( axi_b_resp ),
-    .max_payload_size   ( max_payload_size ),
-    .dma_en             ( dma_en ),
-    .fc_sel             (  ),
-    .fc_ph              ( fc_ph ),
-    .fc_pd              ( fc_pd ),
-    .wr_tlp_h_ready     ( wr_tlp_h_ready ),
-    .wr_tlp_h_valid     ( wr_tlp_h_valid ),
-    .wr_tlp_h_addr      ( wr_tlp_h_addr ),
-    .wr_tlp_h_len       ( wr_tlp_h_len ),
-    .wr_tlp_h_be_first  ( wr_tlp_h_be_first ),
-    .wr_tlp_h_be_last   ( wr_tlp_h_be_last ),
-    .wr_tlp_d_ready     ( wr_tlp_d_ready ),
-    .wr_tlp_d_valid     ( wr_tlp_d_valid ),
-    .wr_tlp_d_data      ( wr_tlp_d_data )
-);
+generate
+if(WRITE_EN) begin:GEN_WRITE
+
+    dlsc_pcie_s6_outbound_write #(
+        .ADDR               ( ADDR ),
+        .LEN                ( LEN ),
+        .MAX_SIZE           ( WRITE_SIZE ),
+        .FCHB               ( FCHB ),
+        .FCDB               ( FCDB )
+    ) dlsc_pcie_s6_outbound_write_inst (
+        .clk                ( ob_clk ),
+        .rst                ( bridge_rst ),
+        .axi_aw_ready       ( ob_aw_ready ),
+        .axi_aw_valid       ( ob_aw_valid ),
+        .axi_aw_addr        ( ob_aw_addr ),
+        .axi_aw_len         ( ob_aw_len ),
+        .axi_w_ready        ( ob_w_ready ),
+        .axi_w_valid        ( ob_w_valid ),
+        .axi_w_last         ( ob_w_last ),
+        .axi_w_strb         ( ob_w_strb ),
+        .axi_w_data         ( ob_w_data ),
+        .axi_b_ready        ( ob_b_ready ),
+        .axi_b_valid        ( ob_b_valid ),
+        .axi_b_resp         ( ob_b_resp ),
+        .max_payload_size   ( max_payload_size ),
+        .dma_en             ( dma_en ),
+        .fc_sel             (  ),
+        .fc_ph              ( fc_ph ),
+        .fc_pd              ( fc_pd ),
+        .wr_tlp_h_ready     ( wr_tlp_h_ready ),
+        .wr_tlp_h_valid     ( wr_tlp_h_valid ),
+        .wr_tlp_h_addr      ( wr_tlp_h_addr ),
+        .wr_tlp_h_len       ( wr_tlp_h_len ),
+        .wr_tlp_h_be_first  ( wr_tlp_h_be_first ),
+        .wr_tlp_h_be_last   ( wr_tlp_h_be_last ),
+        .wr_tlp_d_ready     ( wr_tlp_d_ready ),
+        .wr_tlp_d_valid     ( wr_tlp_d_valid ),
+        .wr_tlp_d_data      ( wr_tlp_d_data )
+    );
+
+    assign          ob_wr_busy          = 1'b0;     // TODO
+
+end else begin:GEN_NOWRITE
+
+    assign          ob_aw_ready         = 1'b0;
+    assign          ob_w_ready          = 1'b0;
+    assign          ob_b_valid          = 1'b0;
+    assign          ob_b_resp           = 2'b00;
+
+    assign          wr_tlp_h_valid      = 1'b0;
+    assign          wr_tlp_h_addr       = {(ADDR-2){1'b0}};
+    assign          wr_tlp_h_len        = 10'd0;
+    assign          wr_tlp_h_be_first   = 4'd0;
+    assign          wr_tlp_h_be_last    = 4'd0;
+
+    assign          wr_tlp_d_valid      = 1'b0;
+    assign          wr_tlp_d_data       = 32'd0;
+
+    assign          ob_wr_busy          = 1'b0;
+
+end
+endgenerate
 
 
 // ** Address Translator (TODO) **
@@ -511,7 +495,7 @@ reg             trans_ack       = 0;
 reg  [63:2]     trans_ack_addr  = 0;
 reg             trans_ack_64    = 1'b0;
 
-always @(posedge axi_clk) begin
+always @(posedge ob_clk) begin
     trans_ack       <= trans_req;
     trans_ack_addr  <= { {(64-ADDR){1'b0}}, trans_req_addr[ADDR-1:2] };
     trans_ack_64    <= 1'b0;
@@ -524,8 +508,8 @@ dlsc_pcie_s6_outbound_tlp #(
     .ADDR               ( ADDR ),
     .TAG                ( TAG )
 ) dlsc_pcie_s6_outbound_tlp_inst (
-    .clk                ( axi_clk ),
-    .rst                ( rst ),
+    .clk                ( ob_clk ),
+    .rst                ( bridge_rst ),
     .trans_req          ( trans_req ),
     .trans_req_addr     ( trans_req_addr ),
     .trans_ack          ( trans_ack ),

@@ -37,12 +37,20 @@ module dlsc_pcie_s6_outbound_read_buffer #(
 
     // feedback to allocator
     output  reg                 dealloc_tag,        // freed a tag
-    output  reg                 dealloc_data        // freed a dword
+    output  reg                 dealloc_data,       // freed a dword
+
+    // control/status
+    output  reg                 rd_busy,
+    input   wire                rd_disable,
+    input   wire                rd_flush
 );
 
 `include "dlsc_synthesis.vh"
 
-localparam      TAGS            = (2**TAG);
+localparam  TAGS            = (2**TAG);
+
+localparam  AXI_RESP_OKAY   = 2'b00,
+            AXI_RESP_SLVERR = 2'b10;
 
 
 // Read data buffer
@@ -94,7 +102,7 @@ end
 wire [BUFA:0]   cpl_addr        = mem_a_rd_data[BUFA:0];
 wire [BUFA:0]   cpl_addr_inc    = cpl_addr + 1;
 
-assign          cpl_ready       = alloc_valid ? 1'b0                : 1'b1;
+assign          cpl_ready       = alloc_valid ? 1'b0                : !rd_flush;
 assign          mem_a_addr      = alloc_valid ? alloc_tag[TAG-1:0]  : cpl_tag;
 assign          mem_a_wr_en     = alloc_valid ? 1'b1                : cpl_valid;
 assign          mem_a_wr_data   = alloc_valid ? {1'b0, alloc_bufa}  : {cpl_last, cpl_addr_inc};
@@ -180,36 +188,82 @@ end
 reg  [BUFA:0]   read_addr;
 
 wire [BUFA:0]   read_count      = (read_addr_lim - read_addr);
-wire            read_okay       = (read_count > {{(BUFA+1-LEN){1'b0}},ar_len}) && !ar_empty;
+wire            read_okay       = ((read_count > {{(BUFA+1-LEN){1'b0}},ar_len}) || rd_flush) && !ar_empty;
+
+wire            buf_ready;
+reg             buf_valid;
+reg             buf_last;
+reg             buf_flush;
 
 assign          buf_rd_addr     = read_addr[BUFA-1:0];
-assign          buf_rd_en       = (!axi_r_valid || axi_r_ready) && (!axi_r_last || read_okay);
+assign          buf_rd_en       = (!buf_valid || buf_ready) && (!buf_last || read_okay);
 
 assign          ar_pop          = buf_rd_en && r_last;
 assign          r_inc           = buf_rd_en;
 
-assign { axi_r_resp, axi_r_data } = buf_rd_data;
-
 always @(posedge clk) begin
     if(rst) begin
-        axi_r_valid     <= 1'b0;
-        axi_r_last      <= 1'b1;
+        buf_valid       <= 1'b0;
+        buf_last        <= 1'b1;
+        buf_flush       <= 1'b0;
         dealloc_data    <= 1'b0;
         read_addr       <= 0;
     end else begin
         dealloc_data    <= 1'b0;
-        if(axi_r_ready) begin
-            axi_r_valid     <= 1'b0;
+        if(buf_ready) begin
+            buf_valid       <= 1'b0;
         end
         if(buf_rd_en) begin
-            axi_r_valid     <= 1'b1;
-            axi_r_last      <= r_last;
+            buf_valid       <= 1'b1;
+            buf_last        <= r_last;
+            buf_flush       <= rd_flush;
             dealloc_data    <= 1'b1;
             read_addr       <= read_addr + 1;
         end
     end
 end
 
+
+// Register output
+
+assign          buf_ready       = (axi_r_ready || !axi_r_valid);
+
+always @(posedge clk) begin
+    if(rst) begin
+        axi_r_valid     <= 1'b0;
+    end else begin
+        if(axi_r_ready) begin
+            axi_r_valid     <= 1'b0;
+        end
+        if(buf_ready && buf_valid) begin
+            axi_r_valid     <= 1'b1;
+        end
+    end
+end
+
+always @(posedge clk) begin
+    if(buf_ready && buf_valid) begin
+        axi_r_last      <= buf_last;
+        if(buf_flush) begin
+            axi_r_data      <= 32'd0;
+            axi_r_resp      <= AXI_RESP_SLVERR;
+        end else begin
+            axi_r_data      <= buf_rd_data[31:0];
+            axi_r_resp      <= buf_rd_data[33:32];
+        end
+    end
+end
+
+
+// Create busy flag
+
+always @(posedge clk) begin
+    if(rst) begin
+        rd_busy         <= 1'b0;
+    end else begin
+        rd_busy         <= (axi_ar_ready && axi_ar_valid) || !ar_empty || buf_valid || axi_r_valid;
+    end
+end
 
 endmodule
 
