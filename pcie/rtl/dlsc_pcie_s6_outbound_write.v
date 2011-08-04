@@ -54,7 +54,12 @@ module dlsc_pcie_s6_outbound_write #(
     // TLP payload to arbiter
     input   wire                wr_tlp_d_ready,
     output  wire                wr_tlp_d_valid,
-    output  wire    [31:0]      wr_tlp_d_data
+    output  wire    [31:0]      wr_tlp_d_data,
+
+    // control/status
+    output  wire                wr_busy,
+    input   wire                wr_disable,
+    input   wire                wr_flush
 );
 
 `include "dlsc_clog2.vh"
@@ -114,7 +119,10 @@ dlsc_pcie_s6_outbound_write_buffer #(
     .tlp_d_valid    ( tlp_d_valid ),
     .tlp_d_data     ( tlp_d_data ),
     .tlp_d_axi_last ( tlp_d_axi_last ),
-    .tlp_d_axi_ack  ( tlp_d_axi_ack )
+    .tlp_d_axi_ack  ( tlp_d_axi_ack ),
+    .wr_busy        ( wr_busy ),
+    .wr_disable     ( wr_disable ),
+    .wr_flush       ( wr_flush )
 );
 
 

@@ -61,7 +61,12 @@ module dlsc_pcie_s6_outbound_read #(
     input   wire                err_ready,
     output  wire                err_valid,
     output  wire                err_unexpected,
-    output  wire                err_timeout
+    output  wire                err_timeout,
+
+    // control/status
+    output  wire                rd_busy,
+    input   wire                rd_disable,
+    input   wire                rd_flush
 );
 
 localparam  MAX_SIZE = (2**BUFA)*4;
@@ -140,7 +145,10 @@ dlsc_pcie_s6_outbound_read_buffer #(
     .alloc_tag          ( alloc_tag ),
     .alloc_bufa         ( alloc_bufa ),
     .dealloc_tag        ( dealloc_tag ),
-    .dealloc_data       ( dealloc_data )
+    .dealloc_data       ( dealloc_data ),
+    .rd_busy            ( rd_busy ),
+    .rd_disable         ( rd_disable ),
+    .rd_flush           ( rd_flush )
 );
 
 

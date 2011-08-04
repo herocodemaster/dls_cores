@@ -153,11 +153,22 @@ wire            err_timeout;
 wire            bridge_rst;
 wire            axi_disable;
 wire            axi_flush;
+wire            rd_disable;
+wire            wr_disable;
+
+// rd/wr_disable are always synchronized (APB may be async)
+dlsc_syncflop #(
+    .DATA       ( 2 ),
+    .RESET      ( 2'b11 )
+) dlsc_syncflop_disable (
+    .in         ( { ob_rd_disable, ob_wr_disable } ),
+    .clk        ( ob_clk ),
+    .rst        ( bridge_rst ),
+    .out        ( {    rd_disable,    wr_disable } )
+);
 
 generate
 if(ASYNC==0) begin:GEN_SYNC
-
-    assign          bridge_rst          = pcie_rst;
 
     assign          pcie_tlp_pending    = tlp_pending;
 
@@ -189,6 +200,10 @@ if(ASYNC==0) begin:GEN_SYNC
     assign          pcie_err_unexpected = err_unexpected;
     assign          pcie_err_timeout    = err_timeout;
 
+    assign          bridge_rst          = pcie_rst;
+    assign          axi_disable         = 1'b0;
+    assign          axi_flush           = 1'b0;
+
 end else begin:GEN_ASYNC
 
     wire            cross_rst;
@@ -200,9 +215,11 @@ end else begin:GEN_ASYNC
         .cross_rst      ( cross_rst ),
         .bridge_rst     ( bridge_rst ),
         .axi_busy       ( ob_rd_busy || ob_wr_busy ),
+        .axi_disable    ( axi_disable ),
         .axi_flush      ( axi_flush )
     );
 
+    // status to PCIe controller
     dlsc_syncflop #(
         .DATA           ( 1 )
     ) dlsc_syncflop_tlp_pending (
@@ -212,6 +229,7 @@ end else begin:GEN_ASYNC
         .out            ( pcie_tlp_pending )
     );
 
+    // config from PCIe controller
     dlsc_domaincross #(
         .DATA           ( 3+3+1+1+8+5+3+FCHB+FCDB )
     ) dlsc_domaincross_inst (
@@ -241,10 +259,11 @@ end else begin:GEN_ASYNC
             fc_pd } )
     );
 
-    dlsc_pcie_s6_txfifo #(
+    // TLPs to PCIe controller
+    dlsc_pcie_s6_tlpfifo #(
         .DATA           ( 32 ),
         .ADDR           ( 4 )
-    ) dlsc_pcie_s6_txfifo_inst (
+    ) dlsc_pcie_s6_tlpfifo_tx (
         .wr_clk         ( ob_clk ),
         .wr_rst         ( cross_rst ),
         .wr_ready       ( tx_ready ),
@@ -261,34 +280,28 @@ end else begin:GEN_ASYNC
 
     if(READ_EN!=0) begin:GEN_ASYNC_READ
 
-        wire            wr_push             = pcie_rx_ready && pcie_rx_valid;
-        wire            wr_full;
-        assign          pcie_rx_ready       = !wr_full;
-
-        wire            rd_pop              = rx_ready && rx_valid;
-        wire            rd_empty;
-        assign          rx_valid            = !rd_empty;
-
-        dlsc_fifo_async #(
-            .DATA           ( 32 + 2 ),
+        // TLPs from PCIe controller
+        // (only used by read path)
+        dlsc_pcie_s6_tlpfifo #(
+            .DATA           ( 33 ),
             .ADDR           ( 4 )
-        ) dlsc_fifo_async_inst (
+        ) dlsc_fifo_s6_tlpfifo_rx (
             .wr_clk         ( pcie_clk ),
             .wr_rst         ( pcie_rst ),
-            .wr_push        ( wr_push ),
-            .wr_data        ( { pcie_rx_err, pcie_rx_last, pcie_rx_data } ),
-            .wr_full        ( wr_full ),
-            .wr_almost_full (  ),
-            .wr_free        (  ),
+            .wr_ready       ( pcie_rx_ready ),
+            .wr_valid       ( pcie_rx_valid ),
+            .wr_last        ( pcie_rx_last ),
+            .wr_data        ( { pcie_rx_err, pcie_rx_data } ),
             .rd_clk         ( ob_clk ),
             .rd_rst         ( cross_rst ),
-            .rd_pop         ( rd_pop ),
-            .rd_data        ( { rx_err, rx_last, rx_data } ),
-            .rd_empty       ( rd_empty ),
-            .rd_almost_empty(  ),
-            .rd_count       (  )
+            .rd_ready       ( rx_ready ),
+            .rd_valid       ( rx_valid ),
+            .rd_last        ( rx_last ),
+            .rd_data        ( { rx_err, rx_data } )
         );
 
+        // Errors to PCIe controller
+        // (only used by read path)
         dlsc_domaincross_rvh #(
             .DATA           ( 2 ),
             .RESET          ( 2'b00 ),
@@ -379,10 +392,11 @@ if(READ_EN) begin:GEN_READ
         .err_ready          ( err_ready ),
         .err_valid          ( err_valid ),
         .err_unexpected     ( err_unexpected ),
-        .err_timeout        ( err_timeout )
+        .err_timeout        ( err_timeout ),
+        .rd_busy            ( ob_rd_busy ),
+        .rd_disable         ( axi_disable || rd_disable ),
+        .rd_flush           ( axi_flush )
     );
-
-    assign          ob_rd_busy          = 1'b0;     // TODO
 
 end else begin:GEN_NOREAD
 
@@ -460,10 +474,11 @@ if(WRITE_EN) begin:GEN_WRITE
         .wr_tlp_h_be_last   ( wr_tlp_h_be_last ),
         .wr_tlp_d_ready     ( wr_tlp_d_ready ),
         .wr_tlp_d_valid     ( wr_tlp_d_valid ),
-        .wr_tlp_d_data      ( wr_tlp_d_data )
+        .wr_tlp_d_data      ( wr_tlp_d_data ),
+        .wr_busy            ( ob_wr_busy ),
+        .wr_disable         ( axi_disable || wr_disable ),
+        .wr_flush           ( axi_flush )
     );
-
-    assign          ob_wr_busy          = 1'b0;     // TODO
 
 end else begin:GEN_NOWRITE
 
