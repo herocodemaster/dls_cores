@@ -163,7 +163,8 @@ wire [LEN-1:0]  ar_len;
 dlsc_fifo #(
     .DATA           ( LEN ),
     .DEPTH          ( MOT ),
-    .ALMOST_FULL    ( 1 )
+    .ALMOST_FULL    ( 1 ),
+    .FAST_FLAGS     ( 1 )
 ) dlsc_fifo_ar (
     .clk            ( clk ),
     .rst            ( rst ),

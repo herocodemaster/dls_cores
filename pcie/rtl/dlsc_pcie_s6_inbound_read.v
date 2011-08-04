@@ -56,7 +56,12 @@ module dlsc_pcie_s6_inbound_read #(
     input   wire                axi_r_valid,
     input   wire                axi_r_last,
     input   wire    [31:0]      axi_r_data,
-    input   wire    [1:0]       axi_r_resp
+    input   wire    [1:0]       axi_r_resp,
+
+    // control/status
+    output  reg                 rd_busy,
+    input   wire                rd_disable,
+    input   wire                rd_flush
 );
 
 `include "dlsc_clog2.vh"
@@ -251,7 +256,7 @@ reg             r_last;
 wire            resp_almost_full;
 wire            r_len_last;
 
-assign          rcb_ready       = (!axi_r_ready || (axi_r_valid && r_len_last)) && !resp_almost_full;
+assign          rcb_ready       = (!axi_r_ready || (axi_r_valid && r_len_last)) && (!resp_almost_full || rd_flush);
 
 always @(posedge clk) begin
     if(rst) begin
@@ -322,7 +327,7 @@ dlsc_fifo_rvho #(
 ) dlsc_fifo_rvho_cplh (
     .clk            ( clk ),
     .rst            ( rst ),
-    .wr_push        ( axi_r_ready && axi_r_valid && r_len_last ),
+    .wr_push        ( axi_r_ready && axi_r_valid && r_len_last && !rd_flush ),
     .wr_data        ( {
         r_addr,
         r_len,
@@ -401,14 +406,17 @@ always @(posedge clk) begin
     if(rst) begin
         mot_cnt     <= 0;
         mot_max     <= 1'b0;
+        rd_busy     <= 1'b0;
     end else begin
         if( mot_inc && !mot_dec) begin
             mot_cnt     <= mot_cnt + 1;
             mot_max     <= (mot_cnt == MOT-1);
+            rd_busy     <= 1'b1;
         end
         if(!mot_inc &&  mot_dec) begin
             mot_cnt     <= mot_cnt - 1;
             mot_max     <= 1'b0;
+            rd_busy     <= (mot_cnt != 1);
         end
     end
 end
@@ -439,7 +447,7 @@ end
 // Handshaking
 
 assign          cmd_ready       = (!axi_ar_valid || axi_ar_ready) && mem_free_okay &&
-                                    token_okay && !mot_max;
+                                    token_okay && !mot_max && !rd_disable;
 
 
 endmodule

@@ -51,9 +51,14 @@ module dlsc_pcie_s6_inbound_write #(
     output  reg     [3:0]       axi_w_strb,
 
     // AXI write response
-    output  wire                axi_b_ready,
+    output  reg                 axi_b_ready,
     input   wire                axi_b_valid,
-    input   wire    [1:0]       axi_b_resp
+    input   wire    [1:0]       axi_b_resp,
+
+    // control/status
+    output  wire                wr_busy,
+    input   wire                wr_disable,
+    input   wire                wr_flush
 );
 
 localparam  AXI_RESP_OKAY       = 2'b00,
@@ -133,8 +138,12 @@ dlsc_pcie_s6_cmdsplit #(
 
 // Buffer anticipated responses
 
+wire            b_push;
 wire            b_pop;
 wire            b_full;
+wire            b_empty;
+
+assign          wr_busy         = !b_empty;
 
 wire            b_np;
 wire            b_last;
@@ -142,18 +151,19 @@ wire [TOKN-1:0] b_token;
 
 dlsc_fifo #(
     .DATA           ( TOKN+2 ),
-    .DEPTH          ( MOT )
+    .DEPTH          ( MOT ),
+    .FAST_FLAGS     ( 1 )
 ) dlsc_fifo_b (
     .clk            ( clk ),
     .rst            ( rst ),
-    .wr_push        ( cmd_ready && cmd_valid ),
+    .wr_push        ( b_push ),
     .wr_data        ( { cmd_np, cmd_token, cmd_last } ),
     .wr_full        ( b_full ),
     .wr_almost_full (  ),
     .wr_free        (  ),
     .rd_pop         ( b_pop ),
     .rd_data        ( { b_np, b_token, b_last } ),
-    .rd_empty       (  ),
+    .rd_empty       ( b_empty ),
     .rd_almost_empty(  ),
     .rd_count       (  )
 );
@@ -192,8 +202,7 @@ end
 
 // Buffer completion headers
 
-wire            ch_full;
-assign          axi_b_ready     = !ch_full;
+wire            ch_almost_full;
 
 wire            ch_empty;
 wire            ch_pop;
@@ -202,14 +211,15 @@ wire            ch_np;
 
 dlsc_fifo #(
     .DATA           ( 3 ),
-    .DEPTH          ( 4 )
+    .DEPTH          ( 4 ),
+    .ALMOST_FULL    ( 1 )
 ) dlsc_fifo_cplh (
     .clk            ( clk ),
     .rst            ( rst ),
-    .wr_push        ( b_pop && b_last ),
+    .wr_push        ( b_pop && b_last && !wr_flush ),
     .wr_data        ( { b_np, resp_accum } ),
-    .wr_full        ( ch_full ),
-    .wr_almost_full (  ),
+    .wr_full        (  ),
+    .wr_almost_full ( ch_almost_full ),
     .wr_free        (  ),
     .rd_pop         ( ch_pop ),
     .rd_data        ( { ch_np, ch_resp } ),
@@ -217,6 +227,14 @@ dlsc_fifo #(
     .rd_almost_empty(  ),
     .rd_count       (  )
 );
+
+always @(posedge clk) begin
+    if(rst) begin
+        axi_b_ready     <= 1'b0;
+    end else begin
+        axi_b_ready     <= !ch_almost_full || wr_flush;
+    end
+end
 
 
 // Drive completion headers/errors
@@ -255,9 +273,11 @@ reg             data_first;
 reg  [LEN:0]    data_cnt;
 wire            data_last       = (cmd_len == data_cnt);
 
-wire            cmd_okay        = cmd_valid && !b_full && !w_empty && ( {{(CMPB-LEN){1'b0}},cmd_len} <= {{(CMPB-BUFA){1'b0}},w_cnt} );
+wire            cmd_okay        = !wr_disable && cmd_valid && !b_full && !w_empty && ( {{(CMPB-LEN){1'b0}},cmd_len} <= {{(CMPB-BUFA){1'b0}},w_cnt} );
 
 assign          w_pop           = ((!axi_aw_valid && cmd_okay) || !data_first) && (!axi_w_valid || axi_w_ready);
+
+assign          b_push          = w_pop && data_first;
 
 assign          cmd_ready       = w_pop && data_last;
 
@@ -283,15 +303,16 @@ end
 
 always @(posedge clk) begin
     if(rst) begin
-        axi_w_valid     <= 1'b0;
         axi_aw_valid    <= 1'b0;
+        axi_w_valid     <= 1'b0;
     end else begin
-        if(axi_w_ready)  axi_w_valid  <= 1'b0;
         if(axi_aw_ready) axi_aw_valid <= 1'b0;
+        if(axi_w_ready)  axi_w_valid  <= 1'b0;
+        if(b_push) begin
+            axi_aw_valid    <= 1'b1;
+        end
         if(w_pop) begin
-            axi_w_valid <= 1'b1;
-            if(data_first)
-                axi_aw_valid <= 1'b1;
+            axi_w_valid     <= 1'b1;
         end
     end
 end
