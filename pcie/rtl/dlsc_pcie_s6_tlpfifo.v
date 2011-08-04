@@ -1,5 +1,5 @@
 
-module dlsc_pcie_s6_txfifo #(
+module dlsc_pcie_s6_tlpfifo #(
     parameter DATA          = 8,    // width of data in FIFO
     parameter ADDR          = 4     // depth of FIFO is 2**ADDR
 ) (
