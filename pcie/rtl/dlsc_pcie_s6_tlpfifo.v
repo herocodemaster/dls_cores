@@ -25,6 +25,7 @@ wire            wr_full;
 assign          wr_ready        = !wr_full;
 
 wire            rd_pop          = rd_ready && rd_valid;
+wire            rd_empty;
 wire            rd_almost_empty;
 
 dlsc_fifo_async #(
@@ -43,7 +44,7 @@ dlsc_fifo_async #(
     .rd_rst         ( rd_rst ),
     .rd_pop         ( rd_pop ),
     .rd_data        ( { rd_last, rd_data } ),
-    .rd_empty       (  ),
+    .rd_empty       ( rd_empty ),
     .rd_almost_empty( rd_almost_empty ),
     .rd_count       (  )
 );
@@ -62,7 +63,7 @@ always @(posedge rd_clk) begin
     end
 end
 
-assign          rd_valid        = !rd_almost_empty || !rd_first;
+assign          rd_valid        = !rd_empty && (!rd_almost_empty || !rd_first);
 
 
 endmodule
