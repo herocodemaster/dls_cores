@@ -16,7 +16,7 @@ module dlsc_pcie_s6_outbound_read_req #(
     // Read Command
     output  wire                axi_ar_ready,
     input   wire                axi_ar_valid,
-    input   wire    [ADDR-1:0]  axi_ar_addr,
+    input   wire    [ADDR-1:2]  axi_ar_addr,
     input   wire    [LEN-1:0]   axi_ar_len,
     
 

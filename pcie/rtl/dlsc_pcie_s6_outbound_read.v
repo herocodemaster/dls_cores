@@ -67,41 +67,13 @@ module dlsc_pcie_s6_outbound_read #(
 localparam  MAX_SIZE = (2**BUFA)*4;
 
 
-// ** Decouple AR **
-
-wire            axi_ar_ready_r;
-wire            axi_ar_valid_r;
-wire [ADDR-1:0] axi_ar_addr_r;
-wire [LEN-1:0]  axi_ar_len_r;
-
-wire            axi_ar_ready_rbi;
-wire            axi_ar_valid_rbi;
-
-wire            axi_ar_ready_rri;
-wire            axi_ar_valid_rri;
-
-assign          axi_ar_valid_rbi    = axi_ar_valid_r && axi_ar_ready_rri;
-assign          axi_ar_valid_rri    = axi_ar_valid_r && axi_ar_ready_rbi;
-
-assign          axi_ar_ready_r      = axi_ar_ready_rri && axi_ar_ready_rbi;
-
-dlsc_rvh_decoupler #(
-    .WIDTH              ( ADDR + LEN )
-) dlsc_rvh_decoupler_ar (
-    .clk                ( clk ),
-    .rst                ( rst ),
-    .in_en              ( 1'b1 ),
-    .in_ready           ( axi_ar_ready ),
-    .in_valid           ( axi_ar_valid ),
-    .in_data            ( { axi_ar_addr, axi_ar_len } ),
-    .out_en             ( 1'b1 ),
-    .out_ready          ( axi_ar_ready_r ),
-    .out_valid          ( axi_ar_valid_r ),
-    .out_data           ( { axi_ar_addr_r, axi_ar_len_r } )
-);
-
-
 // ** Signals **
+
+// buffer -> req
+wire            cmd_ar_ready;
+wire            cmd_ar_valid;
+wire [ADDR-1:2] cmd_ar_addr;
+wire [LEN-1:0]  cmd_ar_len;
 
 // alloc -> cpl, buffer
 wire            alloc_init;
@@ -136,6 +108,7 @@ wire [9:0]      tlp_h_len;
 // ** Completion Buffer **
 
 dlsc_pcie_s6_outbound_read_buffer #(
+    .ADDR               ( ADDR ),
     .LEN                ( LEN ),
     .TAG                ( TAG ),
     .BUFA               ( BUFA ),
@@ -143,14 +116,19 @@ dlsc_pcie_s6_outbound_read_buffer #(
 ) dlsc_pcie_s6_outbound_read_buffer_inst (
     .clk                ( clk ),
     .rst                ( rst ),
-    .axi_ar_ready       ( axi_ar_ready_rbi ),
-    .axi_ar_valid       ( axi_ar_valid_rbi ),
-    .axi_ar_len         ( axi_ar_len_r ),
+    .axi_ar_ready       ( axi_ar_ready ),
+    .axi_ar_valid       ( axi_ar_valid ),
+    .axi_ar_addr        ( axi_ar_addr ),
+    .axi_ar_len         ( axi_ar_len ),
     .axi_r_ready        ( axi_r_ready ),
     .axi_r_valid        ( axi_r_valid ),
     .axi_r_last         ( axi_r_last ),
     .axi_r_data         ( axi_r_data ),
     .axi_r_resp         ( axi_r_resp ),
+    .cmd_ar_ready       ( cmd_ar_ready ),
+    .cmd_ar_valid       ( cmd_ar_valid ),
+    .cmd_ar_addr        ( cmd_ar_addr ),
+    .cmd_ar_len         ( cmd_ar_len ),
     .cpl_ready          ( cpl_ready ),
     .cpl_valid          ( cpl_valid ),
     .cpl_last           ( cpl_last ),
@@ -175,10 +153,10 @@ dlsc_pcie_s6_outbound_read_req #(
 ) dlsc_pcie_s6_outbound_read_req_inst (
     .clk                ( clk ),
     .rst                ( rst ),
-    .axi_ar_ready       ( axi_ar_ready_rri ),
-    .axi_ar_valid       ( axi_ar_valid_rri ),
-    .axi_ar_addr        ( axi_ar_addr_r ),
-    .axi_ar_len         ( axi_ar_len_r ),
+    .axi_ar_ready       ( cmd_ar_ready ),
+    .axi_ar_valid       ( cmd_ar_valid ),
+    .axi_ar_addr        ( cmd_ar_addr ),
+    .axi_ar_len         ( cmd_ar_len ),
     .max_read_request   ( max_read_request ),
     .tlp_h_ready        ( tlp_h_ready ),
     .tlp_h_valid        ( tlp_h_valid ),

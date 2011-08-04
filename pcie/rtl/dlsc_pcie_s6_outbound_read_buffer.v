@@ -1,5 +1,6 @@
 
 module dlsc_pcie_s6_outbound_read_buffer #(
+    parameter ADDR      = 32,
     parameter LEN       = 4,
     parameter TAG       = 5,
     parameter BUFA      = 9,
@@ -9,17 +10,24 @@ module dlsc_pcie_s6_outbound_read_buffer #(
     input   wire                clk,
     input   wire                rst,
 
-    // AXI read command tracking
-    output  wire                axi_ar_ready,
+    // Read Command
+    output  reg                 axi_ar_ready,
     input   wire                axi_ar_valid,
+    input   wire    [ADDR-1:0]  axi_ar_addr,
     input   wire    [LEN-1:0]   axi_ar_len,
 
     // AXI read response
     input   wire                axi_r_ready,
     output  reg                 axi_r_valid,
     output  reg                 axi_r_last,
-    output  wire    [31:0]      axi_r_data,
-    output  wire    [1:0]       axi_r_resp,
+    output  reg     [31:0]      axi_r_data,
+    output  reg     [1:0]       axi_r_resp,
+
+    // Read command to _req
+    input   wire                cmd_ar_ready,
+    output  wire                cmd_ar_valid,
+    output  wire    [ADDR-1:2]  cmd_ar_addr,
+    output  wire    [LEN-1:0]   cmd_ar_len,
 
     // writes from completion handler
     output  wire                cpl_ready,
@@ -145,23 +153,24 @@ end
 // Track read commands
 
 wire            ar_full;
+wire            ar_almost_full;
+wire            ar_push         = axi_ar_ready && axi_ar_valid;
 wire            ar_empty;
 wire            ar_pop;
-
-assign          axi_ar_ready    = !ar_full;
 
 wire [LEN-1:0]  ar_len;
 
 dlsc_fifo #(
     .DATA           ( LEN ),
-    .DEPTH          ( MOT )
+    .DEPTH          ( MOT ),
+    .ALMOST_FULL    ( 1 )
 ) dlsc_fifo_ar (
     .clk            ( clk ),
     .rst            ( rst ),
-    .wr_push        ( axi_ar_ready && axi_ar_valid ),
+    .wr_push        ( ar_push ),
     .wr_data        ( axi_ar_len ),
     .wr_full        ( ar_full ),
-    .wr_almost_full (  ),
+    .wr_almost_full ( ar_almost_full ),
     .wr_free        (  ),
     .rd_pop         ( ar_pop ),
     .rd_data        ( ar_len ),
@@ -179,6 +188,40 @@ always @(posedge clk) begin
         r_cnt           <= 0;
     end else if(r_inc) begin
         r_cnt           <= r_cnt + 1;
+    end
+end
+
+
+// Buffer commands to _req
+
+wire            cmd_almost_full;
+
+dlsc_fifo_rvho #(
+    .DATA           ( ADDR -2 + LEN ),
+    .DEPTH          ( 4 ),
+    .ALMOST_FULL    ( 1 )
+) dlsc_fifo_rvho_cmd (
+    .clk            ( clk ),
+    .rst            ( rst ),
+    .wr_push        ( ar_push ),
+    .wr_data        ( { axi_ar_addr[ADDR-1:2], axi_ar_len } ),
+    .wr_full        (  ),
+    .wr_almost_full ( cmd_almost_full ),
+    .wr_free        (  ),
+    .rd_ready       ( cmd_ar_ready ),
+    .rd_valid       ( cmd_ar_valid ),
+    .rd_data        ( { cmd_ar_addr, cmd_ar_len } ),
+    .rd_almost_empty(  )
+);
+
+
+// Create ar_ready
+
+always @(posedge clk) begin
+    if(rst) begin
+        axi_ar_ready    <= 1'b0;
+    end else begin
+        axi_ar_ready    <= !cmd_almost_full && !ar_full && (!ar_almost_full || !axi_ar_valid) && !rd_disable;
     end
 end
 
@@ -261,7 +304,7 @@ always @(posedge clk) begin
     if(rst) begin
         rd_busy         <= 1'b0;
     end else begin
-        rd_busy         <= (axi_ar_ready && axi_ar_valid) || !ar_empty || buf_valid || axi_r_valid;
+        rd_busy         <= (axi_ar_ready && axi_ar_valid) || !ar_empty || buf_valid || (axi_r_valid && !axi_r_ready);
     end
 end
 

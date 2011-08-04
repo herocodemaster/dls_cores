@@ -85,7 +85,7 @@ void __MODULE__::stim_method() {
             assert( ((chk.addr & 0xFFF) + ((chk.len+1)*4)) <= 4096 );
 
             axi_ar_valid    = 1;
-            axi_ar_addr     = chk.addr;
+            axi_ar_addr     = chk.addr>>2;
             axi_ar_len      = chk.len;
 
             for(unsigned int i=0;i<=chk.len;i++,chk.addr+=4) {

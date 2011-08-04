@@ -7,6 +7,7 @@
 
 /*AUTOSUBCELL_CLASS*/
 
+#define ADDR            PARAM_ADDR
 #define LEN             PARAM_LEN
 #define TAG             PARAM_TAG
 #define BUFA            PARAM_BUFA
@@ -23,6 +24,11 @@ struct cpl_type {
     bool        last;
 };
 
+struct ar_type {
+    uint64_t    addr;
+    uint32_t    len;
+};
+
 SC_MODULE (__MODULE__) {
 private:
     sc_clock                clk;
@@ -33,7 +39,8 @@ private:
 
     void                    clk_method();
 
-    std::deque<uint32_t>    ar_queue;
+    std::deque<ar_type>     ar_queue;
+    std::deque<ar_type>     cmd_queue;
     std::deque<cpl_type>    r_queue;
     std::deque<cpl_type>    cpl_in_queue;
     std::deque<cpl_type>    tag_queues[TAGS];
@@ -89,8 +96,10 @@ void __MODULE__::clk_method() {
 
     if(rst) {
         axi_ar_valid    = 0;
+        axi_ar_addr     = 0;
         axi_ar_len      = 0;
         axi_r_ready     = 0;
+        cmd_ar_ready    = 0;
         cpl_valid       = 0;
         cpl_last        = 0;
         cpl_data        = 0;
@@ -102,6 +111,7 @@ void __MODULE__::clk_method() {
         alloc_bufa      = 0;
         alloc_len       = 0;
         ar_queue.clear();
+        cmd_queue.clear();
         r_queue.clear();
         for(int i=0;i<TAGS;++i) {
             tag_queues[i].clear();
@@ -167,24 +177,28 @@ void __MODULE__::clk_method() {
     }
 
     if(!axi_ar_valid || axi_ar_ready) {
-        if(!ar_queue.empty() && ((ar_len_accum+ar_queue.front()+1) <= BUF_SIZE) && (rand()%100) < 95) {
-            uint32_t len = ar_queue.front(); ar_queue.pop_front();
-            assert(len < (1<<LEN));
+        if(!ar_queue.empty() && ((ar_len_accum+ar_queue.front().len+1) <= BUF_SIZE) && (rand()%100) < 95) {
+            ar_type ar = ar_queue.front(); ar_queue.pop_front();
+            assert(ar.len < (1<<LEN));
             axi_ar_valid        = 1;
-            axi_ar_len          = len;
+            axi_ar_addr         = ar.addr;
+            axi_ar_len          = ar.len;
 
             cpl_type chk;
-            for(unsigned int i=0;i<=len;++i) {
+            for(unsigned int i=0;i<=ar.len;++i) {
                 chk.data            = rand();
                 chk.resp            = rand() & 0x3;
                 chk.tag             = 0;
-                chk.last            = (i==len);
+                chk.last            = (i==ar.len);
                 r_queue.push_back(chk);
                 cpl_in_queue.push_back(chk);
             }
+            ar.addr             >>= 2;
+            cmd_queue.push_back(ar);
 
         } else {
             axi_ar_valid        = 0;
+            axi_ar_addr         = 0;
             axi_ar_len          = 0;
         }
     }
@@ -201,6 +215,18 @@ void __MODULE__::clk_method() {
     }
 
     axi_r_ready     = (rand()%100) < 95;
+
+    if(cmd_ar_ready && cmd_ar_valid) {
+        if(cmd_queue.empty()) {
+            dlsc_error("unexpected cmd_ar");
+        } else {
+            ar_type ar = cmd_queue.front(); cmd_queue.pop_front();
+            dlsc_assert_equals(ar.addr,cmd_ar_addr);
+            dlsc_assert_equals(ar.len, cmd_ar_len);
+        }
+    }
+
+    cmd_ar_ready    = (rand()%100) < 95;
 
 
     // ** Completions **
@@ -268,11 +294,14 @@ void __MODULE__::stim_thread() {
         rst     = 0;
         wait(clk.posedge_event());
 
+        ar_type ar;
         for(int j=0;j<10000;++j) {
-            ar_queue.push_back(rand() % ((1<<LEN)-1));
+            ar.addr = rand() & ((((uint64_t)1)<<ADDR)-1);
+            ar.len  = rand() & ((1<<LEN)-1);
+            ar_queue.push_back(ar);
         }
 
-        while( !(ar_queue.empty() && r_queue.empty() && cpl_in_queue.empty() &&
+        while( !(ar_queue.empty() && cmd_queue.empty() && r_queue.empty() && cpl_in_queue.empty() &&
                 cpl_out_queue.empty() && buf_free == BUF_SIZE && tag_free == TAGS)
         ) {
             wait(1,SC_US);

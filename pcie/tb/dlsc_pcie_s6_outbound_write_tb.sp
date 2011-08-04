@@ -47,6 +47,9 @@ private:
     std::deque<uint32_t>    tlp_d_queue;
     int                     d_cnt;
 
+    int                     header_credits;
+    int                     data_credits;
+
     /*AUTOSUBCELL_DECL*/
     /*AUTOSIGNAL*/
 
@@ -97,6 +100,8 @@ void __MODULE__::stim_method() {
         w_queue.clear();
         axi_b_ready     = 0;
         b_cnt           = 0;
+        header_credits  = 0;
+        data_credits    = 0;
     }
 
     if(!axi_aw_valid || axi_aw_ready) {
@@ -166,22 +171,22 @@ void __MODULE__::stim_method() {
 
 void __MODULE__::check_method() {
     if(rst) {
-        tlp_h_ready     = 0;
+        wr_tlp_h_ready  = 0;
         tlp_h_queue.clear();
-        tlp_d_ready     = 0;
+        wr_tlp_d_ready  = 0;
         d_cnt           = 0;
         tlp_d_queue.clear();
     }
 
-    if(tlp_h_ready && tlp_h_valid) {
+    if(wr_tlp_h_ready && wr_tlp_h_valid) {
         uint32_t max_len    = (32 << max_payload_size.read());
-        uint32_t len        = tlp_h_len.read();
+        uint32_t len        = wr_tlp_h_len.read();
         
         if(len == 0) len = 1024;
 
         dlsc_assert(len <= max_len);
 
-        uint64_t addr       = tlp_h_addr.read() * 4;
+        uint64_t addr       = wr_tlp_h_addr.read() * 4;
 
         if( ((addr & 0xFFF) + (len*4)) > 4096 ) {
             dlsc_error("crossed 4K boundary (addr = 0x" << std::hex << addr << ", len = " << std::dec << (len*4) << ")");
@@ -201,30 +206,45 @@ void __MODULE__::check_method() {
             dlsc_assert_equals(tht.addr,addr);
 
             if(i == 0) {
-                dlsc_assert_equals(tht.strb,tlp_h_be_first);
+                dlsc_assert_equals(tht.strb,wr_tlp_h_be_first);
             } else if(i == (len-1)) {
-                dlsc_assert_equals(tht.strb,tlp_h_be_last);
+                dlsc_assert_equals(tht.strb,wr_tlp_h_be_last);
             } else {
                 dlsc_assert_equals(tht.strb,0xF);
             }
         }
 
+        dlsc_assert(header_credits > 0);
+        --header_credits;
     }
 
-    tlp_h_ready     = (rand()%100) < 95;
+    wr_tlp_h_ready  = (rand()%100) < 95;
 
-    if(tlp_d_ready) {
-        if(!tlp_d_valid) {
+    if(wr_tlp_d_ready) {
+        if(!wr_tlp_d_valid) {
             dlsc_error("tlp_d shouldn't throttle");
         } else {
             assert(d_cnt && !tlp_d_queue.empty());
             --d_cnt;
-            dlsc_assert_equals(tlp_d_queue.front(),tlp_d_data);
+            dlsc_assert_equals(tlp_d_queue.front(),wr_tlp_d_data);
             tlp_d_queue.pop_front();
+
+            dlsc_assert(data_credits > 0);
+            --data_credits;
         }
     }
 
-    tlp_d_ready     = (d_cnt > 0) && (rand()%100) < 95;
+    wr_tlp_d_ready  = (d_cnt > 0) && (rand()%100) < 95;
+
+    if(header_credits < 32 && (rand()%32) > header_credits) {
+        header_credits++;
+    }
+    if(data_credits < 1024 && (rand()%1024) > data_credits) {
+        data_credits++;
+    }
+
+    fc_ph   = header_credits;
+    fc_pd   = data_credits/4;   // each fc_pd is 16 bytes (4 words)
 }
 
 void __MODULE__::send_stim() {
@@ -269,6 +289,7 @@ void __MODULE__::send_stim() {
 
 void __MODULE__::stim_thread() {
     rst     = 1;
+    dma_en  = 1;
     wait(100,SC_NS);
 
     int mps = 0;
