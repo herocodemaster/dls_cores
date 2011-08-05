@@ -14,16 +14,38 @@
 #define ADDR            PARAM_ADDR
 #define LEN             PARAM_LEN
 
+#if (PARAM_ASYNC>0)
+#define ASYNC
+#else
+#define SYNC
+#endif
+
+#if (PARAM_WRITE_EN>0)
+#define WRITE_EN
+#endif
+
+#if (PARAM_READ_EN>0)
+#define READ_EN
+#endif
 
 SC_MODULE (__MODULE__) {
 private:
-    sc_clock sys_clk;
+    sc_clock        sys_clk;
+    sc_signal<bool> sys_reset;
+    
+    sc_signal<bool> rst;
+    sc_signal<bool> pcie_clk;
+    sc_signal<bool> pcie_rst;
+
+#ifdef ASYNC
+    sc_clock        clk;
+#else
+    sc_signal<bool> clk;
+#endif
 
     void stim_thread();
     void watchdog_thread();
 
-    void clk_method();
-    
     dlsc_tlm_initiator_nb<uint32_t> *initiator;
     typedef dlsc_tlm_initiator_nb<uint32_t>::transaction transaction;
 
@@ -54,32 +76,55 @@ public:
 
 #define MEMTEST
 
-SP_CTOR_IMP(__MODULE__) : sys_clk("sys_clk",10,SC_NS) /*AUTOINIT*/ {
+SP_CTOR_IMP(__MODULE__) :
+    sys_clk("sys_clk",10,SC_NS)
+#ifdef ASYNC
+    ,clk("clk",10,SC_NS) // TODO
+#endif
+    /*AUTOINIT*/
+{
     SP_AUTO_CTOR;
 
     /*AUTOTIEOFF*/
     SP_CELL(dut,DLSC_DUT);
+#ifdef ASYNC
+        SP_PIN(dut,pcie_clk,pcie_clk);
+        SP_PIN(dut,pcie_rst,pcie_rst);
+#else
+        SP_PIN(dut,pcie_clk,clk);
+        SP_PIN(dut,pcie_rst,rst);
+#endif
+        SP_PIN(dut,axi_clk,clk);
+        SP_PIN(dut,axi_rst,rst);
         /*AUTOINST*/
 
     // tie-off
-    max_payload_size    = 2;    // 512 bytes
+    pcie_max_payload_size   = 2;    // 512 bytes
     
     SP_CELL(axi_slave,dlsc_axi4lb_tlm_slave_32b);
         /*AUTOINST*/
 
     SP_CELL(pcie,dlsc_pcie_s6_model);
+#ifdef ASYNC
+        SP_PIN(pcie,user_clk_out,pcie_clk);
+        SP_PIN(pcie,user_reset_out,pcie_rst);
+#else
         SP_PIN(pcie,user_clk_out,clk);
         SP_PIN(pcie,user_reset_out,rst);
+#endif
         // RX
-        SP_PIN(pcie,m_axis_rx_tready,rx_ready);
-        SP_PIN(pcie,m_axis_rx_tvalid,rx_valid);
-        SP_PIN(pcie,m_axis_rx_tlast,rx_last);
-        SP_PIN(pcie,m_axis_rx_tdata,rx_data);
+        SP_PIN(pcie,m_axis_rx_tready,pcie_rx_ready);
+        SP_PIN(pcie,m_axis_rx_tvalid,pcie_rx_valid);
+        SP_PIN(pcie,m_axis_rx_tlast, pcie_rx_last);
+        SP_PIN(pcie,m_axis_rx_tdata, pcie_rx_data);
         // TX
-        SP_PIN(pcie,s_axis_tx_tready,tx_ready);
-        SP_PIN(pcie,s_axis_tx_tvalid,tx_valid);
-        SP_PIN(pcie,s_axis_tx_tlast,tx_last);
-        SP_PIN(pcie,s_axis_tx_tdata,tx_data);
+        SP_PIN(pcie,s_axis_tx_tready,pcie_tx_ready);
+        SP_PIN(pcie,s_axis_tx_tvalid,pcie_tx_valid);
+        SP_PIN(pcie,s_axis_tx_tlast, pcie_tx_last);
+        SP_PIN(pcie,s_axis_tx_tdata, pcie_tx_data);
+        // Error
+        SP_PIN(pcie,cfg_err_cpl_rdy,pcie_err_ready);
+        SP_PIN(pcie,cfg_err_ur,pcie_err_unsupported);
         /*AUTOINST*/
 
     // tie-off
@@ -99,32 +144,23 @@ SP_CTOR_IMP(__MODULE__) : sys_clk("sys_clk",10,SC_NS) /*AUTOINIT*/ {
 
     pcie->initiator_socket.bind(memory->socket);
 
+#ifdef ASYNC
+    rst             = 1;
+#endif
     sys_reset       = 1;
-
-    SC_METHOD(clk_method);
-        sensitive << clk.posedge_event();
 
     SC_THREAD(stim_thread);
     SC_THREAD(watchdog_thread);
 }
 
-void __MODULE__::clk_method() {
-    if(rst) {
-        return;
-    }
-
-    if(err_ready && err_valid) {
-        dlsc_error("got error: unsupported = " << err_unsupported.read());
-    }
-
-    err_ready       = (rand()%100) < 95;
-}
-
 void __MODULE__::stim_thread() {
-    sys_reset       = 1;
     wait(1,SC_US);
     wait(sys_clk.posedge_event());
     sys_reset       = 0;
+#ifdef ASYNC
+    wait(clk.posedge_event());
+    rst             = 0;
+#endif
     wait(sys_clk.posedge_event());
     wait(clk.posedge_event());
 
