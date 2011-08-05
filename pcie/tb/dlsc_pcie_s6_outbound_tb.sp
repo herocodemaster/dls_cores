@@ -101,8 +101,8 @@ SP_CTOR_IMP(__MODULE__) :
         SP_PIN(dut,pcie_clk,clk);
         SP_PIN(dut,pcie_rst,rst);
 #endif
-        SP_PIN(dut,ob_clk,clk);
-        SP_PIN(dut,ob_rst,rst);
+        SP_PIN(dut,axi_clk,clk);
+        SP_PIN(dut,axi_rst,rst);
         /*AUTOINST*/
 
     // tie-off
@@ -112,7 +112,6 @@ SP_CTOR_IMP(__MODULE__) :
     pcie_dma_en              = 1;
     
     SP_CELL(axi_master,dlsc_axi4lb_tlm_master_32b);
-        SP_TEMPLATE(axi_master,"axi_(.*)","ob_$1");
         /*AUTOINST*/
 
     SP_CELL(pcie,dlsc_pcie_s6_model);
