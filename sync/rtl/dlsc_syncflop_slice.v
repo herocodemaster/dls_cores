@@ -38,7 +38,7 @@ module dlsc_syncflop_slice (
 
 `include "dlsc_synthesis.vh"
 
-parameter RESET = 1'b0;
+parameter [0:0] RESET = 1'b0;
 parameter ASYNC = 0;        // asynchronous reset
 
 input   clk;

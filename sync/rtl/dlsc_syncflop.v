@@ -28,8 +28,8 @@
 // 2-level synchronizer flipflop for asynchronous domain crossing.
 
 module dlsc_syncflop #(
-    parameter   DATA    = 1,
-    parameter   RESET   = {DATA{1'b0}}
+    parameter            DATA  = 1,
+    parameter [DATA-1:0] RESET = {DATA{1'b0}}
 ) (
     // asynchronous input
     input   wire                rst,
