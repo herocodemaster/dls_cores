@@ -233,7 +233,7 @@ void pcie_tlp::set_address(uint64_t address) {
         throw invalid_argument("invalid address");
     }
 
-    if(address & 0xFFFFFFFF00000000) {
+    if(address & 0xFFFFFFFF00000000ll) {
         set_format(fmt_data ? FMT_4DW_DATA : FMT_4DW);
     } else {
         set_format(fmt_data ? FMT_3DW_DATA : FMT_3DW);
@@ -413,7 +413,7 @@ bool pcie_tlp::validate() const {
         dlsc_assert( ((dest_addr & 0xFFF) + length) <= 4096 );
 
         if(fmt_4dw) {
-            dlsc_assert((dest_addr & 0xFFFFFFFF00000000) != 0);
+            dlsc_assert((dest_addr & 0xFFFFFFFF00000000ll) != 0);
         }
     }
 
