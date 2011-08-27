@@ -93,8 +93,9 @@ endif
 VERILATOR   := $(VERILATOR_ROOT)/bin/verilator
 SP_PREPROC  := $(SYSTEMPERL)/sp_preproc
 VCOVERAGE   := $(SYSTEMPERL)/vcoverage
+PERL        := perl
 
-TBWRAPPER   := $(DLSC_COMMON)/tools/dlsc_tbwrapper.pl
+TBWRAPPER   := $(PERL) $(DLSC_COMMON)/tools/dlsc_tbwrapper.pl
 
 
 #
