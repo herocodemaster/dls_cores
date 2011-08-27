@@ -10,10 +10,19 @@
 
 /*AUTOSUBCELL_CLASS*/
 
-#define DATA            PARAM_DATA
 #define LEN             PARAM_LEN
 
-#define DATA_MAX ((1<<DATA)-1)
+#if (PARAM_MASTER_RESET>0)
+#define MASTER_RESET
+#endif
+
+#if (PARAM_SLAVE_RESET>0)
+#define SLAVE_RESET
+#endif
+
+#if ((PARAM_MASTER_RESET>0) && (PARAM_SLAVE_RESET>0))
+#define BOTH_RESET
+#endif
 
 SC_MODULE (__MODULE__) {
 private:
@@ -143,6 +152,7 @@ void __MODULE__::s_rst_thread() {
 void __MODULE__::stim_thread() {
     wait(1,SC_US);
 
+#ifdef SLAVE_RESET
     dlsc_info("testing with only s_rst");
     memory->set_error_rate(1);
     memtest->set_ignore_error(true);
@@ -151,6 +161,7 @@ void __MODULE__::stim_thread() {
     wait(10,SC_US);
     memtest->test(0,4*4096,1*1000*100);
     wait(100,SC_US);
+#endif
 
     dlsc_info("testing with no resets");
     memory->set_error_rate(0);
@@ -160,7 +171,8 @@ void __MODULE__::stim_thread() {
     wait(10,SC_US);
     memtest->test(0,4*4096,1*1000*100);
     wait(100,SC_US);
-    
+
+#ifdef BOTH_RESET
     dlsc_info("testing with both m_rst and s_rst");
     memory->set_error_rate(1);
     memtest->set_ignore_error(true);
@@ -169,6 +181,7 @@ void __MODULE__::stim_thread() {
     wait(10,SC_US);
     memtest->test(0,4*4096,1*1000*100);
     wait(100,SC_US);
+#endif
 
     dlsc_info("testing with no resets (again)");
     memory->set_error_rate(0);
@@ -178,7 +191,8 @@ void __MODULE__::stim_thread() {
     wait(10,SC_US);
     memtest->test(0,4*4096,1*1000*100);
     wait(100,SC_US);
-    
+
+#ifdef MASTER_RESET
     dlsc_info("testing with only m_rst");
     memory->set_error_rate(1);
     memtest->set_ignore_error(true);
@@ -187,6 +201,7 @@ void __MODULE__::stim_thread() {
     wait(10,SC_US);
     memtest->test(0,4*4096,1*1000*100);
     wait(100,SC_US);
+#endif
 
     dlsc_info("testing with no resets (one final time)");
     memory->set_error_rate(0);
