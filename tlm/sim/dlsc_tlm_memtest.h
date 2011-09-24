@@ -154,8 +154,6 @@ bool dlsc_tlm_memtest<DATATYPE>::test(
     std::fill(bytes_read.begin(),bytes_read.end(),0);
     std::fill(bytes_written.begin(),bytes_written.end(),0);
 
-    dlsc_info("testing memory");
-
     for(unsigned int i=0;i<iterations;++i) {
         bool launched = false;
 
@@ -186,12 +184,12 @@ bool dlsc_tlm_memtest<DATATYPE>::test(
         } while(!launched);
 
         if(i%(iterations/10)==0) {
-            std::cout << " .. " << std::dec << i << ": " << (sc_core::sc_time_stamp()+delay) << std::endl;
             wait(delay); delay = sc_core::SC_ZERO_TIME;
+            dlsc_info("testing memory .. " << ((i*100)/iterations) << "%" );
         }
     }
 
-    std::cout << " .. done" << std::endl;
+    dlsc_info("testing memory .. 100%");
 
     for(unsigned int i=0;i<outstanding.size();++i) {
         while(!outstanding[i].empty()) {
