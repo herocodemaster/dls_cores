@@ -8,6 +8,7 @@
 #include "dlsc_tlm_initiator_nb.h"
 #include "dlsc_tlm_memtest.h"
 #include "dlsc_tlm_memory.h"
+#include "dlsc_tlm_channel.h"
 
 /*AUTOSUBCELL_CLASS*/
 
@@ -59,6 +60,9 @@ private:
     dlsc_tlm_memtest<uint32_t> *memtest;
 
     dlsc_tlm_memory<uint32_t> *memory;
+
+    dlsc_tlm_channel<uint32_t> *pcie_channel;
+    dlsc_tlm_channel<uint32_t> *dummy_channel;
 
     /*AUTOSUBCELL_DECL*/
     /*AUTOSIGNAL*/
@@ -113,8 +117,71 @@ SP_CTOR_IMP(__MODULE__) :
     
     SP_CELL(axi_master,dlsc_axi4lb_tlm_master_32b);
         /*AUTOINST*/
+#ifdef READ_EN
+        SP_PIN(axi_master, axi_ar_addr,         axi_ar_addr);
+        SP_PIN(axi_master, axi_ar_id,           axi_ar_id);
+        SP_PIN(axi_master, axi_ar_len,          axi_ar_len);
+        SP_PIN(axi_master, axi_ar_ready,        axi_ar_ready);
+        SP_PIN(axi_master, axi_ar_valid,        axi_ar_valid);
+        SP_PIN(axi_master, axi_r_data,          axi_r_data);
+        SP_PIN(axi_master, axi_r_id,            axi_r_id);
+        SP_PIN(axi_master, axi_r_last,          axi_r_last);
+        SP_PIN(axi_master, axi_r_ready,         axi_r_ready);
+        SP_PIN(axi_master, axi_r_resp,          axi_r_resp);
+        SP_PIN(axi_master, axi_r_valid,         axi_r_valid);
+#else
+        SP_PIN(axi_master, axi_ar_addr,         dummy_ar_addr);
+        SP_PIN(axi_master, axi_ar_id,           dummy_ar_id);
+        SP_PIN(axi_master, axi_ar_len,          dummy_ar_len);
+        SP_PIN(axi_master, axi_ar_ready,        dummy_ar_ready);
+        SP_PIN(axi_master, axi_ar_valid,        dummy_ar_valid);
+        SP_PIN(axi_master, axi_r_data,          dummy_r_data);
+        SP_PIN(axi_master, axi_r_id,            dummy_r_id);
+        SP_PIN(axi_master, axi_r_last,          dummy_r_last);
+        SP_PIN(axi_master, axi_r_ready,         dummy_r_ready);
+        SP_PIN(axi_master, axi_r_resp,          dummy_r_resp);
+        SP_PIN(axi_master, axi_r_valid,         dummy_r_valid);
+#endif
+#ifdef WRITE_EN
+        SP_PIN(axi_master, axi_aw_addr,         axi_aw_addr);
+        SP_PIN(axi_master, axi_aw_id,           axi_aw_id);
+        SP_PIN(axi_master, axi_aw_len,          axi_aw_len);
+        SP_PIN(axi_master, axi_aw_ready,        axi_aw_ready);
+        SP_PIN(axi_master, axi_aw_valid,        axi_aw_valid);
+        SP_PIN(axi_master, axi_b_id,            axi_b_id);
+        SP_PIN(axi_master, axi_b_ready,         axi_b_ready);
+        SP_PIN(axi_master, axi_b_resp,          axi_b_resp);
+        SP_PIN(axi_master, axi_b_valid,         axi_b_valid);
+        SP_PIN(axi_master, axi_w_data,          axi_w_data);
+        SP_PIN(axi_master, axi_w_id,            axi_w_id);
+        SP_PIN(axi_master, axi_w_last,          axi_w_last);
+        SP_PIN(axi_master, axi_w_ready,         axi_w_ready);
+        SP_PIN(axi_master, axi_w_strb,          axi_w_strb);
+        SP_PIN(axi_master, axi_w_valid,         axi_w_valid);
+#else
+        SP_PIN(axi_master, axi_aw_addr,         dummy_aw_addr);
+        SP_PIN(axi_master, axi_aw_id,           dummy_aw_id);
+        SP_PIN(axi_master, axi_aw_len,          dummy_aw_len);
+        SP_PIN(axi_master, axi_aw_ready,        dummy_aw_ready);
+        SP_PIN(axi_master, axi_aw_valid,        dummy_aw_valid);
+        SP_PIN(axi_master, axi_b_id,            dummy_b_id);
+        SP_PIN(axi_master, axi_b_ready,         dummy_b_ready);
+        SP_PIN(axi_master, axi_b_resp,          dummy_b_resp);
+        SP_PIN(axi_master, axi_b_valid,         dummy_b_valid);
+        SP_PIN(axi_master, axi_w_data,          dummy_w_data);
+        SP_PIN(axi_master, axi_w_id,            dummy_w_id);
+        SP_PIN(axi_master, axi_w_last,          dummy_w_last);
+        SP_PIN(axi_master, axi_w_ready,         dummy_w_ready);
+        SP_PIN(axi_master, axi_w_strb,          dummy_w_strb);
+        SP_PIN(axi_master, axi_w_valid,         dummy_w_valid);
+#endif
+
+    SP_CELL(axi_slave,dlsc_axi4lb_tlm_slave_32b);
+        /*AUTOINST*/
+        SP_TEMPLATE(axi_slave,"axi_(.*)","dummy_$1");
 
     SP_CELL(pcie,dlsc_pcie_s6_model);
+        /*AUTOINST*/
 #ifdef ASYNC
         SP_PIN(pcie,user_clk_out,pcie_clk);
         SP_PIN(pcie,user_reset_out,pcie_rst);
@@ -140,7 +207,6 @@ SP_CTOR_IMP(__MODULE__) :
         SP_PIN(pcie,cfg_err_cpl_rdy,pcie_err_ready);
         SP_PIN(pcie,cfg_err_cor,pcie_err_unexpected);
         SP_PIN(pcie,cfg_err_cpl_timeout,pcie_err_timeout);
-        /*AUTOINST*/
 
     // tie-off
     tx_cfg_gnt      = 1;
@@ -159,7 +225,15 @@ SP_CTOR_IMP(__MODULE__) :
 
     memory = new dlsc_tlm_memory<uint32_t>("memory",4*1024*1024,0,sc_core::sc_time(1.0,SC_NS),sc_core::sc_time(20,SC_NS));
 
-    pcie->initiator_socket.bind(memory->socket);
+    pcie_channel = new dlsc_tlm_channel<uint32_t>("pcie_channel");
+    pcie->initiator_socket.bind(pcie_channel->in_socket);
+    pcie_channel->out_socket.bind(memory->socket);
+    pcie_channel->set_delay(sc_core::sc_time(500,SC_NS),sc_core::sc_time(1000,SC_NS));
+
+    dummy_channel = new dlsc_tlm_channel<uint32_t>("dummy_channel");
+    axi_slave->socket.bind(dummy_channel->in_socket);
+    dummy_channel->out_socket.bind(memory->socket);
+    dummy_channel->set_delay(sc_core::sc_time(1500,SC_NS),sc_core::sc_time(2000,SC_NS)); // longer delay, to prevent reads before a posted write completes
 
 #ifdef ASYNC
     rst             = 1;

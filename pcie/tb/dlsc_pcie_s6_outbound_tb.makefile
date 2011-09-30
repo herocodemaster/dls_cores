@@ -9,6 +9,7 @@ SP_TESTBENCH    += dlsc_pcie_s6_outbound_tb.sp
 
 SP_FILES        += dlsc_pcie_s6_model.sp
 SP_FILES        += dlsc_axi4lb_tlm_master_32b.sp
+SP_FILES        += dlsc_axi4lb_tlm_slave_32b.sp
 
 V_PARAMS_DEF    += \
     ASYNC=0 \
@@ -27,9 +28,13 @@ V_PARAMS_DEF    += \
 
 sims0:
 	$(MAKE) -f $(THIS) V_PARAMS=""
+	$(MAKE) -f $(THIS) V_PARAMS="READ_EN=0"
+	$(MAKE) -f $(THIS) V_PARAMS="WRITE_EN=0"
 
 sims1:
 	$(MAKE) -f $(THIS) V_PARAMS="ASYNC=1"
+	$(MAKE) -f $(THIS) V_PARAMS="ASYNC=1 READ_EN=0"
+	$(MAKE) -f $(THIS) V_PARAMS="ASYNC=1 WRITE_EN=0"
 
 sims2:
 	$(MAKE) -f $(THIS) V_PARAMS="LEN=8 WRITE_SIZE=512 READ_CPLH=32 READ_CPLD=256"
