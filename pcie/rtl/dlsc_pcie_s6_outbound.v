@@ -324,9 +324,10 @@ end else begin:GEN_ASYNC
     end else begin:GEN_ASYNC_NOREAD
 
         assign          pcie_rx_ready       = 1'b0;
-        assign          tx_valid            = 1'b0;
-        assign          tx_data             = 32'd0;
-        assign          tx_last             = 1'b0;
+        assign          rx_valid            = 1'b0;
+        assign          rx_err              = 1'b0;
+        assign          rx_data             = 32'd0;
+        assign          rx_last             = 1'b0;
 
         assign          err_ready           = 1'b0;
         assign          pcie_err_valid      = 1'b0;
@@ -409,6 +410,8 @@ end else begin:GEN_NOREAD
     assign          axi_r_resp          = 2'b00;
 
     assign          tlp_pending         = 1'b0;
+
+    assign          rx_ready            = 1'b0;
 
     assign          err_valid           = 1'b0;
     assign          err_unexpected      = 1'b0;
