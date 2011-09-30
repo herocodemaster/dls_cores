@@ -459,7 +459,7 @@ public:
     // get transaction properties
     inline bool is_read() { return payload->is_read(); }
     inline bool is_write() { return payload->is_write(); }
-    inline uint64_t get_address() { return payload->get_address(); }
+    inline uint64_t get_address() { return addr; }
     inline unsigned int size() { return payload->get_data_length()/sizeof(DATATYPE); }
     inline int get_socket_id() { return socket_id; }
     
@@ -485,6 +485,8 @@ private:
     inline tlm::tlm_generic_payload* get_payload();
 
     tlm::tlm_generic_payload            *payload;
+
+    const uint64_t                      addr;               // address saved from initial transaction (prior to possible translation by interconnect)
 
     sc_core::sc_event                   done_event;
 
@@ -685,6 +687,7 @@ dlsc_tlm_initiator_nb<DATATYPE>::transaction_state::transaction_state(
     int socket_id
 ) :
     payload(payload),
+    addr(payload->get_address()),
     was_annotated(tann),
     socket_id(socket_id)
 {

@@ -6,6 +6,7 @@
 #include "dlsc_tlm_memtest.h"
 #include "dlsc_tlm_memory.h"
 #include "dlsc_tlm_channel.h"
+#include "dlsc_tlm_fabric.h"
 
 /*AUTOSUBCELL_CLASS*/
 
@@ -18,6 +19,8 @@ private:
     dlsc_tlm_memory<uint32_t> *memory;
 
     dlsc_tlm_channel<uint32_t> *channel;
+
+    dlsc_tlm_fabric<uint32_t> *fabric;
 
     /*AUTOSUBCELL_DECL*/
     /*AUTOSIGNAL*/
@@ -46,19 +49,29 @@ SP_CTOR_IMP(__MODULE__) /*AUTOINIT*/ {
 
     memtest = new dlsc_tlm_memtest<uint32_t>("memtest");
     
-    memory = new dlsc_tlm_memory<uint32_t>("memory",128*1024*1024,0,sc_core::sc_time(10,SC_NS),sc_core::sc_time(10,SC_NS));
+    memory  = new dlsc_tlm_memory<uint32_t>("memory",128*1024*1024,0,sc_core::sc_time(10,SC_NS),sc_core::sc_time(10,SC_NS));
 
     channel = new dlsc_tlm_channel<uint32_t>("channel");
+
+    fabric  = new dlsc_tlm_fabric<uint32_t>("fabric");
     
     memtest->socket.bind(channel->in_socket);
+    channel->out_socket.bind(fabric->in_socket);
+
+    memtest->socket.bind(fabric->in_socket);
+    
+    fabric->out_socket.bind(memory->socket);
+
+    fabric->out_socket.bind(channel->in_socket);
     channel->out_socket.bind(memory->socket);
     
     memtest->socket.bind(memory->socket);
     memtest->socket.bind(memory->socket);
-    memtest->socket.bind(memory->socket);
+
+    fabric->set_map(0,0xFFFFF,0,0xFFFFF,0,true,false);
 
     SC_THREAD(stim_thread);
-//    SC_THREAD(watchdog_thread);
+    SC_THREAD(watchdog_thread);
 }
 
 
@@ -71,7 +84,7 @@ void __MODULE__::stim_thread() {
 }
 
 void __MODULE__::watchdog_thread() {
-    wait(1,SC_MS);
+    wait(1000,SC_MS);
 
     dlsc_error("watchdog timeout");
 
