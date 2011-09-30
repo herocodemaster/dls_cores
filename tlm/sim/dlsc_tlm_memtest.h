@@ -31,6 +31,8 @@ public:
     void set_ignore_error_write(const bool ignore_error_write) { this->ignore_error_write = ignore_error_write; }
     void set_strobe_rate(const unsigned int strb_pct) { assert(strb_pct <= 100); this->strb_pct = strb_pct; }
     void set_max_outstanding(const unsigned int mot) { this->max_mots = mot; }
+    
+    void end_of_elaboration();
 
 private:
     typedef typename dlsc_tlm_initiator_nb<DATATYPE>::transaction transaction;
@@ -119,6 +121,14 @@ dlsc_tlm_memtest<DATATYPE>::dlsc_tlm_memtest(
     ignore_error_write  = false;
     strb_pct            = 20;
     max_mots            = 4;
+}
+
+template <typename DATATYPE>
+void dlsc_tlm_memtest<DATATYPE>::end_of_elaboration() {
+    // set a quantum if there isn't one already
+    if(tlm::tlm_global_quantum::instance().get() == sc_core::SC_ZERO_TIME) {
+        tlm::tlm_global_quantum::instance().set(sc_core::sc_time(1,SC_US));
+    }
 }
 
 template <typename DATATYPE>
