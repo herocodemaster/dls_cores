@@ -41,12 +41,12 @@ public:
     // configuration
     void set_map(
         const int       socket,
-        const uint64_t  in_mask,
-        const uint64_t  in_base,
-        const uint64_t  out_mask,
-        const uint64_t  out_base,
-        const bool      read_okay,
-        const bool      write_okay);
+        const uint64_t  in_mask     = 0xFFFFFFFFFFFFFFFF,
+        const uint64_t  in_base     = 0,
+        const uint64_t  out_mask    = 0xFFFFFFFFFFFFFFFF,
+        const uint64_t  out_base    = 0,
+        const bool      read_okay   = true,
+        const bool      write_okay  = true);
     
     void end_of_elaboration();
 
