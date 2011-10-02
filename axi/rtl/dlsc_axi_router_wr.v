@@ -68,6 +68,9 @@ localparam INPUTSB  = (INPUTS >1) ? `dlsc_clog2(INPUTS ) : 1;
 localparam OUTPUTSB = (OUTPUTS>1) ? `dlsc_clog2(OUTPUTS) : 1;
 localparam LANESB   = (LANES  >1) ? `dlsc_clog2(LANES  ) : 1;
 
+generate
+if(INPUTS>1 || OUTPUTS>1) begin:GEN_ROUTER
+
 // command
 
 wire    [INPUTS-1:0]    cmd_full_input_w;
@@ -115,7 +118,6 @@ dlsc_axi_router_command #(
 wire [((DATA+STRB)*INPUTS )-1:0]    source_data;
 wire [((DATA+STRB)*OUTPUTS)-1:0]    sink_data;
 
-generate
 for(j=0;j<INPUTS;j=j+1) begin:GEN_SOURCES
     assign source_data[ j*(DATA+STRB) +: DATA+STRB ] =
         { in_w_strb[ j*STRB +: STRB ], in_w_data[ j*DATA +: DATA ] };
@@ -124,7 +126,6 @@ for(j=0;j<OUTPUTS;j=j+1) begin:GEN_SINKS
     assign { out_w_strb[ j*STRB +: STRB ], out_w_data[ j*DATA +: DATA ] } =
         sink_data[ j*(DATA+STRB) +: DATA+STRB ];
 end
-endgenerate
 
 dlsc_axi_router_channel #(
     .DATA           ( DATA+STRB ),
@@ -186,7 +187,25 @@ dlsc_axi_router_channel #(
     .sink_valid     ( in_b_valid ),
     .sink_last      (  ),
     .sink_data      ( in_b_resp )
-);   
+);
+
+end else begin:GEN_PASSTHROUGH
+
+assign in_aw_ready  = out_aw_ready;
+assign out_aw_valid = in_aw_valid;
+assign out_aw_addr  = in_aw_addr;
+assign out_aw_len   = in_aw_len;
+assign in_w_ready   = out_w_ready;
+assign out_w_valid  = in_w_valid;
+assign out_w_last   = in_w_last;
+assign out_w_data   = in_w_data;
+assign out_w_strb   = in_w_strb;
+assign out_b_ready  = in_b_ready;
+assign in_b_valid   = out_b_valid;
+assign in_b_resp    = out_b_resp;
+
+end
+endgenerate
 
 endmodule
 

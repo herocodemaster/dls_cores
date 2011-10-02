@@ -92,15 +92,21 @@ reg     [INPUTSB-1:0]   arb_out;
 
 wire    [INPUTS-1:0]    arb_out_onehot_pre;
 
-dlsc_arbiter #(
-    .CLIENTS    ( INPUTS )
-) dlsc_arbiter_inst (
-    .clk        ( clk ),
-    .rst        ( rst ),
-    .update     ( |in_buf_valid ),
-    .in         ( in_buf_valid ),
-    .out        ( arb_out_onehot_pre )
-);
+generate
+if(INPUTS>1) begin:GEN_ARBITER
+    dlsc_arbiter #(
+        .CLIENTS    ( INPUTS )
+    ) dlsc_arbiter_inst (
+        .clk        ( clk ),
+        .rst        ( rst ),
+        .update     ( |in_buf_valid ),
+        .in         ( in_buf_valid ),
+        .out        ( arb_out_onehot_pre )
+    );
+end else begin:GEN_NO_ARBITER
+    assign arb_out_onehot_pre = in_buf_valid;
+end
+endgenerate
 
 always @(posedge clk) begin
     if(rst) begin
@@ -129,29 +135,27 @@ wire    [LEN-1:0]       arb_len         = in_buf_len [arb_out];
 // decoder
 
 wire    [OUTPUTS-1:0]   dec_out_onehot;
+wire    [OUTPUTSB-1:0]  dec_out;
 
-dlsc_address_decoder #(
-    .ADDR       ( ADDR ),
-    .RANGES     ( OUTPUTS ),
-    .MASKS      ( MASKS ),
-    .BASES      ( BASES )
-) dlsc_address_decoder_inst (
-    .addr       ( arb_addr ),
-    .match      ( dec_out_onehot )
-);
-
-reg     [OUTPUTSB-1:0]  dec_out;
-
-always @* begin
-    dec_out = {OUTPUTSB{1'bx}};
-    for(i=0;i<OUTPUTS;i=i+1) begin
-        if(dec_out_onehot[i]) begin
-/* verilator lint_off WIDTH */
-            dec_out = i;
-/* verilator lint_on WIDTH */
-        end
-    end
+generate
+if(OUTPUTS>1) begin:GEN_DECODER
+    dlsc_address_decoder #(
+        .ADDR           ( ADDR ),
+        .RANGES         ( OUTPUTS ),
+        .RANGESB        ( OUTPUTSB ),
+        .MASKS          ( MASKS ),
+        .BASES          ( BASES )
+    ) dlsc_address_decoder_inst (
+        .addr           ( arb_addr ),
+        .match_valid    (  ),
+        .match_onehot   ( dec_out_onehot ),
+        .match          ( dec_out )
+    );
+end else begin:GEN_NO_DECODER
+    assign dec_out_onehot   = 1'b1;
+    assign dec_out          = 1'b0;
 end
+endgenerate
 
 
 // command
