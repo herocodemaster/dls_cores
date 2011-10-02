@@ -49,6 +49,16 @@ wire    [SOURCESB-1:0]  arb_source;
 
 generate
 if(SOURCES > 1) begin:GEN_CMD_FIFO
+    
+    reg arb_grant_r;
+    always @(posedge clk) begin
+        if(rst) begin
+            arb_grant_r <= 1'b0;
+        end else begin
+            arb_grant_r <= arb_grant;
+        end
+    end
+
     dlsc_fifo #(
         .DATA           ( SOURCESB ),
         .DEPTH          ( MOT ),
@@ -61,7 +71,7 @@ if(SOURCES > 1) begin:GEN_CMD_FIFO
         .wr_full        (  ),
         .wr_almost_full ( cmd_full ),   // 1 less than full, since cmd_push has a 1 cycle pipeline delay
         .wr_free        (  ),
-        .rd_pop         ( arb_grant ),
+        .rd_pop         ( arb_grant_r ),
         .rd_data        ( arb_source ),
         .rd_empty       ( arb_empty ),
         .rd_almost_empty(  ),
@@ -114,6 +124,7 @@ endgenerate
 // latch arbitration
 
 reg                     grant;
+reg                     grant_mask;     // prevent back-to-back grants (since command FIFO pop is pipelined)
 reg     [LANESB-1:0]    lane;
 
 assign                  buf_valid       = grant && lane_out_valid[lane];
@@ -122,15 +133,18 @@ wire                    grant_clear     = lane_out_ready && buf_valid && buf_las
 
 always @(posedge clk) begin
     if(rst) begin
-        grant   <= 1'b0;
+        grant       <= 1'b0;
+        grant_mask  <= 1'b0;
     end else begin
+        grant_mask  <= 1'b0;
         if(grant_clear) begin
             // clear arbitration on last beat
-            grant   <= 1'b0;
+            grant       <= 1'b0;
         end
         if(arb_grant) begin
             // latch arbitration on grant
-            grant   <= 1'b1;
+            grant       <= 1'b1;
+            grant_mask  <= 1'b1;
         end
     end
 end
@@ -144,11 +158,13 @@ end
 
 // generate status
 
+wire sink_source_ready = (!grant || grant_clear) && !grant_mask && !buf_almost_full && !arb_empty;
+
 genvar j;
 generate
     for(j=0;j<SOURCES;j=j+1) begin:GEN_STATUS
 /* verilator lint_off WIDTH */
-        assign sink_source[j] = !buf_almost_full && !arb_empty && (arb_source == j) && (!grant || grant_clear);
+        assign sink_source[j] = sink_source_ready && (arb_source == j);
 /* verilator lint_on WIDTH */
     end
 endgenerate

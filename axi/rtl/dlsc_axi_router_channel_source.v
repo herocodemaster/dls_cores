@@ -48,6 +48,16 @@ wire                    arb_empty;
 
 generate
 if(SINKS > 1) begin:GEN_CMD_FIFO
+    
+    reg arb_grant_r;
+    always @(posedge clk) begin
+        if(rst) begin
+            arb_grant_r <= 1'b0;
+        end else begin
+            arb_grant_r <= arb_grant;
+        end
+    end
+
     dlsc_fifo #(
         .DATA           ( SINKSB ),
         .DEPTH          ( MOT ),
@@ -60,7 +70,7 @@ if(SINKS > 1) begin:GEN_CMD_FIFO
         .wr_full        (  ),
         .wr_almost_full ( cmd_full ),   // 1 less than full, since cmd_push has a 1 cycle pipeline delay
         .wr_free        (  ),
-        .rd_pop         ( arb_grant ),
+        .rd_pop         ( arb_grant_r ),
         .rd_data        ( arb_req_sink ),
         .rd_empty       ( arb_empty ),
         .rd_almost_empty(  ),
@@ -108,6 +118,7 @@ endgenerate
 // latch arbitration
 
 reg                     grant;
+reg                     grant_mask;     // prevent back-to-back grants (since command FIFO pop is pipelined)
 reg     [LANESB-1:0]    lane;
 
 assign                  buf_ready       = grant && lane_in_ready[lane];
@@ -116,15 +127,18 @@ wire                    grant_clear     = buf_ready && lane_in_valid && lane_in_
 
 always @(posedge clk) begin
     if(rst) begin
-        grant   <= 1'b0;
+        grant       <= 1'b0;
+        grant_mask  <= 1'b0;
     end else begin
+        grant_mask  <= 1'b0;
         if(grant_clear) begin
             // clear arbitration on last beat
-            grant   <= 1'b0;
+            grant       <= 1'b0;
         end
         if(arb_grant) begin
             // latch arbitration on grant
-            grant   <= 1'b1;
+            grant       <= 1'b1;
+            grant_mask  <= 1'b1;
         end
     end
 end
@@ -138,6 +152,7 @@ end
 // only request when we have data and aren't already transferring
 assign                  arb_req         =   lane_in_valid &&                // must have at least 1 beat of data ready for next cycle
                                             (!grant || grant_clear) &&      // must be inactive (or about to be inactive)
+                                            !grant_mask &&                  // no back-to-back requests
                                             !arb_empty &&                   // arb_req_sink is only valid if FIFO isn't empty
                                             sink_source[arb_req_sink];      // destination sink must be ready for data from us
 
