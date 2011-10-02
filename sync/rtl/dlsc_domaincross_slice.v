@@ -73,7 +73,7 @@ assign out_data = out_reg;
 `include "dlsc_sim_top.vh"
 
 always @* begin
-    if(!out_rst && in_en && out_en) begin
+    if(!in_rst && !out_rst && in_en && out_en) begin
         `dlsc_error("in_en and out_en must never be asserted simultaneously");
     end
 end
@@ -83,7 +83,7 @@ reg out_rst_prev;
 always @(posedge out_clk) begin
     in_reg_prev <= in_reg;
     out_rst_prev <= out_rst;
-    if(!out_rst && out_en && in_reg_prev != in_reg) begin
+    if(!in_rst && !out_rst && out_en && in_reg_prev != in_reg) begin
         `dlsc_error("in_reg must be stable when out_en is asserted");
     end
 //    if(!out_rst && out_rst_prev && (in_reg != RESET || in_reg_prev != RESET)) begin
