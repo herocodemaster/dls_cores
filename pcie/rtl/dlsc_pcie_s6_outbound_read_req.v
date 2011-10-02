@@ -50,7 +50,13 @@ reg  [9:0]      cmd_len;
 
 generate
 if(MERGING>0) begin:GEN_MERGE
-    
+
+    // merge_mask is used in order to tolerate 1 cycle of dead-time between merged commands.
+    // (external AXI routing may result in commands not being delivered back-to-back)
+    // each time a command is accepted, merge_mask asserts for 1 cycle. during this 1 cycle,
+    // cmd_valid can only be asserted if a new non-mergeable command is presented.
+    reg             cmd_merge_mask;
+
     reg             cmd_present;
     reg  [11:2]     cmd_addr_last;
 
@@ -76,7 +82,7 @@ if(MERGING>0) begin:GEN_MERGE
 
     assign          axi_ar_ready    = !cmd_present || cmd_can_merge;
 
-    assign          cmd_valid       = cmd_present && !cmd_can_merge;
+    assign          cmd_valid       = cmd_present && !cmd_can_merge && (!cmd_merge_mask || axi_ar_valid);
 
     always @(posedge clk) begin
         if(rst) begin
@@ -92,7 +98,9 @@ if(MERGING>0) begin:GEN_MERGE
     end
 
     always @(posedge clk) begin
+        cmd_merge_mask  <= 1'b0;
         if(axi_ar_ready && axi_ar_valid) begin
+            cmd_merge_mask  <= 1'b1;                // tolerate 1 cycle of dead-time between merged commands
             cmd_addr        <= next_cmd_addr;
             cmd_addr_last   <= next_cmd_addr_last;
             cmd_len         <= next_cmd_len;
