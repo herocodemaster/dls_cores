@@ -44,7 +44,8 @@ if(scalar(@mods) != 1) {
 
 my $mod = $mods[0];
 
-print $fh "module ",$mod->name,$suffix," (\n";
+print $fh "module ",$mod->name,$suffix," (\n\n";
+print $fh "/* verilator coverage_off */\n\n";
 
 # ** top ports **
 
@@ -136,7 +137,7 @@ print $fh ");\n\n";
 
 
 print $fh "`include \"dlsc_dpi.vh\"\n\n";
-
+print $fh "/* verilator coverage_on */\n\n";
 print $fh "endmodule\n\n";
 
 exit(0);
