@@ -1,17 +1,20 @@
 
-/* verilator lint_off UNDRIVEN */
-
 module dlsc_axi_router_tb #(
     parameter ADDR              = 32,           // address bits
     parameter DATA              = 32,           // data bits
     parameter STRB              = (DATA/8),     // strobe bits (derived; don't touch)
     parameter LEN               = 4,            // length bits
     parameter BUFFER            = 1,            // enable extra buffering
+    parameter FAST_COMMAND      = 0,            // enable back-to-back commands
     parameter MOT               = 16,           // maximum outstanding transactions (not a hard limit)
     parameter LANES             = 1,            // number of internal data lanes
     parameter INPUTS            = 1,            // number of inputs (from masters; <= 5)
     parameter OUTPUTS           = 1             // number of outputs (to slaves; <= 3)
 ) (
+
+/* verilator lint_off UNDRIVEN */
+/* verilator coverage_off */
+
     // System
     input   wire                            clk,
     input   wire                            rst,
@@ -566,8 +569,6 @@ if(OUTPUTS>2) begin:GEN_OUTPUT_2
 end
 endgenerate
 
-/* verilator lint_on UNDRIVEN */
-
 /* verilator lint_off WIDTH */
 localparam [(OUTPUTS*ADDR)-1:0] MASKS = (OUTPUTS>2) ? { 32'hFFFFFFFF, 32'hFFFFCFFF, 32'hFFFFCFFF } :
                                         (OUTPUTS>1) ? {               32'hFFFFFFFF, 32'hFFFFEFFF } :    // interleave on 4K boundaries
@@ -582,6 +583,7 @@ dlsc_axi_router_rd #(
     .DATA       ( DATA ),
     .LEN        ( LEN ),
     .BUFFER     ( BUFFER ),
+    .FAST_COMMAND ( FAST_COMMAND ),
     .MOT        ( MOT ),
     .LANES      ( LANES ),
     .INPUTS     ( INPUTS ),
@@ -616,6 +618,7 @@ dlsc_axi_router_wr #(
     .DATA       ( DATA ),
     .LEN        ( LEN ),
     .BUFFER     ( BUFFER ),
+    .FAST_COMMAND ( FAST_COMMAND ),
     .MOT        ( MOT ),
     .LANES      ( LANES ),
     .INPUTS     ( INPUTS ),
@@ -650,6 +653,9 @@ dlsc_axi_router_wr #(
     .out_b_valid ( out_b_valid ),
     .out_b_resp ( out_b_resp )
 );
+
+/* verilator coverage_on */
+/* verilator lint_on UNDRIVEN */
 
 
 endmodule

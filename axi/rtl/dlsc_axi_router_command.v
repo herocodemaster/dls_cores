@@ -2,7 +2,7 @@
 module dlsc_axi_router_command #(
     parameter ADDR              = 32,
     parameter LEN               = 4,
-    parameter BUFFER            = 0,
+    parameter FAST_COMMAND      = 0,
     parameter INPUTS            = 1,
     parameter INPUTSB           = 1,
     parameter OUTPUTS           = 1,
@@ -27,10 +27,13 @@ module dlsc_axi_router_command #(
     output  wire    [(OUTPUTS*LEN )-1:0]    out_len,
 
     // Command to channels
-    input   wire                            cmd_full,
-    output  wire                            cmd_push,
-    output  wire    [ INPUTSB      -1:0]    cmd_input,
-    output  wire    [ OUTPUTSB     -1:0]    cmd_output
+    input   wire    [ INPUTS       -1:0]    cmd_full_input,
+    input   wire    [ OUTPUTS      -1:0]    cmd_full_output,
+    output  reg                             cmd_push,
+    output  reg     [ INPUTS       -1:0]    cmd_input_onehot,
+    output  reg     [ OUTPUTS      -1:0]    cmd_output_onehot,
+    output  reg     [ INPUTSB      -1:0]    cmd_input,
+    output  reg     [ OUTPUTSB     -1:0]    cmd_output
 );
 
 integer                 i;
@@ -45,39 +48,49 @@ wire    [ADDR-1:0]      in_buf_addr     [INPUTS-1:0];
 wire    [LEN-1:0]       in_buf_len      [INPUTS-1:0];
 
 generate
-if(BUFFER>0) begin:GEN_BUFFER
-    for(j=0;j<INPUTS;j=j+1) begin:GEN_INPUTS
-        dlsc_fifo_rvh #(
-            .DEPTH          ( 4 ),
-            .DATA           ( ADDR+LEN ),
-            .REGISTER       ( 0 )
-        ) dlsc_fifo_rvh_inbuf (
-            .clk            ( clk ),
-            .rst            ( rst ),
-            .wr_ready       ( in_ready[j] ),
-            .wr_valid       ( in_valid[j] ),
-            .wr_data        ( { in_addr[ (j*ADDR) +: ADDR ] , in_len[ (j*LEN) +: LEN ] } ),
-            .wr_almost_full (  ),
-            .rd_ready       ( in_buf_ready[j] ),
-            .rd_valid       ( in_buf_valid[j] ),
-            .rd_data        ( { in_buf_addr[j], in_buf_len[j] } ),
-            .rd_almost_empty(  )
-        );
+for(j=0;j<INPUTS;j=j+1) begin:GEN_INPUTS
+
+    reg                 valid;
+    reg     [ADDR-1:0]  addr;
+    reg     [LEN -1:0]  len;
+
+    always @(posedge clk) begin
+        if(rst) begin
+            valid   <= 1'b0;
+        end else begin
+            if(in_buf_ready[j]) begin
+                valid   <= 1'b0;
+            end
+            if(in_ready[j] && in_valid[j]) begin
+                valid   <= 1'b1;
+            end
+        end
     end
-end else begin:GEN_NO_BUFFER
-    for(j=0;j<INPUTS;j=j+1) begin:GEN_INPUTS
-        assign in_ready[j]      = in_buf_ready[j];
-        assign in_buf_valid[j]  = in_valid[j];
-        assign in_buf_addr[j]   = in_addr[(j*ADDR)+:ADDR];
-        assign in_buf_len[j]    = in_len [(j*LEN )+:LEN ];
+
+    always @(posedge clk) begin
+        if(in_ready[j] && in_valid[j]) begin
+            addr    <= in_addr[(j*ADDR)+:ADDR];
+            len     <= in_len [(j*LEN )+:LEN ];
+        end
     end
+
+    assign in_ready[j]      = !valid || (FAST_COMMAND && in_buf_ready[j]);
+
+    assign in_buf_valid[j]  = valid || in_valid[j];
+    assign in_buf_addr[j]   = addr;
+    assign in_buf_len[j]    = len;
+
 end
 endgenerate
 
 
 // arbiter
 
-wire    [INPUTS-1:0]    arb_out_onehot;
+reg                     arb_out_valid;
+reg     [INPUTS-1:0]    arb_out_onehot;
+reg     [INPUTSB-1:0]   arb_out;
+
+wire    [INPUTS-1:0]    arb_out_onehot_pre;
 
 dlsc_arbiter #(
     .CLIENTS    ( INPUTS )
@@ -86,17 +99,24 @@ dlsc_arbiter #(
     .rst        ( rst ),
     .update     ( |in_buf_valid ),
     .in         ( in_buf_valid ),
-    .out        ( arb_out_onehot )
+    .out        ( arb_out_onehot_pre )
 );
 
-reg     [INPUTSB-1:0]   arb_out;
+always @(posedge clk) begin
+    if(rst) begin
+        arb_out_valid   <= 1'b0;
+    end else begin
+        arb_out_valid   <= |in_buf_valid;
+    end
+end
 
-always @* begin
-    arb_out = {INPUTSB{1'bx}};
+always @(posedge clk) begin
+    arb_out_onehot  <= arb_out_onehot_pre;
+    arb_out         <= {INPUTSB{1'bx}};
     for(i=0;i<INPUTS;i=i+1) begin
-        if(arb_out_onehot[i]) begin
+        if(arb_out_onehot_pre[i]) begin
 /* verilator lint_off WIDTH */
-            arb_out = i;
+            arb_out         <= i;
 /* verilator lint_on WIDTH */
         end
     end
@@ -134,20 +154,44 @@ always @* begin
 end
 
 
-// output buffering
+// command
 
 wire    [OUTPUTS-1:0]   out_buf_ready;
 
+wire                    cmd_full        = |( cmd_full_input & arb_out_onehot ) || |( cmd_full_output & dec_out_onehot );
+
+wire                    cmd_ready       = |( dec_out_onehot & out_buf_ready ) && !cmd_full;
+
+wire                    cmd_push_pre    = arb_out_valid && cmd_ready;
+
+assign                  in_buf_ready    = arb_out_onehot & {INPUTS{cmd_ready}};
+
+always @(posedge clk) begin
+    if(rst) begin
+        cmd_push    <= 1'b0;
+    end else begin
+        cmd_push    <= cmd_push_pre;
+    end
+end
+
+always @(posedge clk) begin
+    cmd_input_onehot    <= arb_out_onehot;
+    cmd_output_onehot   <= dec_out_onehot;
+    cmd_input           <= arb_out;
+    cmd_output          <= dec_out;
+end
+
+
+// output buffering
+
 generate
 for(j=0;j<OUTPUTS;j=j+1) begin:GEN_OUTPUT_BUFFERS
-
-    wire            out_buf_valid                   = cmd_push && dec_out_onehot[j];
 
     reg             valid;
     reg [ADDR-1:0]  addr;
     reg [LEN-1:0]   len;
 
-    assign          out_buf_ready[j]                = !valid || out_ready[j];
+    assign          out_buf_ready[j]                = !valid || (FAST_COMMAND && out_ready[j]);
     assign          out_valid[j]                    = valid;
     assign          out_addr[ (j*ADDR) +: ADDR ]    = addr;
     assign          out_len [ (j*LEN ) +: LEN  ]    = len;
@@ -159,14 +203,15 @@ for(j=0;j<OUTPUTS;j=j+1) begin:GEN_OUTPUT_BUFFERS
             if(out_ready[j]) begin
                 valid   <= 1'b0;
             end
-            if(out_buf_valid) begin
+            if(cmd_push_pre && dec_out_onehot[j]) begin
                 valid   <= 1'b1;
             end
         end
     end
 
     always @(posedge clk) begin
-        if(out_buf_valid) begin
+        // optimistically update (cut timing path through cmd_push_pre)
+        if(out_buf_ready[j] && dec_out_onehot[j]) begin
             addr    <= arb_addr & MASKS[ (j*ADDR) +: ADDR ];
             len     <= arb_len;
         end
@@ -174,17 +219,6 @@ for(j=0;j<OUTPUTS;j=j+1) begin:GEN_OUTPUT_BUFFERS
 
 end
 endgenerate
-
-
-// command
-
-wire                    cmd_ready       = |( dec_out_onehot & out_buf_ready ) && !cmd_full;
-
-assign                  cmd_push        = |in_buf_valid && cmd_ready;
-assign                  cmd_input       = arb_out;
-assign                  cmd_output      = dec_out;
-
-assign                  in_buf_ready    = arb_out_onehot & {INPUTS{cmd_ready}};
 
 
 endmodule

@@ -15,8 +15,11 @@ module dlsc_axi_router_channel #(
     input   wire                            rst,
 
     // Command
-    output  wire                            cmd_full,
+    output  wire    [ SOURCES       -1:0]   cmd_full_source,
+    output  wire    [ SINKS         -1:0]   cmd_full_sink,
     input   wire                            cmd_push,
+    input   wire    [ SOURCES       -1:0]   cmd_source_onehot,
+    input   wire    [ SINKS         -1:0]   cmd_sink_onehot,
     input   wire    [ SOURCESB      -1:0]   cmd_source,
     input   wire    [ SINKSB        -1:0]   cmd_sink,
 
@@ -75,7 +78,6 @@ dlsc_axi_router_channel_arbiter #(
 
 // Sources
 
-wire    [SOURCES-1:0]   cmd_full_source;
 wire    [(SOURCES*SINKS)-1:0] sink_source_pre;
 
 wire    [LANES-1:0]     lane_in_ready;
@@ -106,9 +108,7 @@ for(j=0;j<SOURCES;j=j+1) begin:GEN_SOURCES
         .clk            ( clk ),
         .rst            ( rst ),
         .cmd_full       ( cmd_full_source[j] ),
-/* verilator lint_off WIDTH */
-        .cmd_push       ( cmd_push && (cmd_source == j) ),
-/* verilator lint_on WIDTH */
+        .cmd_push       ( cmd_push && cmd_source_onehot[j] ),
         .cmd_sink       ( cmd_sink ),
         .source_ready   ( source_ready[j] ),
         .source_valid   ( source_valid[j] ),
@@ -130,8 +130,6 @@ endgenerate
 
 
 // Sinks
-
-wire    [SINKS-1:0]     cmd_full_sink;
 
 wire    [SINKS-1:0]     lane_out_ready;
 wire    [LANES-1:0]     lane_out_valid;
@@ -155,9 +153,7 @@ for(j=0;j<SINKS;j=j+1) begin:GEN_SINKS
         .clk            ( clk ),
         .rst            ( rst ),
         .cmd_full       ( cmd_full_sink[j] ),
-/* verilator lint_off WIDTH */
-        .cmd_push       ( cmd_push && (cmd_sink == j) ),
-/* verilator lint_on WIDTH */
+        .cmd_push       ( cmd_push && cmd_sink_onehot[j] ),
         .cmd_source     ( cmd_source ),
         .sink_ready     ( sink_ready[j] ),
         .sink_valid     ( sink_valid[j] ),
@@ -206,11 +202,6 @@ for(j=0;j<LANES;j=j+1) begin:GEN_LANES
 
 end
 endgenerate
-
-
-// Generate cmd_full
-
-assign cmd_full = cmd_full_source[cmd_source] || cmd_full_sink[cmd_sink];
 
 
 endmodule

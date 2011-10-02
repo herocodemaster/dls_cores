@@ -50,15 +50,16 @@ wire    [SOURCESB-1:0]  arb_source;
 generate
 if(SOURCES > 1) begin:GEN_CMD_FIFO
     dlsc_fifo #(
+        .DATA           ( SOURCESB ),
         .DEPTH          ( MOT ),
-        .DATA           ( SOURCESB )
+        .ALMOST_FULL    ( 1 )
     ) dlsc_fifo_cmd (
         .clk            ( clk ),
         .rst            ( rst ),
         .wr_push        ( cmd_push ),
         .wr_data        ( cmd_source ),
-        .wr_full        ( cmd_full ),
-        .wr_almost_full (  ),
+        .wr_full        (  ),
+        .wr_almost_full ( cmd_full ),   // 1 less than full, since cmd_push has a 1 cycle pipeline delay
         .wr_free        (  ),
         .rd_pop         ( arb_grant ),
         .rd_data        ( arb_source ),
@@ -101,6 +102,7 @@ if(BUFFER>0) begin:GEN_BUFFER
         .rd_almost_empty(  )
     );
 end else begin:GEN_NO_BUFFER
+    assign buf_almost_full  = 1'b0;
     assign lane_out_ready   = sink_ready;
     assign sink_valid       = buf_valid;
     assign sink_last        = buf_last;

@@ -4,6 +4,7 @@ module dlsc_axi_router_rd #(
     parameter DATA              = 32,           // data bits
     parameter LEN               = 4,            // length bits
     parameter BUFFER            = 1,            // enable extra buffering
+    parameter FAST_COMMAND      = 0,            // enable back-to-back commands
     parameter MOT               = 16,           // maximum outstanding transactions (not a hard limit)
     parameter LANES             = 1,            // number of internal data lanes
     parameter INPUTS            = 1,            // number of inputs (from masters)
@@ -58,15 +59,18 @@ localparam LANESB   = (LANES  >1) ? `dlsc_clog2(LANES  ) : 1;
 
 // command
 
-wire                    cmd_full;
+wire    [INPUTS-1:0]    cmd_full_input;
+wire    [OUTPUTS-1:0]   cmd_full_output;
 wire                    cmd_push;
+wire    [INPUTS-1:0]    cmd_input_onehot;
+wire    [OUTPUTS-1:0]   cmd_output_onehot;
 wire    [INPUTSB-1:0]   cmd_input;
 wire    [OUTPUTSB-1:0]  cmd_output;
 
 dlsc_axi_router_command #(
     .ADDR           ( ADDR ),
     .LEN            ( LEN ),
-    .BUFFER         ( BUFFER ),
+    .FAST_COMMAND   ( 0 ),
     .INPUTS         ( INPUTS ),
     .INPUTSB        ( INPUTSB ),
     .OUTPUTS        ( OUTPUTS ),
@@ -84,8 +88,11 @@ dlsc_axi_router_command #(
     .out_valid      ( out_ar_valid ),
     .out_addr       ( out_ar_addr ),
     .out_len        ( out_ar_len ),
-    .cmd_full       ( cmd_full ),
+    .cmd_full_input ( cmd_full_input ),
+    .cmd_full_output( cmd_full_output ),
     .cmd_push       ( cmd_push ),
+    .cmd_input_onehot ( cmd_input_onehot ),
+    .cmd_output_onehot ( cmd_output_onehot ),
     .cmd_input      ( cmd_input ),
     .cmd_output     ( cmd_output )
 );
@@ -119,8 +126,11 @@ dlsc_axi_router_channel #(
 ) dlsc_axi_router_channel_r (
     .clk            ( clk ),
     .rst            ( rst ),
-    .cmd_full       ( cmd_full ),
+    .cmd_full_source( cmd_full_output ),
+    .cmd_full_sink  ( cmd_full_input ),
     .cmd_push       ( cmd_push ),
+    .cmd_source_onehot ( cmd_output_onehot ),
+    .cmd_sink_onehot ( cmd_input_onehot ),
     .cmd_source     ( cmd_output ),
     .cmd_sink       ( cmd_input ),
     .source_ready   ( out_r_ready ),

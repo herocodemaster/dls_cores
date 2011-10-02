@@ -49,15 +49,16 @@ wire                    arb_empty;
 generate
 if(SINKS > 1) begin:GEN_CMD_FIFO
     dlsc_fifo #(
+        .DATA           ( SINKSB ),
         .DEPTH          ( MOT ),
-        .DATA           ( SINKSB )
+        .ALMOST_FULL    ( 1 )
     ) dlsc_fifo_cmd (
         .clk            ( clk ),
         .rst            ( rst ),
         .wr_push        ( cmd_push ),
         .wr_data        ( cmd_sink ),
-        .wr_full        ( cmd_full ),
-        .wr_almost_full (  ),
+        .wr_full        (  ),
+        .wr_almost_full ( cmd_full ),   // 1 less than full, since cmd_push has a 1 cycle pipeline delay
         .wr_free        (  ),
         .rd_pop         ( arb_grant ),
         .rd_data        ( arb_req_sink ),
