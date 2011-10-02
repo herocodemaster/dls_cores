@@ -1,9 +1,10 @@
 
 module dlsc_pcie_s6_outbound_read_req #(
-    parameter ADDR      = 32,
-    parameter LEN       = 4,
-    parameter MAX_SIZE  = 128,
-    parameter MERGING   = 1
+    parameter ADDR          = 32,
+    parameter LEN           = 4,
+    parameter MAX_SIZE      = 128,
+    parameter MERGING       = 1,
+    parameter MERGE_WINDOW  = 4     // number of inactive cycles allowed between incoming mergeable commands
 ) (
     // ** System **
 
@@ -32,6 +33,10 @@ module dlsc_pcie_s6_outbound_read_req #(
     output  wire    [9:0]       tlp_h_len
 );
 
+`include "dlsc_clog2.vh"
+
+localparam  MWB         = (MERGE_WINDOW>1) ? `dlsc_clog2(MERGE_WINDOW) : 1;
+
 // must be able to split requests if they exceed 128 bytes
 localparam  SPLITTING   = (MERGING>0) || (((2**LEN)*4)>128);
 
@@ -51,11 +56,12 @@ reg  [9:0]      cmd_len;
 generate
 if(MERGING>0) begin:GEN_MERGE
 
-    // merge_mask is used in order to tolerate 1 cycle of dead-time between merged commands.
+    // merge_mask is used in order to tolerate some dead-time between merged commands.
     // (external AXI routing may result in commands not being delivered back-to-back)
-    // each time a command is accepted, merge_mask asserts for 1 cycle. during this 1 cycle,
-    // cmd_valid can only be asserted if a new non-mergeable command is presented.
+    // each time a command is accepted, merge_mask asserts for MERGE_WINDOW cycles. during
+    // these cycles, cmd_valid can only be asserted if a new non-mergeable command is presented.
     reg             cmd_merge_mask;
+    reg  [MWB-1:0]  cmd_merge_window;
 
     reg             cmd_present;
     reg  [11:2]     cmd_addr_last;
@@ -97,10 +103,27 @@ if(MERGING>0) begin:GEN_MERGE
         end
     end
 
+/* verilator lint_off WIDTH */
     always @(posedge clk) begin
-        cmd_merge_mask  <= 1'b0;
+        if(rst) begin
+            cmd_merge_mask  <= 1'b0;
+            cmd_merge_window<= 0;
+        end else begin
+            if(cmd_merge_window == 0 || MERGE_WINDOW <= 1) begin
+                cmd_merge_mask  <= 1'b0;
+            end else begin
+                cmd_merge_window<= cmd_merge_window - 1;
+            end
+            if(axi_ar_ready && axi_ar_valid && MERGE_WINDOW > 0) begin
+                cmd_merge_mask  <= 1'b1;
+                cmd_merge_window<= (MERGE_WINDOW-1);
+            end
+        end
+    end
+/* verilator lint_on WIDTH */
+
+    always @(posedge clk) begin
         if(axi_ar_ready && axi_ar_valid) begin
-            cmd_merge_mask  <= 1'b1;                // tolerate 1 cycle of dead-time between merged commands
             cmd_addr        <= next_cmd_addr;
             cmd_addr_last   <= next_cmd_addr_last;
             cmd_len         <= next_cmd_len;
