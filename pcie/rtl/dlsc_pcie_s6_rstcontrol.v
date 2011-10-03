@@ -9,11 +9,11 @@ module dlsc_pcie_s6_rstcontrol (
 
     output  wire                cross_rst,      // reset for domain crossing logic
 
-    output  reg                 bridge_rst,     // generated reset for bridge logic
+    output  wire                bridge_rst,     // generated reset for bridge logic
 
     input   wire                axi_busy,       // flag indicating AXI transactions are outstanding
-    output  reg                 axi_disable,    // prevent further AXI transactions
-    output  reg                 axi_flush       // flush outstanding AXI transactions
+    output  wire                axi_disable,    // prevent further AXI transactions
+    output  wire                axi_flush       // flush outstanding AXI transactions
 );
 
 `include "dlsc_synthesis.vh"
@@ -32,36 +32,37 @@ dlsc_syncflop #(
 
 // create bridge_rst
 
+localparam  ST_DISABLE              = 3'b100,
+            ST_FLUSH                = 3'b110,
+            ST_RESET                = 3'b111,
+            ST_ACTIVE               = 3'b000;
+
+reg [2:0] st;
+
+assign axi_disable  = st[2];
+assign axi_flush    = st[1];
+assign bridge_rst   = st[0];
+
 always @(posedge clk) begin
     if(rst) begin
         // if AXI bus is in reset, bridge must be in reset
-        axi_disable     <= 1'b1;
-        axi_flush       <= 1'b1;
-        bridge_rst      <= 1'b1;
+        st      <= ST_RESET;
     end else begin
-        if(cross_rst) begin
+        if(st == ST_ACTIVE && cross_rst) begin
             // PCIe is in reset; disable AXI transactions
-            axi_disable     <= 1'b1;
-            axi_flush       <= 1'b0;
-            bridge_rst      <= 1'b0;
+            st      <= ST_DISABLE;
         end
-        if(axi_disable) begin
+        if(st == ST_DISABLE) begin
             // AXI disabled; flush
-            axi_disable     <= 1'b1;
-            axi_flush       <= 1'b1;
-            bridge_rst      <= 1'b0;
+            st      <= ST_FLUSH;
         end
-        if(axi_disable && axi_flush && !axi_busy) begin
+        if(st == ST_FLUSH && !axi_busy) begin
             // done flushing; reset bridge
-            axi_disable     <= 1'b1;
-            axi_flush       <= 1'b1;
-            bridge_rst      <= 1'b1;
+            st      <= ST_RESET;
         end
-        if(!cross_rst && bridge_rst) begin
+        if(st == ST_RESET && !cross_rst) begin
             // PCIe no longer in reset; release bridge from reset
-            axi_disable     <= 1'b0;
-            axi_flush       <= 1'b0;
-            bridge_rst      <= 1'b0;
+            st      <= ST_ACTIVE;
         end
     end
 end

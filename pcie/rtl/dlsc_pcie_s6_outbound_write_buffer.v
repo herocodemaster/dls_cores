@@ -213,6 +213,11 @@ dlsc_fifo_rvho #(
 
 // Buffer W (for TLP payload)
 
+wire            fifo_d_ready    = wr_flush ? 1'b1 : tlp_d_ready;
+wire            fifo_d_valid;
+
+assign          tlp_d_valid     = wr_flush ? 1'b0 : fifo_d_valid;
+
 dlsc_fifo_rvho #(
     .DATA           ( 33 ),
     .ADDR           ( BUFA )
@@ -224,8 +229,8 @@ dlsc_fifo_rvho #(
     .wr_full        (  ),
     .wr_almost_full (  ),
     .wr_free        (  ),
-    .rd_ready       ( tlp_d_ready ),
-    .rd_valid       ( tlp_d_valid ),
+    .rd_ready       ( fifo_d_ready ),
+    .rd_valid       ( fifo_d_valid ),
     .rd_data        ( { tlp_d_axi_last, tlp_d_data } ),
     .rd_almost_empty(  )
 );
@@ -239,7 +244,7 @@ reg             b_cnt_zero;
 reg  [MOTB-1:0] next_b_cnt;
 reg             next_b_cnt_zero;
 
-wire            b_inc           = tlp_d_axi_ack && !wr_flush;
+wire            b_inc           = wr_flush ? (fifo_d_valid && tlp_d_axi_last) : tlp_d_axi_ack;
 wire            b_dec           = (axi_b_ready && axi_b_valid) && !b_cnt_zero;
 
 always @* begin
@@ -272,13 +277,9 @@ always @(posedge clk) begin
         axi_b_resp  <= AXI_RESP_OKAY;
     end else if(axi_b_ready || !axi_b_valid) begin
         if(!next_b_cnt_zero) begin
-            // successful completions
+            // successful completion under normal conditions; error when flushing
             axi_b_valid <= 1'b1;
-            axi_b_resp  <= AXI_RESP_OKAY;
-        end else if(!next_mot_zero && wr_flush) begin
-            // unsuccessful completion (lost to flush operation)
-            axi_b_valid <= 1'b1;
-            axi_b_resp  <= AXI_RESP_SLVERR;
+            axi_b_resp  <= wr_flush ? AXI_RESP_SLVERR : AXI_RESP_OKAY;
         end else begin
             // idle
             axi_b_valid <= 1'b0;

@@ -38,7 +38,7 @@ module dlsc_pcie_s6_outbound_read_buffer #(
     input   wire    [TAG-1:0]   cpl_tag,
     
     // writes from allocator
-    input   wire                alloc_init,
+    input   wire                alloc_init,         // can't trust anything in tag memory while this is asserted
     input   wire                alloc_valid,
     input   wire    [TAG:0]     alloc_tag,
     input   wire    [BUFA:0]    alloc_bufa,
@@ -133,7 +133,7 @@ wire            read_cpl_done   = mem_b_rd_data[BUFA+1];
 wire            read_tag_equ    = (read_tag == alloc_tag);
 
 always @(posedge clk) begin
-    if(rst) begin
+    if(rst || alloc_init) begin
         dealloc_tag     <= 1'b0;
         read_tag        <= 0;
         read_addr_lim   <= 0;
@@ -185,7 +185,7 @@ wire            r_last          = (ar_len == r_cnt);
 wire            r_inc;
 
 always @(posedge clk) begin
-    if(ar_pop) begin
+    if(rst || ar_pop) begin
         r_cnt           <= 0;
     end else if(r_inc) begin
         r_cnt           <= r_cnt + 1;
@@ -222,7 +222,7 @@ always @(posedge clk) begin
     if(rst) begin
         axi_ar_ready    <= 1'b0;
     end else begin
-        axi_ar_ready    <= !cmd_almost_full && !ar_full && (!ar_almost_full || !axi_ar_valid) && !rd_disable;
+        axi_ar_ready    <= !cmd_almost_full && !ar_full && (!ar_almost_full || !axi_ar_valid) && !rd_disable && !alloc_init;
     end
 end
 
@@ -305,7 +305,7 @@ always @(posedge clk) begin
     if(rst) begin
         rd_busy         <= 1'b0;
     end else begin
-        rd_busy         <= (axi_ar_ready && axi_ar_valid) || !ar_empty || buf_valid || (axi_r_valid && !axi_r_ready);
+        rd_busy         <= ar_push || !ar_empty || buf_valid || axi_r_valid;
     end
 end
 

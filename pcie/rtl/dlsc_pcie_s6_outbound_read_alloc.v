@@ -206,7 +206,7 @@ assign          h_ready         = !tag_init && !tag_max && !rd_tlp_h_valid &&
 
 // register alloc outputs
 always @(posedge clk) begin
-    alloc_init      <= tag_init;
+    alloc_init      <= tag_init || rst;
     alloc_valid     <= tag_init || h_xfer;
     alloc_tag       <= tag;
     alloc_len       <= h_len[9:0];
