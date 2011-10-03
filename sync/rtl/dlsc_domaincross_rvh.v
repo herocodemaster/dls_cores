@@ -30,9 +30,9 @@
 // throughput. Good for command channels.
 
 module dlsc_domaincross_rvh #(
-    parameter   DATA    = 32,
-    parameter   RESET   = {DATA{1'b0}},
-    parameter   RESET_ON_TRANSFER = 0       // reset out_data after it is accepted
+    parameter               DATA                = 32,
+    parameter [DATA-1:0]    RESET               = {DATA{1'b0}},
+    parameter               RESET_ON_TRANSFER   = 0         // reset out_data after it is accepted
 ) (
     // source domain
     input   wire                in_clk,

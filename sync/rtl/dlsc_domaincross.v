@@ -38,8 +38,8 @@
 // more consistent and lower latency by using a more conventional dlsc_syncflop.
 
 module dlsc_domaincross #(
-    parameter   DATA    = 32,
-    parameter   RESET   = {DATA{1'b0}}
+    parameter               DATA    = 32,
+    parameter [DATA-1:0]    RESET   = {DATA{1'b0}}
 ) (
     // source domain
     input   wire                in_clk,
