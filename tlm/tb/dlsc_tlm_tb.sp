@@ -10,6 +10,12 @@
 
 /*AUTOSUBCELL_CLASS*/
 
+#if PARAM_REMOVE_ANNOTATION > 0
+#define REMOVE_ANNOTATION true
+#else
+#define REMOVE_ANNOTATION false
+#endif
+
 SC_MODULE (__MODULE__) {
 private:
     void stim_thread();
@@ -51,7 +57,7 @@ SP_CTOR_IMP(__MODULE__) /*AUTOINIT*/ {
     
     memory  = new dlsc_tlm_memory<uint32_t>("memory",128*1024*1024,0,sc_core::sc_time(10,SC_NS),sc_core::sc_time(10,SC_NS));
 
-    channel = new dlsc_tlm_channel<uint32_t>("channel");
+    channel = new dlsc_tlm_channel<uint32_t>("channel",REMOVE_ANNOTATION);
 
     fabric  = new dlsc_tlm_fabric<uint32_t>("fabric");
     
