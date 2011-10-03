@@ -100,7 +100,9 @@ localparam  TOKN                = 6;
 
 // ** Synchronized PCIe signals **
     
-wire            rx_np_ok;
+wire            rx_np_ok_rd;
+wire            rx_np_ok_tlp;
+wire            rx_np_ok = rx_np_ok_rd && rx_np_ok_tlp;
 
 // Config
 wire [2:0]      max_payload_size;
@@ -232,7 +234,7 @@ end else begin:GEN_ASYNC
         .wr_clk         ( axi_clk ),
         .wr_rst         ( cross_rst ),
         .wr_ready       ( tx_ready ),
-        .wr_valid       ( tx_valid ),
+        .wr_valid       ( tx_valid && !axi_disable ),
         .wr_last        ( tx_last ),
         .wr_data        ( tx_data ),
         .rd_clk         ( pcie_clk ),
@@ -274,7 +276,7 @@ end else begin:GEN_ASYNC
             .in_clk         ( axi_clk ),
             .in_rst         ( cross_rst ),
             .in_ready       ( err_ready ),
-            .in_valid       ( err_valid ),
+            .in_valid       ( err_valid && !axi_disable ),
             .in_data        ( { err_unsupported } ),
             .out_clk        ( pcie_clk ),
             .out_rst        ( pcie_rst ),
@@ -507,7 +509,7 @@ if(READ_EN) begin:GEN_READ
     ) dlsc_pcie_s6_inbound_read_inst (
         .clk            ( axi_clk ),
         .rst            ( bridge_rst ),
-        .rx_np_ok       ( rx_np_ok ),
+        .rx_np_ok       ( rx_np_ok_rd ),
         .max_payload_size ( max_payload_size ),
         .token_oldest   ( token_oldest ),
         .token_wr       ( token_wr ),
@@ -546,7 +548,7 @@ if(READ_EN) begin:GEN_READ
 
 end else begin:GEN_NOREAD
 
-    assign          rx_np_ok            = 1'b1;
+    assign          rx_np_ok_rd         = 1'b1;
 
     assign          token_oldest        = token_wr;
 
@@ -563,6 +565,10 @@ end else begin:GEN_NOREAD
     assign          rd_cpl_d_data       = 32'd0;
     assign          rd_cpl_d_last       = 1'b0;
 
+    assign          axi_ar_valid        = 1'b0;
+    assign          axi_ar_addr         = {ADDR{1'b0}};
+    assign          axi_ar_len          = {LEN{1'b0}};
+
     assign          axi_r_ready         = 1'b0;
     
     assign          axi_rd_busy         = 1'b0;
@@ -576,7 +582,7 @@ endgenerate
 dlsc_pcie_s6_inbound_tlp dlsc_pcie_s6_inbound_tlp_inst (
     .clk            ( axi_clk ),
     .rst            ( bridge_rst ),
-    .rx_np_ok       ( rx_np_ok ),
+    .rx_np_ok       ( rx_np_ok_tlp ),
     .tlp_id_ready   ( tlp_id_ready ),
     .tlp_id_valid   ( tlp_id_valid ),
     .tlp_id_write   ( tlp_id_write ),

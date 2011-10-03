@@ -24,5 +24,16 @@ V_PARAMS_DEF    += \
 sims0:
 	$(MAKE) -f $(THIS) V_PARAMS=""
 
+sims1:
+	$(MAKE) -f $(THIS) V_PARAMS="READ_EN=0"
+	$(MAKE) -f $(THIS) V_PARAMS="WRITE_EN=0"
+
+sims2:
+	$(MAKE) -f $(THIS) V_PARAMS="ASYNC=1"
+
+sims3:
+	$(MAKE) -f $(THIS) V_PARAMS="ASYNC=1 READ_EN=0"
+	$(MAKE) -f $(THIS) V_PARAMS="ASYNC=1 WRITE_EN=0"
+
 include $(DLSC_MAKEFILE_BOT)
 
