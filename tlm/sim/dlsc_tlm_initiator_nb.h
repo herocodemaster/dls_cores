@@ -322,13 +322,16 @@ tlm::tlm_sync_enum dlsc_tlm_initiator_nb<DATATYPE>::nb_transport_bw(
 {
     assert(phase != tlm::BEGIN_REQ && phase != tlm::END_RESP); // we generate these phases
 
-    if(phase == tlm::END_REQ) {
+    if(phase == tlm::END_REQ || (phase == tlm::BEGIN_RESP && launch_outstanding)) {
+        // an outstanding BEGIN_REQ can be cleared by END_REQ or BEGIN_RESP
         assert(launch_outstanding && !launch_queue.empty() && launch_queue.front()->payload == &trans);
 
         launch_queue.pop_front();
         launch_outstanding = false;
         launch_event.notify();
-        
+    }
+
+    if(phase == tlm::END_REQ) {
         return tlm::TLM_ACCEPTED;
     }
 
