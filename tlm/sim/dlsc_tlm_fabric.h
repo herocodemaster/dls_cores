@@ -47,6 +47,9 @@ public:
         const uint64_t  out_base    = 0,
         const bool      read_okay   = true,
         const bool      write_okay  = true);
+
+    void set_read_okay(const int socket, const bool read_okay);
+    void set_write_okay(const int socket, const bool write_okay);
     
     void end_of_elaboration();
 
@@ -130,6 +133,30 @@ void dlsc_tlm_fabric<DATATYPE>::set_map(
     maps[socket].out_base   = out_base;
     maps[socket].read_okay  = read_okay;
     maps[socket].write_okay = write_okay;
+}
+
+template <typename DATATYPE>
+void dlsc_tlm_fabric<DATATYPE>::set_read_okay(
+    const int       socket,
+    const bool      read_okay
+) {
+    assert(socket >= 0 && socket < (int)out_socket.size());
+    if(maps.size() != out_socket.size()) {
+        maps.resize(out_socket.size());
+    }
+    maps[socket].read_okay  = read_okay;
+}
+
+template <typename DATATYPE>
+void dlsc_tlm_fabric<DATATYPE>::set_write_okay(
+    const int       socket,
+    const bool      write_okay
+) {
+    assert(socket >= 0 && socket < (int)out_socket.size());
+    if(maps.size() != out_socket.size()) {
+        maps.resize(out_socket.size());
+    }
+    maps[socket].write_okay  = write_okay;
 }
 
 
