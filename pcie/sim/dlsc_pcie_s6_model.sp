@@ -177,6 +177,7 @@ private:
     void                        tgt_read(t_transaction &ts);
     void                        tgt_complete(tlp_type &tlp);
     bool                        tgt_allow_io;
+    sc_core::sc_time            tgt_write_delay;
 
 };
 
@@ -274,6 +275,8 @@ void __MODULE__::init_method() {
     for(int i=0;i<32;++i) {
         tgt_tag_queue.push_back(i);
     }
+
+    tgt_write_delay = sc_core::SC_ZERO_TIME;
 
 }
 
@@ -769,9 +772,14 @@ void __MODULE__::tgt_write(t_transaction &ts) {
     }
 
     if(!is_np) {
+        // approximate write completion time
+        if(tgt_write_delay < sc_core::sc_time_stamp()) {
+            tgt_write_delay = sc_core::sc_time_stamp();
+        }
+        tgt_write_delay += (ts->size() * sc_core::sc_time(16,SC_NS)); // 250 MB/s
         // success!
         ts->set_response_status(tlm::TLM_OK_RESPONSE);
-        ts->complete();
+        ts->complete_delay(tgt_write_delay - sc_core::sc_time_stamp());
     }
 }
 
