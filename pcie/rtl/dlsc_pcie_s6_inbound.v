@@ -8,7 +8,25 @@ module dlsc_pcie_s6_inbound #(
     parameter WRITE_MOT     = 16,               // max outstanding write transactions
     parameter READ_EN       = 1,                // enable inbound read path
     parameter READ_BUFFER   = 256,
-    parameter READ_MOT      = 16                // max outstanding read transactions
+    parameter READ_MOT      = 16,               // max outstanding read transactions
+
+    // Address translation
+    parameter [ADDR-1:0] TRANS_BAR0_MASK = {ADDR{1'b1}},
+    parameter [ADDR-1:0] TRANS_BAR0_BASE = {ADDR{1'b0}},
+    parameter [ADDR-1:0] TRANS_BAR1_MASK = {ADDR{1'b1}},
+    parameter [ADDR-1:0] TRANS_BAR1_BASE = {ADDR{1'b0}},
+    parameter [ADDR-1:0] TRANS_BAR2_MASK = {ADDR{1'b1}},
+    parameter [ADDR-1:0] TRANS_BAR2_BASE = {ADDR{1'b0}},
+    parameter [ADDR-1:0] TRANS_BAR3_MASK = {ADDR{1'b1}},
+    parameter [ADDR-1:0] TRANS_BAR3_BASE = {ADDR{1'b0}},
+    parameter [ADDR-1:0] TRANS_BAR4_MASK = {ADDR{1'b1}},
+    parameter [ADDR-1:0] TRANS_BAR4_BASE = {ADDR{1'b0}},
+    parameter [ADDR-1:0] TRANS_BAR5_MASK = {ADDR{1'b1}},
+    parameter [ADDR-1:0] TRANS_BAR5_BASE = {ADDR{1'b0}},
+    parameter [ADDR-1:0] TRANS_ROM_MASK  = {ADDR{1'b1}},
+    parameter [ADDR-1:0] TRANS_ROM_BASE  = {ADDR{1'b0}},
+    parameter [ADDR-1:0] TRANS_CFG_MASK  = {ADDR{1'b1}},
+    parameter [ADDR-1:0] TRANS_CFG_BASE  = {ADDR{1'b0}}
 ) (
     // ** AXI **
     
@@ -297,19 +315,43 @@ end
 endgenerate
 
 
-// ** Address Translator (TODO) **
+// ** Address Translator **
     
 wire            trans_req;
 wire [2:0]      trans_req_bar;
 wire [63:2]     trans_req_addr;
 wire            trans_req_64;
-reg             trans_ack;
-reg  [ADDR-1:2] trans_ack_addr;
+wire            trans_ack;
+wire [ADDR-1:2] trans_ack_addr;
 
-always @(posedge axi_clk) begin
-    trans_ack       <= trans_req;
-    trans_ack_addr  <= { trans_req_bar, trans_req_addr[ADDR-4:2] };
-end
+dlsc_pcie_s6_inbound_trans #(
+    .ADDR           ( ADDR ),
+    .TRANS_BAR0_MASK ( TRANS_BAR0_MASK ),
+    .TRANS_BAR0_BASE ( TRANS_BAR0_BASE ),
+    .TRANS_BAR1_MASK ( TRANS_BAR1_MASK ),
+    .TRANS_BAR1_BASE ( TRANS_BAR1_BASE ),
+    .TRANS_BAR2_MASK ( TRANS_BAR2_MASK ),
+    .TRANS_BAR2_BASE ( TRANS_BAR2_BASE ),
+    .TRANS_BAR3_MASK ( TRANS_BAR3_MASK ),
+    .TRANS_BAR3_BASE ( TRANS_BAR3_BASE ),
+    .TRANS_BAR4_MASK ( TRANS_BAR4_MASK ),
+    .TRANS_BAR4_BASE ( TRANS_BAR4_BASE ),
+    .TRANS_BAR5_MASK ( TRANS_BAR5_MASK ),
+    .TRANS_BAR5_BASE ( TRANS_BAR5_BASE ),
+    .TRANS_ROM_MASK ( TRANS_ROM_MASK ),
+    .TRANS_ROM_BASE ( TRANS_ROM_BASE ),
+    .TRANS_CFG_MASK ( TRANS_CFG_MASK ),
+    .TRANS_CFG_BASE ( TRANS_CFG_BASE )
+) dlsc_pcie_s6_inbound_trans_inst (
+    .clk            ( axi_clk ),
+    .rst            ( bridge_rst ),
+    .trans_req      ( trans_req ),
+    .trans_req_bar  ( trans_req_bar ),
+    .trans_req_addr ( trans_req_addr ),
+    .trans_req_64   ( trans_req_64 ),
+    .trans_ack      ( trans_ack ),
+    .trans_ack_addr ( trans_ack_addr )
+);
 
 
 // ** TLP decode **
