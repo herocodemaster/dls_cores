@@ -59,67 +59,18 @@ dlsc_pcie_s6_cmdsplit #(
     .out_last       ( rcb_last )
 );
 
-
 // calculate bytes remaining
-// (why does PCIe make this so complicated??)
+wire [11:0]     bytes_remaining;
+wire [1:0]      byte_offset;
 
-reg  [1:0]      bef_sub;
-reg  [1:0]      bel_sub;
-
-always @* begin
-    // first
-    casez(tlp_h_be_first)
-        4'b???1: bef_sub = 2'd0;
-        4'b??10: bef_sub = 2'd1;
-        4'b?100: bef_sub = 2'd2;
-        4'b1000: bef_sub = 2'd3;
-        default: bef_sub = 2'd0;
-    endcase
-    // last
-    casez(tlp_h_be_last)
-        4'b1???: bel_sub = 2'd0;
-        4'b01??: bel_sub = 2'd1;
-        4'b001?: bel_sub = 2'd2;
-        4'b0001: bel_sub = 2'd3;
-        default: bel_sub = 2'd0;
-    endcase
-end
-
-reg  [11:0]     bytes_remaining;
-
-always @* begin
-    if(tlp_h_mem) begin
-        if(tlp_h_len == 10'd1) begin
-            // consider only 1st BE
-            casez(tlp_h_be_first)
-                4'b1??1: bytes_remaining = 12'd4;
-                4'b01?1: bytes_remaining = 12'd3;
-                4'b1?10: bytes_remaining = 12'd3;
-                4'b0011: bytes_remaining = 12'd2;
-                4'b0110: bytes_remaining = 12'd2;
-                4'b1100: bytes_remaining = 12'd2;
-                default: bytes_remaining = 12'd1;
-            endcase
-        end else begin
-            // consider both BEs
-            bytes_remaining = {tlp_h_len,2'd0} - {10'd0,bef_sub} - {10'd0,bel_sub};
-        end
-    end else begin
-        bytes_remaining = 12'd4;
-    end
-end
-
-reg  [1:0]      byte_offset;
-
-always @* begin
-    casez(tlp_h_be_first)
-        4'b???1: byte_offset = 2'd0;
-        4'b??10: byte_offset = 2'd1;
-        4'b?100: byte_offset = 2'd2;
-        4'b1000: byte_offset = 2'd3;
-        default: byte_offset = 2'd0;
-    endcase
-end
+dlsc_pcie_cplbytes dlsc_pcie_cplbytes_inst (
+    .len            ( tlp_h_len ),
+    .be_first       ( tlp_h_be_first ),
+    .be_last        ( tlp_h_be_last ),
+    .type_mem       ( tlp_h_mem ),
+    .bytes_remaining ( bytes_remaining ),
+    .byte_offset    ( byte_offset )
+);
 
 // update bytes_remaining field
 reg  [1:0]      rcb_boff;
