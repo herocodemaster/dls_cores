@@ -39,6 +39,7 @@ module dlsc_pcie_s6_inbound_tlp
     output  wire                tx_valid,
     output  wire    [31:0]      tx_data,
     output  wire                tx_last,
+    output  wire                tx_error,
 
     // PCIe ID
     input   wire    [7:0]       bus_number,
@@ -87,20 +88,21 @@ wire            tlp_ready;
 reg             tlp_valid;
 reg  [31:0]     tlp_data;
 reg             tlp_last;
+reg             tlp_error;
 
 dlsc_fifo_rvh #(
-    .DATA           ( 33 ),
+    .DATA           ( 34 ),
     .DEPTH          ( 16 )
 ) dlsc_fifo_rvh_tlp (
     .clk            ( clk ),
     .rst            ( rst ),
     .wr_ready       ( tlp_ready ),
     .wr_valid       ( tlp_valid ),
-    .wr_data        ( { tlp_last, tlp_data } ),
+    .wr_data        ( { tlp_error, tlp_last, tlp_data } ),
     .wr_almost_full (  ),
     .rd_ready       ( tx_ready ),
     .rd_valid       ( tx_valid ),
-    .rd_data        ( { tx_last, tx_data } ),
+    .rd_data        ( { tx_error, tx_last, tx_data } ),
     .rd_almost_empty(  )
 );
 
@@ -173,6 +175,7 @@ always @* begin
     tlp_valid           = 1'b0;
     tlp_data            = 0;
     tlp_last            = 1'b0;
+    tlp_error           = 1'b0;
 
     if(st == ST_H0) begin
         tlp_data[30]        = !h_write && !h_err;   // has data only on successful read completion
@@ -183,6 +186,7 @@ always @* begin
         tlp_data[9:0]       = h_len;
 
         tlp_valid           = h_valid;
+        tlp_error           = h_err;
 
         if(tlp_ready && h_valid) begin
             next_st             = ST_H1;
@@ -195,6 +199,7 @@ always @* begin
         tlp_data[11:0]      = h_bytes;
 
         tlp_valid           = 1'b1;
+        tlp_error           = h_err;
 
         if(tlp_ready) begin
             next_st             = ST_H2;
@@ -208,6 +213,7 @@ always @* begin
 
         tlp_valid           = 1'b1;
         tlp_last            = h_write || h_err;
+        tlp_error           = h_err;
 
         if(tlp_ready) begin
             h_ready             = h_write ? 1'b1  : ( h_err ? 1'b0       : 1'b1 );

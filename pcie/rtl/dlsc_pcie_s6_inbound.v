@@ -101,6 +101,7 @@ module dlsc_pcie_s6_inbound #(
     output  wire                pcie_tx_valid,
     output  wire    [31:0]      pcie_tx_data,
     output  wire                pcie_tx_last,
+    output  wire                pcie_tx_error,
 
     // Error reporting
     input   wire                pcie_err_ready,
@@ -143,6 +144,7 @@ wire            tx_ready;
 wire            tx_valid;
 wire [31:0]     tx_data;
 wire            tx_last;
+wire            tx_error;
 
 // Error reporting
 wire            err_ready;
@@ -189,6 +191,7 @@ if(ASYNC==0) begin:GEN_SYNC
     assign          pcie_tx_valid       = tx_valid;
     assign          pcie_tx_data        = tx_data;
     assign          pcie_tx_last        = tx_last;
+    assign          pcie_tx_error       = tx_error;
 
     assign          err_ready           = pcie_err_ready;
     assign          pcie_err_valid      = err_valid;
@@ -246,7 +249,7 @@ end else begin:GEN_ASYNC
 
     // TLPs to PCIe controller
     dlsc_pcie_s6_tlpfifo #(
-        .DATA           ( 32 ),
+        .DATA           ( 33 ),
         .ADDR           ( 4 )
     ) dlsc_pcie_s6_tlpfifo_tx (
         .wr_clk         ( axi_clk ),
@@ -254,13 +257,13 @@ end else begin:GEN_ASYNC
         .wr_ready       ( tx_ready ),
         .wr_valid       ( tx_valid && !axi_disable ),
         .wr_last        ( tx_last ),
-        .wr_data        ( tx_data ),
+        .wr_data        ( { tx_error, tx_data } ),
         .rd_clk         ( pcie_clk ),
         .rd_rst         ( pcie_rst ),
         .rd_ready       ( pcie_tx_ready ),
         .rd_valid       ( pcie_tx_valid ),
         .rd_last        ( pcie_tx_last ),
-        .rd_data        ( pcie_tx_data )
+        .rd_data        ( { pcie_tx_error, pcie_tx_data } )
     );
 
     // TLPs from PCIe controller
@@ -647,6 +650,7 @@ dlsc_pcie_s6_inbound_tlp dlsc_pcie_s6_inbound_tlp_inst (
     .tx_valid       ( tx_valid ),
     .tx_data        ( tx_data ),
     .tx_last        ( tx_last ),
+    .tx_error       ( tx_error ),
     .bus_number     ( bus_number ),
     .dev_number     ( dev_number ),
     .func_number    ( func_number )
