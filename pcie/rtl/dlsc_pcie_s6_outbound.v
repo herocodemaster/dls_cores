@@ -1,108 +1,151 @@
 
 module dlsc_pcie_s6_outbound #(
-    parameter ASYNC         = 0,                // axi_clk asynchronous to pcie_clk
-    parameter ADDR          = 32,               // width of AXI address bus
-    parameter LEN           = 4,                // width of AXI length field
-    parameter WRITE_EN      = 1,                // enable outbound write path
-    parameter WRITE_SIZE    = 128,              // max write size (in bytes; power of 2)
-    parameter WRITE_MOT     = 16,               // max outstanding write transactions
-    parameter READ_EN       = 1,                // enable outbound read path
-    parameter READ_MOT      = 16,               // max outstanding read transactions
-    parameter READ_CPLH     = 8,                // max receive buffer completion header space
-    parameter READ_CPLD     = 64,               // max receive buffer completion data space    
-    parameter READ_SIZE     = (READ_CPLD*16),   // size of read buffer (in bytes; power of 2)
-    parameter READ_TIMEOUT  = 625000,           // read completion timeout (default is 10ms at 62.5 MHz)
-    parameter TAG           = 5,                // PCIe tag bits
-    parameter FCHB          = 8,                // bits for flow control header credits
-    parameter FCDB          = 12                // bits for flow control data credits
+    // ** APB **
+    parameter APB_ASYNC         = 0,                // apb_clk asynchronous to user_clk_out
+    parameter APB_EN            = 1,                // enable APB registers and interrupts
+    parameter APB_ADDR          = 32,               // width of APB address bus
+    
+    // ** Outbound **
+    parameter ASYNC             = 0,                // axi_clk asynchronous to pcie_clk
+    parameter ADDR              = 32,               // width of AXI address bus
+    parameter LEN               = 4,                // width of AXI length field
+    parameter WRITE_EN          = 1,                // enable outbound write path
+    parameter WRITE_SIZE        = 128,              // max write size (in bytes; power of 2)
+    parameter WRITE_MOT         = 16,               // max outstanding write transactions
+    parameter READ_EN           = 1,                // enable outbound read path
+    parameter READ_MOT          = 16,               // max outstanding read transactions
+    parameter READ_CPLH         = 8,                // max receive buffer completion header space
+    parameter READ_CPLD         = 64,               // max receive buffer completion data space    
+    parameter READ_SIZE         = (READ_CPLD*16),   // size of read buffer (in bytes; power of 2)
+    parameter READ_TIMEOUT      = 625000,           // read completion timeout (default is 10ms at 62.5 MHz)
+    parameter TAG               = 5,                // PCIe tag bits
+    parameter FCHB              = 8,                // bits for flow control header credits
+    parameter FCDB              = 12,               // bits for flow control data credits
+    
+    // Address translation
+    parameter TRANS_REGIONS     = 0,                // number of enabled output regions (0-8; 0 disables translation)
+    parameter [ADDR-1:0] TRANS_0_MASK = {ADDR{1'b1}},
+    parameter [ADDR-1:0] TRANS_0_BASE = {ADDR{1'b0}},
+    parameter [ADDR-1:0] TRANS_1_MASK = {ADDR{1'b1}},
+    parameter [ADDR-1:0] TRANS_1_BASE = {ADDR{1'b0}},
+    parameter [ADDR-1:0] TRANS_2_MASK = {ADDR{1'b1}},
+    parameter [ADDR-1:0] TRANS_2_BASE = {ADDR{1'b0}},
+    parameter [ADDR-1:0] TRANS_3_MASK = {ADDR{1'b1}},
+    parameter [ADDR-1:0] TRANS_3_BASE = {ADDR{1'b0}},
+    parameter [ADDR-1:0] TRANS_4_MASK = {ADDR{1'b1}},
+    parameter [ADDR-1:0] TRANS_4_BASE = {ADDR{1'b0}},
+    parameter [ADDR-1:0] TRANS_5_MASK = {ADDR{1'b1}},
+    parameter [ADDR-1:0] TRANS_5_BASE = {ADDR{1'b0}},
+    parameter [ADDR-1:0] TRANS_6_MASK = {ADDR{1'b1}},
+    parameter [ADDR-1:0] TRANS_6_BASE = {ADDR{1'b0}},
+    parameter [ADDR-1:0] TRANS_7_MASK = {ADDR{1'b1}},
+    parameter [ADDR-1:0] TRANS_7_BASE = {ADDR{1'b0}}
 ) (
+    // ** APB **
+    // (only used for accessing base address fields
+    //  in the outbound address translator)
+    
+    // System
+    input   wire                    apb_clk,
+    input   wire                    apb_rst,
+
+    // APB
+    input   wire    [APB_ADDR-1:0]  apb_addr,
+    input   wire                    apb_sel,
+    input   wire                    apb_enable,
+    input   wire                    apb_write,
+    input   wire    [31:0]          apb_wdata,
+    input   wire    [3:0]           apb_strb,
+    output  wire                    apb_ready,
+    output  wire    [31:0]          apb_rdata,
+    output  wire                    apb_slverr,
+
+    // Control/Status
+    input   wire                    apb_ob_rd_disable,
+    input   wire                    apb_ob_wr_disable,
+    output  wire                    apb_ob_rd_busy,
+    output  wire                    apb_ob_wr_busy,
     
     // ** AXI **
     
     // System
-    input   wire                axi_clk,         // == pcie_clk when !ASYNC
-    input   wire                axi_rst,         // == pcie_rst when !ASYNC
+    input   wire                    axi_clk,         // == pcie_clk when !ASYNC
+    input   wire                    axi_rst,         // == pcie_rst when !ASYNC
 
     // Read Command
-    output  wire                axi_ar_ready,
-    input   wire                axi_ar_valid,
-    input   wire    [ADDR-1:0]  axi_ar_addr,
-    input   wire    [LEN-1:0]   axi_ar_len,
+    output  wire                    axi_ar_ready,
+    input   wire                    axi_ar_valid,
+    input   wire    [ADDR-1:0]      axi_ar_addr,
+    input   wire    [LEN-1:0]       axi_ar_len,
 
     // Read response
-    input   wire                axi_r_ready,
-    output  wire                axi_r_valid,
-    output  wire                axi_r_last,
-    output  wire    [31:0]      axi_r_data,
-    output  wire    [1:0]       axi_r_resp,
+    input   wire                    axi_r_ready,
+    output  wire                    axi_r_valid,
+    output  wire                    axi_r_last,
+    output  wire    [31:0]          axi_r_data,
+    output  wire    [1:0]           axi_r_resp,
     
     // Write Command
-    output  wire                axi_aw_ready,
-    input   wire                axi_aw_valid,
-    input   wire    [ADDR-1:0]  axi_aw_addr,
-    input   wire    [LEN-1:0]   axi_aw_len,
+    output  wire                    axi_aw_ready,
+    input   wire                    axi_aw_valid,
+    input   wire    [ADDR-1:0]      axi_aw_addr,
+    input   wire    [LEN-1:0]       axi_aw_len,
 
     // Write Data
-    output  wire                axi_w_ready,
-    input   wire                axi_w_valid,
-    input   wire                axi_w_last,
-    input   wire    [3:0]       axi_w_strb,
-    input   wire    [31:0]      axi_w_data,
+    output  wire                    axi_w_ready,
+    input   wire                    axi_w_valid,
+    input   wire                    axi_w_last,
+    input   wire    [3:0]           axi_w_strb,
+    input   wire    [31:0]          axi_w_data,
 
     // Write Response
-    input   wire                axi_b_ready,
-    output  wire                axi_b_valid,
-    output  wire    [1:0]       axi_b_resp,
-
-    // Control/Status
-    input   wire                axi_rd_disable,
-    input   wire                axi_wr_disable,
-    output  wire                axi_rd_busy,
-    output  wire                axi_wr_busy,
+    input   wire                    axi_b_ready,
+    output  wire                    axi_b_valid,
+    output  wire    [1:0]           axi_b_resp,
     
     // ** PCIe **
 
     // System
-    input   wire                pcie_clk,
-    input   wire                pcie_rst,
+    input   wire                    pcie_clk,
+    input   wire                    pcie_rst,
 
     // Status
-    output  wire                pcie_tlp_pending,        // transactions pending
+    output  wire                    pcie_tlp_pending,        // transactions pending
 
     // Config
-    input   wire    [2:0]       pcie_max_payload_size,
-    input   wire    [2:0]       pcie_max_read_request,
-    input   wire                pcie_rcb,                // read completion boundary
-    input   wire                pcie_dma_en,             // bus-mastering enabled
+    input   wire    [2:0]           pcie_max_payload_size,
+    input   wire    [2:0]           pcie_max_read_request,
+    input   wire                    pcie_rcb,                // read completion boundary
+    input   wire                    pcie_dma_en,             // bus-mastering enabled
     
     // PCIe ID
-    input   wire    [7:0]       pcie_bus_number,
-    input   wire    [4:0]       pcie_dev_number,
-    input   wire    [2:0]       pcie_func_number,
+    input   wire    [7:0]           pcie_bus_number,
+    input   wire    [4:0]           pcie_dev_number,
+    input   wire    [2:0]           pcie_func_number,
     
     // PCIe link partner credit info
-    output  wire    [2:0]       pcie_fc_sel,             // selects 'transmit credits available'
-    input   wire    [FCHB-1:0]  pcie_fc_ph,              // posted header credits
-    input   wire    [FCDB-1:0]  pcie_fc_pd,              // posted data credits
+    output  wire    [2:0]           pcie_fc_sel,             // selects 'transmit credits available'
+    input   wire    [FCHB-1:0]      pcie_fc_ph,              // posted header credits
+    input   wire    [FCDB-1:0]      pcie_fc_pd,              // posted data credits
 
     // TLP receive input (completions only)
-    output  wire                pcie_rx_ready,
-    input   wire                pcie_rx_valid,
-    input   wire    [31:0]      pcie_rx_data,
-    input   wire                pcie_rx_last,
-    input   wire                pcie_rx_err,
+    output  wire                    pcie_rx_ready,
+    input   wire                    pcie_rx_valid,
+    input   wire    [31:0]          pcie_rx_data,
+    input   wire                    pcie_rx_last,
+    input   wire                    pcie_rx_err,
     
     // TLP output
-    input   wire                pcie_tx_ready,
-    output  wire                pcie_tx_valid,
-    output  wire    [31:0]      pcie_tx_data,
-    output  wire                pcie_tx_last,
+    input   wire                    pcie_tx_ready,
+    output  wire                    pcie_tx_valid,
+    output  wire    [31:0]          pcie_tx_data,
+    output  wire                    pcie_tx_last,
 
     // Error reporting
-    input   wire                pcie_err_ready,
-    output  wire                pcie_err_valid,
-    output  wire                pcie_err_unexpected,
-    output  wire                pcie_err_timeout
+    input   wire                    pcie_err_ready,
+    output  wire                    pcie_err_valid,
+    output  wire                    pcie_err_unexpected,
+    output  wire                    pcie_err_timeout
 );
 
 `include "dlsc_clog2.vh"
@@ -156,17 +199,121 @@ wire            axi_disable;
 wire            axi_flush;
 wire            rd_disable;
 wire            wr_disable;
+wire            rd_busy;
+wire            wr_busy;
 
-// rd/wr_disable are always synchronized (APB may be async)
-dlsc_syncflop #(
-    .DATA       ( 2 ),
-    .RESET      ( 2'b11 )
-) dlsc_syncflop_disable (
-    .in         ( { axi_rd_disable, axi_wr_disable } ),
-    .clk        ( axi_clk ),
-    .rst        ( bridge_rst ),
-    .out        ( {     rd_disable,     wr_disable } )
-);
+// APB bus to outbound address translator
+wire [5:2]      trans_apb_addr;
+wire            trans_apb_sel;
+wire            trans_apb_enable;
+wire            trans_apb_write;
+wire [31:0]     trans_apb_wdata;
+wire [3:0]      trans_apb_strb;
+wire            trans_apb_ready;
+wire [31:0]     trans_apb_rdata;
+wire            trans_apb_slverr;
+
+generate
+if(APB_EN) begin:GEN_APB
+
+    if(APB_ASYNC||ASYNC) begin:GEN_APB_ASYNC
+
+        dlsc_syncflop #(
+            .DATA       ( 2 ),
+            .RESET      ( 2'b11 )
+        ) dlsc_syncflop_disable (
+            .in         ( { apb_ob_rd_disable, apb_ob_wr_disable } ),
+            .clk        ( axi_clk ),
+            .rst        ( bridge_rst ),
+            .out        ( {        rd_disable,        wr_disable } )
+        );
+        
+        dlsc_syncflop #(
+            .DATA       ( 2 ),
+            .RESET      ( 2'b11 )
+        ) dlsc_syncflop_busy (
+            .in         ( {        rd_busy,        wr_busy } ),
+            .clk        ( apb_clk ),
+            .rst        ( apb_rst ),
+            .out        ( { apb_ob_rd_busy, apb_ob_wr_busy } )
+        );
+
+    end else begin:GEN_APB_SYNC
+
+        assign          rd_disable          = apb_ob_rd_disable;
+        assign          wr_disable          = apb_ob_wr_disable;
+        assign          apb_ob_rd_busy      = rd_busy;
+        assign          apb_ob_wr_busy      = wr_busy;
+
+    end
+
+end else begin:GEN_NO_APB
+    
+    assign          rd_disable          = 1'b0;
+    assign          wr_disable          = 1'b0;
+    assign          apb_ob_rd_busy      = 1'b0;
+    assign          apb_ob_wr_busy      = 1'b0;
+
+end
+
+if(!APB_EN||TRANS_REGIONS<=0) begin:GEN_TRANS_APB_TIED
+
+    // APB only connects to translator.. tie off if no translator or no APB
+    assign          apb_ready           = apb_sel && apb_enable;
+    assign          apb_rdata           = 32'h0;
+    assign          apb_slverr          = 1'b0;
+    assign          trans_apb_addr      = 4'h0;
+    assign          trans_apb_sel       = 1'b0;
+    assign          trans_apb_enable    = 1'b0;
+    assign          trans_apb_write     = 1'b0;
+    assign          trans_apb_wdata     = 32'h0;
+    assign          trans_apb_strb      = 4'h0;
+
+end else if(APB_ASYNC||ASYNC) begin:GEN_TRANS_APB_ASYNC
+    
+    dlsc_apb_domaincross #(
+        .DATA           ( 32 ),
+        .ADDR           ( 4 )
+    ) dlsc_apb_domaincross_trans (
+        .m_clk          ( apb_clk ),
+        .m_rst          ( apb_rst ),
+        .m_apb_addr     ( apb_addr[5:2] ),
+        .m_apb_sel      ( apb_sel ),
+        .m_apb_enable   ( apb_enable ),
+        .m_apb_write    ( apb_write ),
+        .m_apb_wdata    ( apb_wdata ),
+        .m_apb_strb     ( apb_strb ),
+        .m_apb_ready    ( apb_ready ),
+        .m_apb_rdata    ( apb_rdata ),
+        .m_apb_slverr   ( apb_slverr ),
+        .s_clk          ( axi_clk ),
+        .s_rst          ( axi_rst ),
+        .s_apb_addr     ( trans_apb_addr ),
+        .s_apb_sel      ( trans_apb_sel ),
+        .s_apb_enable   ( trans_apb_enable ),
+        .s_apb_write    ( trans_apb_write ),
+        .s_apb_wdata    ( trans_apb_wdata ),
+        .s_apb_strb     ( trans_apb_strb ),
+        .s_apb_ready    ( trans_apb_ready ),
+        .s_apb_rdata    ( trans_apb_rdata ),
+        .s_apb_slverr   ( trans_apb_slverr )
+    );
+
+end else begin:GEN_TRANS_APB_SYNC
+
+    assign          trans_apb_addr      = apb_addr[5:2];
+    assign          trans_apb_sel       = apb_sel;
+    assign          trans_apb_enable    = apb_enable;
+    assign          trans_apb_write     = apb_write;
+    assign          trans_apb_wdata     = apb_wdata;
+    assign          trans_apb_strb      = apb_strb;
+    assign          apb_ready           = trans_apb_ready;
+    assign          apb_rdata           = trans_apb_rdata;
+    assign          apb_slverr          = trans_apb_slverr;
+
+end
+
+endgenerate
 
 generate
 if(ASYNC==0) begin:GEN_SYNC
@@ -215,7 +362,7 @@ end else begin:GEN_ASYNC
         .rst            ( axi_rst ),
         .cross_rst      ( cross_rst ),
         .bridge_rst     ( bridge_rst ),
-        .axi_busy       ( axi_rd_busy || axi_wr_busy ),
+        .axi_busy       ( rd_busy || wr_busy ),
         .axi_disable    ( axi_disable ),
         .axi_flush      ( axi_flush )
     );
@@ -396,7 +543,7 @@ if(READ_EN) begin:GEN_READ
         .err_valid          ( err_valid ),
         .err_unexpected     ( err_unexpected ),
         .err_timeout        ( err_timeout ),
-        .rd_busy            ( axi_rd_busy ),
+        .rd_busy            ( rd_busy ),
         .rd_disable         ( axi_disable || rd_disable ),
         .rd_flush           ( axi_flush )
     );
@@ -424,7 +571,7 @@ end else begin:GEN_NOREAD
     assign          rd_tlp_h_be_first   = 4'd0;
     assign          rd_tlp_h_be_last    = 4'd0;
 
-    assign          axi_rd_busy         = 1'b0;
+    assign          rd_busy             = 1'b0;
 
 end
 endgenerate
@@ -481,7 +628,7 @@ if(WRITE_EN) begin:GEN_WRITE
         .wr_tlp_d_ready     ( wr_tlp_d_ready ),
         .wr_tlp_d_valid     ( wr_tlp_d_valid ),
         .wr_tlp_d_data      ( wr_tlp_d_data ),
-        .wr_busy            ( axi_wr_busy ),
+        .wr_busy            ( wr_busy ),
         .wr_disable         ( axi_disable || wr_disable ),
         .wr_flush           ( axi_flush )
     );
@@ -502,25 +649,74 @@ end else begin:GEN_NOWRITE
     assign          wr_tlp_d_valid      = 1'b0;
     assign          wr_tlp_d_data       = 32'd0;
 
-    assign          axi_wr_busy         = 1'b0;
+    assign          wr_busy             = 1'b0;
 
 end
 endgenerate
 
 
-// ** Address Translator (TODO) **
+// ** Address Translator **
 
 wire            trans_req;
 wire [ADDR-1:2] trans_req_addr;
-reg             trans_ack       = 0;
-reg  [63:2]     trans_ack_addr  = 0;
-reg             trans_ack_64    = 1'b0;
+wire            trans_ack;
+wire [63:2]     trans_ack_addr;
+wire            trans_ack_64;
 
-always @(posedge axi_clk) begin
-    trans_ack       <= trans_req;
-    trans_ack_addr  <= { {(64-ADDR){1'b0}}, trans_req_addr[ADDR-1:2] };
-    trans_ack_64    <= 1'b0;
+generate
+if(TRANS_REGIONS>0) begin:GEN_TRANS
+
+    dlsc_pcie_s6_outbound_trans #(
+        .ADDR           ( ADDR ),
+        .TRANS_REGIONS  ( TRANS_REGIONS ),
+        .TRANS_0_MASK   ( TRANS_0_MASK ),
+        .TRANS_0_BASE   ( TRANS_0_BASE ),
+        .TRANS_1_MASK   ( TRANS_1_MASK ),
+        .TRANS_1_BASE   ( TRANS_1_BASE ),
+        .TRANS_2_MASK   ( TRANS_2_MASK ),
+        .TRANS_2_BASE   ( TRANS_2_BASE ),
+        .TRANS_3_MASK   ( TRANS_3_MASK ),
+        .TRANS_3_BASE   ( TRANS_3_BASE ),
+        .TRANS_4_MASK   ( TRANS_4_MASK ),
+        .TRANS_4_BASE   ( TRANS_4_BASE ),
+        .TRANS_5_MASK   ( TRANS_5_MASK ),
+        .TRANS_5_BASE   ( TRANS_5_BASE ),
+        .TRANS_6_MASK   ( TRANS_6_MASK ),
+        .TRANS_6_BASE   ( TRANS_6_BASE ),
+        .TRANS_7_MASK   ( TRANS_7_MASK ),
+        .TRANS_7_BASE   ( TRANS_7_BASE )
+    ) dlsc_pcie_s6_outbound_trans_inst (
+        .clk                ( axi_clk ),
+        .rst                ( bridge_rst ),
+        .apb_addr           ( trans_apb_addr ),
+        .apb_sel            ( trans_apb_sel ),
+        .apb_enable         ( trans_apb_enable ),
+        .apb_write          ( trans_apb_write ),
+        .apb_wdata          ( trans_apb_wdata ),
+        .apb_strb           ( trans_apb_strb ),
+        .apb_ready          ( trans_apb_ready ),
+        .apb_rdata          ( trans_apb_rdata ),
+        .apb_slverr         ( trans_apb_slverr ),
+        .trans_req          ( trans_req ),
+        .trans_req_addr     ( trans_req_addr ),
+        .trans_ack          ( trans_ack ),
+        .trans_ack_addr     ( trans_ack_addr ),
+        .trans_ack_64       ( trans_ack_64 )
+    );
+
+end else begin:GEN_NO_TRANS
+
+    // just pass the request address through, with suitable detection of 64-bit addresses
+    assign  trans_ack       = trans_req;
+    assign  trans_ack_addr  = { {(64-ADDR){1'b0}} , trans_req_addr };
+    assign  trans_ack_64    = |trans_ack_addr[63:32];
+
+    assign  trans_apb_ready = trans_apb_sel && trans_apb_enable;
+    assign  trans_apb_rdata = 32'h0;
+    assign  trans_apb_slverr= 1'b0;
+
 end
+endgenerate
 
 
 // ** TLP **
