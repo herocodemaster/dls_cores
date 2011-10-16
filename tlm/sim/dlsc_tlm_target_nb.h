@@ -442,6 +442,7 @@ void dlsc_tlm_target_nb<MODULE,DATATYPE>::transaction_state::complete_delta(sc_c
 // invoked by public complete methods; notifies parent
 template <typename MODULE, typename DATATYPE>
 void dlsc_tlm_target_nb<MODULE,DATATYPE>::transaction_state::complete_common() {
+    assert(!complete_flag); // can only be completed once
     complete_flag = true;
     parent->completed_notify(payload);
 }
