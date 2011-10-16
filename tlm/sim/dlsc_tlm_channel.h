@@ -53,9 +53,11 @@ public:
 private:
 
     struct queue_entry {
+        queue_entry(tlm::tlm_generic_payload *t) : trans(t) { assert(trans); trans->acquire(); }
+        ~queue_entry() { trans->release(); }
         int                         socket;
         tlm::tlm_phase              phase;
-        tlm::tlm_generic_payload    *trans;
+        tlm::tlm_generic_payload * const trans; // const pointer to non-const trans
     };
 
     bool fw_outstanding;
@@ -188,9 +190,8 @@ tlm::tlm_sync_enum dlsc_tlm_channel<DATATYPE>::nb_transport_fw(
             return tlm::TLM_COMPLETED;
         } else if(phase == tlm::BEGIN_REQ) {
             // must schedule forward call for the future
-            queue_entry *qe = new queue_entry;
+            queue_entry *qe = new queue_entry(&trans);
             qe->socket  = id;
-            qe->trans   = &trans;
             qe->phase   = phase;
             fw_queue.notify(*qe,delay_i);
             phase       = tlm::END_REQ;
@@ -236,9 +237,8 @@ void dlsc_tlm_channel<DATATYPE>::fw_queue_method() {
             delay_i     = delay + rand_delay(bw_min_delay,bw_max_delay,bw_next_delay);
 
             // must schedule a completion notification for the future
-            qe          = new queue_entry;
+            qe          = new queue_entry(&trans);
             qe->socket  = id;
-            qe->trans   = &trans;
             qe->phase   = tlm::BEGIN_RESP;
             bw_queue.notify(*qe,delay_i);
 
@@ -284,9 +284,8 @@ tlm::tlm_sync_enum dlsc_tlm_channel<DATATYPE>::nb_transport_bw(
             return tlm::TLM_ACCEPTED;
         } else if(phase == tlm::BEGIN_RESP) {
             // must schedule backward call for the future
-            queue_entry *qe = new queue_entry;
+            queue_entry *qe = new queue_entry(&trans);
             qe->socket  = id;
-            qe->trans   = &trans;
             qe->phase   = phase;
             bw_queue.notify(*qe,delay_i);
             phase       = tlm::END_RESP;
