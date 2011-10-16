@@ -142,8 +142,8 @@ SP_CTOR_IMP(__MODULE__) :
     initiator       = new dlsc_tlm_initiator_nb<uint32_t>("initiator",128);
     memtest         = new dlsc_tlm_memtest<uint32_t>("memtest",128);
     fabric          = new dlsc_tlm_fabric<uint32_t>("fabric");
-    pcie_channel    = new dlsc_tlm_channel<uint32_t>("pcie_channel");
-    dummy_channel   = new dlsc_tlm_channel<uint32_t>("dummy_channel");
+    pcie_channel    = new dlsc_tlm_channel<uint32_t>("pcie_channel",true);
+    dummy_channel   = new dlsc_tlm_channel<uint32_t>("dummy_channel",true);
     memory          = new dlsc_tlm_memory<uint32_t>("memory",4*1024*1024,0,sc_core::sc_time(1.0,SC_NS),sc_core::sc_time(20,SC_NS));
     
     memtest->socket.bind(fabric->in_socket);
@@ -163,7 +163,7 @@ SP_CTOR_IMP(__MODULE__) :
 #endif
 
     pcie_channel->set_delay(sc_core::sc_time(500,SC_NS),sc_core::sc_time(1000,SC_NS));
-    dummy_channel->set_delay(sc_core::sc_time(1500,SC_NS),sc_core::sc_time(2000,SC_NS)); // longer delay, to prevent reads before a posted write completes
+    dummy_channel->set_delay(sc_core::sc_time(1000,SC_NS),sc_core::sc_time(1100,SC_NS)); // longer delay, to prevent reads before a posted write completes
     
     axi_slave->socket.bind(memory->socket);
     dummy_channel->out_socket.bind(memory->socket);
@@ -192,7 +192,7 @@ void __MODULE__::stim_thread() {
     memtest->set_ignore_error_read(true);
     memtest->set_max_outstanding(16);   // more MOT for improved performance
     memtest->set_strobe_rate(1);        // sparse strobes are very slow over PCIe
-//    memtest->test(0,4*4096,1*1000*10);
+    memtest->test(0,4*4096,1*1000*10);
 
     // test link reset recovery
     transaction ts, tswait;
