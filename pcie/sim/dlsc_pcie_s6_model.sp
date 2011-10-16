@@ -16,11 +16,6 @@
 using namespace dlsc;
 using namespace dlsc::pcie;
 
-// Verilator generates vluint64_t ports, which SystemPerl doesn't think is
-// compatible with regular uint64_t ports...
-typedef uint64_t vluint64_t;
-
-
 SC_MODULE(__MODULE__) {
 public:
 
@@ -85,7 +80,7 @@ public:
     sc_core::sc_out<uint32_t>   cfg_pcie_link_state;
     // Misc
     sc_core::sc_in<bool>        cfg_trn_pending;
-    sc_core::sc_in<vluint64_t>  cfg_dsn;
+    sc_core::sc_in<uint64_t>    cfg_dsn;
     
     // ** Interrupts **
     sc_core::sc_in<bool>        cfg_interrupt;
@@ -103,7 +98,7 @@ public:
     sc_core::sc_in<bool>        cfg_err_cpl_abort;
     sc_core::sc_in<bool>        cfg_err_posted;
     sc_core::sc_in<bool>        cfg_err_cor;
-    sc_core::sc_in<vluint64_t>  cfg_err_tlp_cpl_header;
+    sc_core::sc_in<uint64_t>    cfg_err_tlp_cpl_header;
     sc_core::sc_out<bool>       cfg_err_cpl_rdy;
     sc_core::sc_in<bool>        cfg_err_locked;
 
@@ -148,7 +143,7 @@ private:
     void                        err_method();
 
     // Transmit interface
-    std::deque<uint32_t>        txi_queue;
+    std::deque<uint32_t>        txi_queue;          // words for a single TLP being receive over TX
     bool                        txi_dsc;            // discontinued
     bool                        txi_str;            // streaming
     bool                        txi_str_err;        // streaming error
@@ -160,31 +155,34 @@ private:
     void                        txi_tlp_write_process(tlp_type &tlp);
 
     // Receive interface
-    std::deque<uint32_t>        rxi_queue;
-    std::deque<tlp_type>        rxi_tlp_queue;
+    std::deque<uint32_t>        rxi_queue;          // words for a single TLP to be sent over RX
     int                         rxi_pct;            // valid percent
+    bool                        rxi_arb_ini;        // select initiator or target queue
     void                        rxi_method();
 
-    // Initiator
+    // TLM initiator
     struct                      initiator_state;
     typedef boost::shared_ptr<initiator_state> ini_type;
     std::deque<ini_type>        ini_queue;
+    std::deque<tlp_type>        ini_rxi_tlp_queue;  // completion TLPs to be sent over RX
     void                        ini_method();
     void                        ini_launch(ini_type &ini);
     void                        ini_complete(ini_type &ini);
+    bool                        ini_get_rxi_tlp(tlp_type &tlp);
 
-    // Target
+    // TLM target
     struct                      target_state;
     typedef boost::shared_ptr<target_state> tgt_type;
-    std::deque<t_transaction>   tgt_ts_queue;
-    std::deque<tgt_type>        tgt_queue;
-    std::deque<unsigned int>    tgt_tag_queue;
+    std::deque<t_transaction>   tgt_ts_queue;       // buffer TLM transactions until we're ready for them
+    std::deque<tgt_type>        tgt_rxi_queue;      // buffer transactions/TLPs until they're sent over PCIe (at which point they move to tgt_cpl_queue if non-posted)
+    std::deque<tgt_type>        tgt_cpl_queue;      // buffer transactions/TLPs that have been sent over PCIe but need a response
+    std::deque<unsigned int>    tgt_tag_queue;      // track available PCIe tags
     void                        tgt_method();
     void                        tgt_write(t_transaction &ts);
     void                        tgt_read(t_transaction &ts);
+    bool                        tgt_get_rxi_tlp(tlp_type &tlp);
     void                        tgt_complete(tlp_type &tlp);
     bool                        tgt_allow_io;
-    sc_core::sc_time            tgt_write_delay;
 
 };
 
@@ -199,9 +197,12 @@ struct __MODULE__::initiator_state {
 };
 
 struct __MODULE__::target_state {
+    // track state of non-posted requests (all reads and I/O writes)
+    target_state() { tlp_index = 0; };
     t_transaction               ts;         // TLM transaction
-    tlp_type                    tlp;        // read request
-    std::deque<uint32_t>        data;       // accumulated response data
+    std::deque<tlp_type>        tlp_queue;  // TLPs generated for TLM transaction
+    int                         tlp_index;  // index into tlp_queue for tgt_get_rxi_tlp
+    std::deque<uint32_t>        data;       // accumulated response data (for reads)
 };
 
 //######################################################################
@@ -262,19 +263,26 @@ void __MODULE__::init_method() {
     txi_err             = false;
 
     rxi_queue.clear();
-    rxi_tlp_queue.clear();
+    rxi_arb_ini         = false;
 
     ini_queue.clear();
-
+    ini_rxi_tlp_queue.clear();
+    
     while(!tgt_ts_queue.empty()) {
-        dlsc_verb("lost transaction to reset");
+        dlsc_verb("lost transaction to reset (tgt_ts_queue)");
         t_transaction ts = tgt_ts_queue.front(); tgt_ts_queue.pop_front();
         ts->set_response_status(tlm::TLM_INCOMPLETE_RESPONSE);
         ts->complete();
     }
-    while(!tgt_queue.empty()) {
-        dlsc_verb("lost transaction to reset");
-        t_transaction ts = tgt_queue.front()->ts; tgt_queue.pop_front();
+    while(!tgt_rxi_queue.empty()) {
+        dlsc_verb("lost transaction to reset (tgt_rxi_queue)");
+        t_transaction ts = tgt_rxi_queue.front()->ts; tgt_rxi_queue.pop_front();
+        ts->set_response_status(tlm::TLM_INCOMPLETE_RESPONSE);
+        ts->complete();
+    }
+    while(!tgt_cpl_queue.empty()) {
+        dlsc_verb("lost transaction to reset (tgt_cpl_queue)");
+        t_transaction ts = tgt_cpl_queue.front()->ts; tgt_cpl_queue.pop_front();
         ts->set_response_status(tlm::TLM_INCOMPLETE_RESPONSE);
         ts->complete();
     }
@@ -282,8 +290,6 @@ void __MODULE__::init_method() {
     for(int i=0;i<32;++i) {
         tgt_tag_queue.push_back(i);
     }
-
-    tgt_write_delay = sc_core::SC_ZERO_TIME;
 
 }
 
@@ -504,25 +510,30 @@ void __MODULE__::txi_tlp_process(tlp_type &tlp) {
 
 void __MODULE__::rxi_method() {
 
-    if(rxi_queue.empty() && !rxi_tlp_queue.empty()) {
-        // TODO: correctly support rx_np_ok
+    if(rxi_queue.empty()) {
         // TODO: implement TLP re-ordering
+        tlp_type tlp;
+        
+        if( ( rxi_arb_ini && ini_get_rxi_tlp(tlp)) ||   // ini gets priority when arb_ini is set
+            (                tgt_get_rxi_tlp(tlp)) ||   // fall back to tgt if arb_ini isn't set (or ini had nothing)
+            (!rxi_arb_ini && ini_get_rxi_tlp(tlp))      // fall back to ini (again, in case arb_ini wasn't set and tgt had nothing)
+        ) {
+            rxi_arb_ini         = !rxi_arb_ini;
+            
+            assert(tlp->validate());
+            tlp->serialize(rxi_queue);
 
-        tlp_type tlp        = rxi_tlp_queue.front(); rxi_tlp_queue.pop_front();
-        assert(tlp->validate());
-        tlp->serialize(rxi_queue);
+            uint32_t tuser      = 0;
 
-        uint32_t tuser      = 0;
+            if(tlp->ep) {
+                // poisoned
+                tuser               |= (1<<1);
+            }
 
-        if(tlp->ep) {
-            // poisoned
-            tuser               |= (1<<1);
+            // TODO: BARs
+
+            m_axis_rx_tuser     = tuser;
         }
-
-        // TODO: BARs
-
-        m_axis_rx_tuser     = tuser;
-
     }
 
     if(!m_axis_rx_tvalid || m_axis_rx_tready) {
@@ -739,7 +750,16 @@ void __MODULE__::ini_complete(ini_type &ini) {
     ini->lower_addr_queue.pop_front();
 
     // send it
-    rxi_tlp_queue.push_back(tlp);
+    ini_rxi_tlp_queue.push_back(tlp);
+}
+
+bool __MODULE__::ini_get_rxi_tlp(tlp_type &tlp) {
+    if(ini_rxi_tlp_queue.empty()) {
+        return false;
+    }
+    tlp = ini_rxi_tlp_queue.front();
+    ini_rxi_tlp_queue.pop_front();
+    return true;
 }
 
 
@@ -774,7 +794,8 @@ void __MODULE__::tgt_write(t_transaction &ts) {
     uint64_t addr = ts->get_address() & ~((uint64_t)0x3);
     unsigned int cnt = 0;
 
-    bool is_np = false;
+    tgt_type tgt(new target_state);
+    tgt->ts     = ts;
 
     while(cnt < ts->size()) {
         unsigned int be_first = 0xF, be_last = 0xF;
@@ -820,32 +841,17 @@ void __MODULE__::tgt_write(t_transaction &ts) {
             // I/O instead of MEM
             tlp->set_type(TYPE_IO);
             tlp->set_tag(tgt_tag_queue.front()); tgt_tag_queue.pop_front();
-            is_np = true;
-
-            // non-posted requires response
-            tgt_type tgt(new target_state);
-            tgt->ts     = ts;
-            tgt->tlp    = tlp;
-            tgt_queue.push_back(tgt);
         }
 
-        // send it
-        rxi_tlp_queue.push_back(tlp);
+        // queue TLP
+        tgt->tlp_queue.push_back(tlp);
 
         cnt     += data.size();
         addr    += data.size()*4;
     }
 
-    if(!is_np) {
-        // approximate write completion time
-        if(tgt_write_delay < sc_core::sc_time_stamp()) {
-            tgt_write_delay = sc_core::sc_time_stamp();
-        }
-        tgt_write_delay += (ts->size() * sc_core::sc_time(16,SC_NS)); // 250 MB/s
-        // success!
-        ts->set_response_status(tlm::TLM_OK_RESPONSE);
-        ts->complete_delay(tgt_write_delay - sc_core::sc_time_stamp());
-    }
+    // send it
+    tgt_rxi_queue.push_back(tgt);
 }
 
 void __MODULE__::tgt_read(t_transaction &ts) {
@@ -859,12 +865,13 @@ void __MODULE__::tgt_read(t_transaction &ts) {
         dlsc_warn("max_read_request exceeded");
         ts->set_response_status(tlm::TLM_BURST_ERROR_RESPONSE);
         ts->complete();
+        return;
     }
 
     tlp_type tlp(new pcie_tlp);
     tgt_type tgt(new target_state);
     tgt->ts     = ts;
-    tgt->tlp    = tlp;
+    tgt->tlp_queue.push_back(tlp);
 
     tlp->set_type(TYPE_MEM);
     tlp->set_source( rand() & 0xFFFF );
@@ -879,23 +886,53 @@ void __MODULE__::tgt_read(t_transaction &ts) {
     }
 
     // send it
-    rxi_tlp_queue.push_back(tlp);
+    tgt_rxi_queue.push_back(tgt);
+}
 
-    tgt_queue.push_back(tgt);
+bool __MODULE__::tgt_get_rxi_tlp(tlp_type &tlp) {
+    if(tgt_rxi_queue.empty()) {
+        return false;
+    }
+
+    tgt_type tgt = tgt_rxi_queue.front();
+
+    assert(!tgt->tlp_queue.empty() && (tgt->tlp_index < (int)tgt->tlp_queue.size()));
+    tlp = tgt->tlp_queue[tgt->tlp_index];
+
+    if(tlp->is_non_posted() && !rx_np_ok.read()) {
+        return false;
+    }
+
+    if( ++tgt->tlp_index == (int)tgt->tlp_queue.size() ) {
+        tgt_rxi_queue.pop_front();
+        if(tlp->is_non_posted()) {
+            // expecting a completion
+            tgt_cpl_queue.push_back(tgt);
+        } else {
+            // complete now
+            tgt->ts->set_response_status(tlm::TLM_OK_RESPONSE);
+            tgt->ts->complete();
+        }
+    }
+
+    return true;
 }
 
 void __MODULE__::tgt_complete(tlp_type &tlp) {
 
     // find the target_state
     tgt_type tgt;
+    tlp_type tgt_tlp;
     bool tgt_valid = false;
 
-    for(std::deque<tgt_type>::iterator it = tgt_queue.begin(); it != tgt_queue.end(); it++) {
+    for(std::deque<tgt_type>::iterator it = tgt_cpl_queue.begin(); it != tgt_cpl_queue.end(); it++) {
         tgt = (*it);
-        if(tgt->tlp->src_id  == tlp->dest_id &&
-           tgt->tlp->src_tag == tlp->cpl_tag
+        assert(tgt->tlp_queue.size() == 1);
+        tgt_tlp = tgt->tlp_queue.front();
+        if(tgt_tlp->src_id  == tlp->dest_id &&
+           tgt_tlp->src_tag == tlp->cpl_tag
         ) {
-            tgt_queue.erase(it);
+            tgt_cpl_queue.erase(it);
             tgt_valid = true;
             break;
         }
@@ -914,7 +951,7 @@ void __MODULE__::tgt_complete(tlp_type &tlp) {
         goto fin;
     }
 
-    if(tgt->tlp->is_write()) {
+    if(tgt_tlp->is_write()) {
         // non-posted write
         if(!tlp->data.empty()) {
             dlsc_error("write completion with data!");
@@ -922,7 +959,7 @@ void __MODULE__::tgt_complete(tlp_type &tlp) {
         }
     }
 
-    if(tgt->tlp->is_read()) {
+    if(tgt_tlp->is_read()) {
         // read
 
         if(tlp->data.empty()) {
@@ -935,15 +972,15 @@ void __MODULE__::tgt_complete(tlp_type &tlp) {
             error = true;
         }
 
-        if(tgt->tlp->type_mem) {
+        if(tgt_tlp->type_mem) {
             // only memory read completions set cpl_bytes and cpl_addr
             if(tlp->cpl_bytes != (ts->size() - tgt->data.size())*4) {
                 dlsc_assert_equals( tlp->cpl_bytes , (ts->size() - tgt->data.size())*4 );
                 error = true;
             }
 
-            if(tlp->cpl_addr != ((tgt->tlp->dest_addr + tgt->data.size()*4) & 0x7F)) {
-                dlsc_assert_equals( tlp->cpl_addr , ((tgt->tlp->dest_addr + tgt->data.size()*4) & 0x7F) );
+            if(tlp->cpl_addr != ((tgt_tlp->dest_addr + tgt->data.size()*4) & 0x7F)) {
+                dlsc_assert_equals( tlp->cpl_addr , ((tgt_tlp->dest_addr + tgt->data.size()*4) & 0x7F) );
                 error = true;
             }
 
@@ -960,7 +997,7 @@ void __MODULE__::tgt_complete(tlp_type &tlp) {
         goto fin;
     }
 
-    if(tgt->tlp->is_write()) {
+    if(tgt_tlp->is_write()) {
         // non-posted write
         ts->set_response_status(tlm::TLM_OK_RESPONSE);
         goto fin;
@@ -977,7 +1014,7 @@ void __MODULE__::tgt_complete(tlp_type &tlp) {
         goto fin;
     } else {
         // not done; put back on queue
-        tgt_queue.push_back(tgt);
+        tgt_cpl_queue.push_back(tgt);
     }
 
     return;
@@ -985,7 +1022,7 @@ void __MODULE__::tgt_complete(tlp_type &tlp) {
 fin:
     ts->complete();
     // return tag to queue
-    tgt_tag_queue.push_back(tgt->tlp->src_tag);
+    tgt_tag_queue.push_back(tgt_tlp->src_tag);
 }
 
 

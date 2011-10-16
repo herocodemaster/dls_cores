@@ -13,8 +13,6 @@
 
 // for syntax highlighter: SC_MODULE
 
-typedef uint64_t vluint64_t;
-
 /*AUTOSUBCELL_CLASS*/
     
 #define APB_CLK_DOMAIN PARAM_APB_CLK_DOMAIN
@@ -385,6 +383,7 @@ void __MODULE__::stim_thread() {
     }
 
     // run another memtest
+    memory->set_error_rate_read(1.0);
     memtest->test(0,4*4096,1*1000*1);
 
     wait(1,SC_US);
