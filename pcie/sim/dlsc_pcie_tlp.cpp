@@ -59,6 +59,7 @@ void pcie_tlp::clear() {
     type_cfg    = false;
     type_msg    = false;
     type_cpl    = false;
+    non_posted  = false;
     digest_size = 0;
 }
 
@@ -67,6 +68,9 @@ bool pcie_tlp::set_format(pcie_fmt f) {
     fmt_4dw     = (fmt == FMT_4DW || fmt == FMT_4DW_DATA);
     fmt_size    = fmt_4dw ? 4 : 3;
     fmt_data    = (fmt == FMT_3DW_DATA || fmt == FMT_4DW_DATA);
+    if(type_mem) {
+        non_posted  = !fmt_data;    // only non-posted if it is a read (no data)
+    }
     return true;
 }
 
@@ -76,6 +80,7 @@ bool pcie_tlp::set_type(pcie_type t) {
     type_cfg    = false;
     type_msg    = false;
     type_cpl    = false;
+    non_posted  = false;
     
     type        = t;
     
@@ -83,13 +88,16 @@ bool pcie_tlp::set_type(pcie_type t) {
         case TYPE_MEM:
         case TYPE_MEM_LOCKED:
             type_mem    = true;
+            non_posted  = !fmt_data;    // only non-posted if it is a read (no data)
             break;
         case TYPE_IO:
             type_io     = true;
+            non_posted  = true;
             break;
         case TYPE_CONFIG_0:
         case TYPE_CONFIG_1:
             type_cfg    = true;
+            non_posted  = true;
             break;
         case TYPE_MSG_TO_RC:
         case TYPE_MSG_BY_ADDR:
@@ -98,6 +106,7 @@ bool pcie_tlp::set_type(pcie_type t) {
         case TYPE_MSG_LOCAL:
         case TYPE_MSG_PME_RC:
             type_msg    = true;
+            non_posted  = true;
             break;
         case TYPE_CPL:
         case TYPE_CPL_LOCKED:

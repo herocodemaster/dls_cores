@@ -102,12 +102,14 @@ public:
     bool            type_cfg;
     bool            type_msg;
     bool            type_cpl;
+    bool            non_posted;
     unsigned int    digest_size;
 
     inline bool is_write() const { return fmt_data; }
     inline bool is_read() const { return !fmt_data; }
 
-    inline bool is_posted() const { return type_mem && fmt_data; }
+    inline bool is_non_posted() const { return non_posted; }
+    inline bool is_posted() const { return !non_posted; }
 
     inline unsigned int size() const { return length; }
 
