@@ -131,16 +131,18 @@ wire            st_tlp          = (st[0] == 1'b1);
 // TLP arbiter and mux
 reg             arb_ib;
 
-wire            arb_ready       = st_tlp && (pcie_tx_ready || !pcie_tx_valid);
 wire            arb_valid       = arb_ib ? ib_tx_valid  : ob_tx_valid;
 wire            arb_last        = arb_ib ? ib_tx_last   : ob_tx_last;
 wire            arb_error       = arb_ib ? ib_tx_error  : 1'b0;
 wire [31:0]     arb_data        = arb_ib ? ib_tx_data   : ob_tx_data;
 
+wire            arb_ready       = st_tlp && (pcie_tx_ready || !pcie_tx_valid) &&        // pcie_tx_data must be free (or about to be free)
+                                    (!arb_error || (pcie_err_ready && !pcie_tx_valid)); // if TLP is an error, core must be ready for an error (and must have fully accepted any prior TLP)
+
 assign          ib_tx_ready     = arb_ib ? arb_ready    : 1'b0;
 assign          ob_tx_ready     = arb_ib ? 1'b0         : arb_ready;
 
-assign          err_ready       = st_arb && pcie_err_ready && !pcie_err_valid;
+assign          err_ready       = st_arb && (pcie_tx_ready && !pcie_tx_valid) && (pcie_err_ready && !pcie_err_valid);
 
 always @(posedge clk) begin
     if(rst) begin
@@ -167,12 +169,14 @@ always @(posedge clk) begin
         st              <= ST_ARB;
         arb_ib          <= 1'b0;
     end else begin
-        if(st_arb && pcie_err_ready && !pcie_err_valid && !err_valid) begin
-            if(ib_tx_valid || ob_tx_valid) begin
-                st              <= ST_TLP_H0;
-                if( !(arb_ib ? ib_tx_valid : ob_tx_valid) ) begin
-                    arb_ib          <= !arb_ib;
-                end
+        if( st_arb && pcie_tx_ready &&          // must be arbitrating and core must be ready for a TLP
+            !pcie_err_valid && !err_valid &&    // can't have any outstanding or pending errors
+            (ib_tx_valid || ob_tx_valid) )      // and there has to actually be a TLP
+        begin
+            st              <= ST_TLP_H0;
+            if( !(arb_ib ? ib_tx_valid : ob_tx_valid) ) begin
+                // make sure arb_ib actually matches the one we accepted
+                arb_ib          <= !arb_ib;
             end
         end
         if(arb_ready && arb_valid) begin
