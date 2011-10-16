@@ -16,6 +16,10 @@
 using namespace dlsc;
 using namespace dlsc::pcie;
 
+// Verilator generates vluint64_t ports, which SystemPerl doesn't think is
+// compatible with regular uint64_t ports...
+typedef uint64_t vluint64_t;
+
 
 SC_MODULE(__MODULE__) {
 public:
@@ -81,7 +85,7 @@ public:
     sc_core::sc_out<uint32_t>   cfg_pcie_link_state;
     // Misc
     sc_core::sc_in<bool>        cfg_trn_pending;
-    sc_core::sc_in<uint64_t>    cfg_dsn;
+    sc_core::sc_in<vluint64_t>  cfg_dsn;
     
     // ** Interrupts **
     sc_core::sc_in<bool>        cfg_interrupt;
@@ -99,7 +103,7 @@ public:
     sc_core::sc_in<bool>        cfg_err_cpl_abort;
     sc_core::sc_in<bool>        cfg_err_posted;
     sc_core::sc_in<bool>        cfg_err_cor;
-    sc_core::sc_in<uint64_t>    cfg_err_tlp_cpl_header;
+    sc_core::sc_in<vluint64_t>  cfg_err_tlp_cpl_header;
     sc_core::sc_out<bool>       cfg_err_cpl_rdy;
     sc_core::sc_in<bool>        cfg_err_locked;
 
@@ -139,6 +143,9 @@ private:
     unsigned int                rcb;                // read completion boundary (64 or 128 bytes)
     uint64_t                    rcb_mask;
 
+
+    // Error interface
+    void                        err_method();
 
     // Transmit interface
     std::deque<uint32_t>        txi_queue;
@@ -287,6 +294,7 @@ void __MODULE__::clk_method() {
     if(user_reset_out) {
         rst_method();
     } else {
+        err_method();
         txi_method();
         ini_method();
         tgt_method();
@@ -331,8 +339,65 @@ void __MODULE__::rst_method() {
     cfg_interrupt_mmenable  = 0;
     cfg_interrupt_msienable = 0;
     cfg_err_cpl_rdy         = 0;
+
+    // TODO
+    cfg_command             = (0x1<<2);             // bus master enable
+    cfg_dcommand            = (0x2<<5) | (0x5<<12); // max payload 512; max read request 4096
+    cfg_lcommand            = (0x1<<3);             // RCB 128
     
     init_method();
+}
+
+void __MODULE__::err_method() {
+
+    if( (rand()%1000) == 42 ) {
+        cfg_err_cpl_rdy         = 1;
+    }
+
+    if(cfg_err_ecrc) {
+        dlsc_info("got cfg_err_ecrc");
+    }
+    if(cfg_err_cpl_timeout) {
+        dlsc_info("got cfg_err_cpl_timeout");
+    }
+    if(cfg_err_cor) {
+        dlsc_info("got cfg_err_cor");
+    }
+
+    if(cfg_err_cpl_rdy && (cfg_err_ur || cfg_err_cpl_abort)) {
+        if(cfg_err_ur && cfg_err_cpl_abort) {
+            dlsc_error("cfg_err_ur and cfg_err_cpl_abort should not assert simultaneously");
+        }
+        sc_bv<48> header = cfg_err_tlp_cpl_header.read();
+
+        // errors are reported via separate interface..
+        // translate them into TLPs to be processed normally
+        tlp_type tlp(new pcie_tlp);
+        tlp->set_type(TYPE_CPL);
+        tlp->set_completion_status(cfg_err_ur ? CPL_UR : CPL_CA);
+        tlp->set_lower_addr(header.range(47,41).to_uint());
+        tlp->set_byte_count(header.range(40,29).to_uint());
+        tlp->set_traffic_class(header.range(28,26).to_uint());
+        tlp->set_attributes(header[25].to_bool(),header[24].to_bool());
+        tlp->set_destination(header.range(23,8).to_uint());
+        tlp->set_completion_tag(header.range(7,0).to_uint());
+        tlp->set_source(0); // TODO {bus_number,device_number,function_number}
+
+        // process the TLP as if it had come in on the TX interface
+        txi_tlp_process(tlp);
+
+        if( (rand()%100) < 50 ) {
+            cfg_err_cpl_rdy         = 0;
+        }
+    } else {
+        if(cfg_err_ur) {
+            dlsc_error("cfg_err_ur cannot be asserted without cfg_err_cpl_rdy");
+        }
+        if(cfg_err_cpl_abort) {
+            dlsc_error("cfg_err_cpl_abort cannot be asserted without cfg_err_cpl_rdy");
+        }
+    }
+
 }
 
 void __MODULE__::txi_method() {
