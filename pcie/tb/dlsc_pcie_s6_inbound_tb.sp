@@ -132,6 +132,8 @@ SP_CTOR_IMP(__MODULE__) :
         SP_PIN(pcie,fc_sel,pcie_fc_sel);
         SP_PIN(pcie,fc_ph,pcie_fc_ph);
         SP_PIN(pcie,fc_pd,pcie_fc_pd);
+        // Status
+        SP_PIN(pcie,rx_np_ok,pcie_rx_np_ok);
         // Error
         SP_PIN(pcie,cfg_err_cpl_rdy,pcie_err_ready);
         SP_PIN(pcie,cfg_err_ur,pcie_err_unsupported);
