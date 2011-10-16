@@ -425,7 +425,7 @@ SP_FLAGS    += $(addprefix -D,$(SP_DEFINES))
 .PHONY: systemperl
 systemperl: $(SP_TESTBENCH)
 	@echo preprocessing $(notdir $<)
-	@$(SP_PREPROC) $(SP_FLAGS) --MMD $<.d --preproc $<
+	@$(SP_PREPROC) $(SP_FLAGS) --nolint --MMD $<.d --preproc $<
 
 SP_FILES_CPP := $(SP_FILES:.sp=.cpp)
 SP_FILES_H   := $(SP_FILES:.sp=.h)
