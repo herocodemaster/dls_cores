@@ -11,6 +11,8 @@
 #include "dlsc_tlm_channel.h"
 #include "dlsc_tlm_fabric.h"
 
+// for syntax highlighter: SC_MODULE
+
 typedef uint64_t vluint64_t;
 
 /*AUTOSUBCELL_CLASS*/
@@ -242,14 +244,14 @@ SP_CTOR_IMP(__MODULE__) :
     pcie_channel->set_delay(sc_core::sc_time(500,SC_NS),sc_core::sc_time(1000,SC_NS));
     
     memtest         = new dlsc_tlm_memtest<uint32_t>("memtest",(1<<LEN));
-    memtest->socket.bind(fabric->in_socket);
-    memtest->socket.bind(pcie_channel->in_socket);
+    memtest->socket.bind(fabric->in_socket);            // outbound
+    memtest->socket.bind(pcie_channel->in_socket);      // inbound
     pcie_channel->out_socket.bind(pcie->target_socket);
 
     initiator       = new dlsc_tlm_initiator_nb<uint32_t>("initiator",(1<<LEN));
-    initiator->socket.bind(fabric->in_socket);
-    initiator->socket.bind(pcie_channel->in_socket);
-    initiator->socket.bind(apb_master->socket); // TODO
+    initiator->socket.bind(fabric->in_socket);          // outbound
+    initiator->socket.bind(pcie_channel->in_socket);    // inbound
+    initiator->socket.bind(apb_master->socket);         // TODO
     pcie_channel->out_socket.bind(pcie->target_socket);
 
     pcie->initiator_socket.bind(pcie_channel->in_socket);
@@ -328,6 +330,58 @@ void __MODULE__::stim_thread() {
             // wait for reset to subside
             wait(user_clk_out.posedge_event());
         }
+    }
+
+    // test bandwidth
+    memory->set_error_rate_read(0.0);
+    data.resize(1<<LEN);
+    std::deque<transaction> ts_queue;
+    sc_core::sc_time elapsed = sc_core::sc_time_stamp();
+    int length = 64*1024;
+    double mbps;
+    for(i=0;i<2;++i) {
+
+        // read
+        dlsc_info("testing " << (i?"inbound":"outbound") << " read bandwidth..");
+        elapsed = sc_core::sc_time_stamp();
+        initiator->set_socket(i);
+        for(j=0;j<length;j+=(1<<LEN)) {
+            ts_queue.push_back(initiator->nb_read(j*4,(1<<LEN)));
+            while(ts_queue.size() > 16) {
+                ts = ts_queue.front(); ts_queue.pop_front();
+                if(ts->b_status() != tlm::TLM_OK_RESPONSE) {
+                    dlsc_error("read failed to 0x" << std::hex << ts->get_address());
+                }
+            }
+        }
+        initiator->wait();
+        ts_queue.clear();
+        elapsed = sc_core::sc_time_stamp() - elapsed;
+        mbps = (length*4.0) / (elapsed.to_seconds()*1000000.0);
+        dlsc_info("..transferred " << (length*4) << " bytes in " << elapsed << " (throughput: " << mbps << " MB/s)");
+        dlsc_assert(mbps > 150.0 && mbps < 250.0);
+
+        // write
+        dlsc_info("testing " << (i?"inbound":"outbound") << " write bandwidth..");
+        elapsed = sc_core::sc_time_stamp();
+        initiator->set_socket(i);
+        for(j=0;j<length;j+=(1<<LEN)) {
+            ts_queue.push_back(initiator->nb_write(j*4,data));
+            while(ts_queue.size() > 16) {
+                ts = ts_queue.front(); ts_queue.pop_front();
+                if(ts->b_status() != tlm::TLM_OK_RESPONSE) {
+                    dlsc_error("write failed to 0x" << std::hex << ts->get_address());
+                }
+            }
+        }
+        initiator->nb_read(0,1); // one last read to make sure all of the writes really finished
+        initiator->wait();
+        ts_queue.clear();
+        elapsed = sc_core::sc_time_stamp() - elapsed;
+        mbps = (length*4.0) / (elapsed.to_seconds()*1000000.0);
+        dlsc_info("..transferred " << (length*4) << " bytes in " << elapsed << " (throughput: " << mbps << " MB/s)");
+        dlsc_assert(mbps > 150.0 && mbps < 250.0);
+
     }
 
     // run another memtest
