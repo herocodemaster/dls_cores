@@ -1,12 +1,14 @@
 
 module dlsc_pcie_s6_outbound #(
+    // ** Clock relationships **
+    parameter APB_CLK_DOMAIN    = 0,
+    parameter OB_CLK_DOMAIN     = 0,
+
     // ** APB **
-    parameter APB_ASYNC         = 0,                // apb_clk asynchronous to user_clk_out
     parameter APB_EN            = 1,                // enable APB registers and interrupts
     parameter APB_ADDR          = 32,               // width of APB address bus
     
     // ** Outbound **
-    parameter ASYNC             = 0,                // axi_clk asynchronous to pcie_clk
     parameter ADDR              = 32,               // width of AXI address bus
     parameter LEN               = 4,                // width of AXI length field
     parameter WRITE_EN          = 1,                // enable outbound write path
@@ -58,7 +60,6 @@ module dlsc_pcie_s6_outbound #(
     input   wire    [3:0]           apb_strb,
     output  wire                    apb_ready,
     output  wire    [31:0]          apb_rdata,
-    output  wire                    apb_slverr,
 
     // Control/Status
     input   wire                    apb_ob_rd_disable,
@@ -211,12 +212,11 @@ wire [31:0]     trans_apb_wdata;
 wire [3:0]      trans_apb_strb;
 wire            trans_apb_ready;
 wire [31:0]     trans_apb_rdata;
-wire            trans_apb_slverr;
 
 generate
 if(APB_EN) begin:GEN_APB
 
-    if(APB_ASYNC||ASYNC) begin:GEN_APB_ASYNC
+    if(APB_CLK_DOMAIN!=OB_CLK_DOMAIN) begin:GEN_APB_ASYNC
 
         dlsc_syncflop #(
             .DATA       ( 2 ),
@@ -261,7 +261,6 @@ if(!APB_EN||TRANS_REGIONS<=0) begin:GEN_TRANS_APB_TIED
     // APB only connects to translator.. tie off if no translator or no APB
     assign          apb_ready           = apb_sel && apb_enable;
     assign          apb_rdata           = 32'h0;
-    assign          apb_slverr          = 1'b0;
     assign          trans_apb_addr      = 4'h0;
     assign          trans_apb_sel       = 1'b0;
     assign          trans_apb_enable    = 1'b0;
@@ -269,7 +268,7 @@ if(!APB_EN||TRANS_REGIONS<=0) begin:GEN_TRANS_APB_TIED
     assign          trans_apb_wdata     = 32'h0;
     assign          trans_apb_strb      = 4'h0;
 
-end else if(APB_ASYNC||ASYNC) begin:GEN_TRANS_APB_ASYNC
+end else if(APB_CLK_DOMAIN!=OB_CLK_DOMAIN) begin:GEN_TRANS_APB_ASYNC
     
     dlsc_apb_domaincross #(
         .DATA           ( 32 ),
@@ -285,7 +284,7 @@ end else if(APB_ASYNC||ASYNC) begin:GEN_TRANS_APB_ASYNC
         .m_apb_strb     ( apb_strb ),
         .m_apb_ready    ( apb_ready ),
         .m_apb_rdata    ( apb_rdata ),
-        .m_apb_slverr   ( apb_slverr ),
+        .m_apb_slverr   (  ),
         .s_clk          ( axi_clk ),
         .s_rst          ( axi_rst ),
         .s_apb_addr     ( trans_apb_addr ),
@@ -296,7 +295,7 @@ end else if(APB_ASYNC||ASYNC) begin:GEN_TRANS_APB_ASYNC
         .s_apb_strb     ( trans_apb_strb ),
         .s_apb_ready    ( trans_apb_ready ),
         .s_apb_rdata    ( trans_apb_rdata ),
-        .s_apb_slverr   ( trans_apb_slverr )
+        .s_apb_slverr   ( 1'b0 )
     );
 
 end else begin:GEN_TRANS_APB_SYNC
@@ -309,14 +308,10 @@ end else begin:GEN_TRANS_APB_SYNC
     assign          trans_apb_strb      = apb_strb;
     assign          apb_ready           = trans_apb_ready;
     assign          apb_rdata           = trans_apb_rdata;
-    assign          apb_slverr          = trans_apb_slverr;
 
 end
 
-endgenerate
-
-generate
-if(ASYNC==0) begin:GEN_SYNC
+if(OB_CLK_DOMAIN==0) begin:GEN_SYNC
 
     assign          pcie_tlp_pending    = tlp_pending;
 
@@ -696,7 +691,6 @@ if(TRANS_REGIONS>0) begin:GEN_TRANS
         .apb_strb           ( trans_apb_strb ),
         .apb_ready          ( trans_apb_ready ),
         .apb_rdata          ( trans_apb_rdata ),
-        .apb_slverr         ( trans_apb_slverr ),
         .trans_req          ( trans_req ),
         .trans_req_addr     ( trans_req_addr ),
         .trans_ack          ( trans_ack ),
@@ -713,7 +707,6 @@ end else begin:GEN_NO_TRANS
 
     assign  trans_apb_ready = trans_apb_sel && trans_apb_enable;
     assign  trans_apb_rdata = 32'h0;
-    assign  trans_apb_slverr= 1'b0;
 
 end
 endgenerate

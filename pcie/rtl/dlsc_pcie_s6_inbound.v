@@ -1,14 +1,21 @@
 
 module dlsc_pcie_s6_inbound #(
-    parameter ASYNC         = 0,                // axi_clk asynchronous to pcie_clk
-    parameter ADDR          = 32,               // width of AXI address bus
-    parameter LEN           = 4,                // width of AXI length field
-    parameter WRITE_EN      = 1,                // enable inbound write path
-    parameter WRITE_BUFFER  = 32,
-    parameter WRITE_MOT     = 16,               // max outstanding write transactions
-    parameter READ_EN       = 1,                // enable inbound read path
-    parameter READ_BUFFER   = 256,
-    parameter READ_MOT      = 16,               // max outstanding read transactions
+    // ** Clock relationships **
+    parameter APB_CLK_DOMAIN    = 0,
+    parameter IB_CLK_DOMAIN     = 0,
+
+    // ** APB **
+    parameter APB_EN            = 1,                // enable APB registers and interrupts
+
+    // ** Inbound **
+    parameter ADDR              = 32,               // width of AXI address bus
+    parameter LEN               = 4,                // width of AXI length field
+    parameter WRITE_EN          = 1,                // enable inbound write path
+    parameter WRITE_BUFFER      = 32,
+    parameter WRITE_MOT         = 16,               // max outstanding write transactions
+    parameter READ_EN           = 1,                // enable inbound read path
+    parameter READ_BUFFER       = 256,
+    parameter READ_MOT          = 16,               // max outstanding read transactions
 
     // Address translation
     parameter [ADDR-1:0] TRANS_BAR0_MASK = {ADDR{1'b1}},
@@ -28,6 +35,18 @@ module dlsc_pcie_s6_inbound #(
     parameter [ADDR-1:0] TRANS_CFG_MASK  = {ADDR{1'b1}},
     parameter [ADDR-1:0] TRANS_CFG_BASE  = {ADDR{1'b0}}
 ) (
+    // ** APB **
+    
+    // System
+    input   wire                apb_clk,
+    input   wire                apb_rst,
+
+    // Control/Status
+    input   wire                apb_ib_rd_disable,
+    input   wire                apb_ib_wr_disable,
+    output  wire                apb_ib_rd_busy,
+    output  wire                apb_ib_wr_busy,
+
     // ** AXI **
     
     // System
@@ -64,12 +83,6 @@ module dlsc_pcie_s6_inbound #(
     output  wire                axi_b_ready,
     input   wire                axi_b_valid,
     input   wire    [1:0]       axi_b_resp,
-
-    // Control/Status
-    input   wire                axi_rd_disable,
-    input   wire                axi_wr_disable,
-    output  wire                axi_rd_busy,
-    output  wire                axi_wr_busy,
     
     // ** PCIe **
 
@@ -157,20 +170,53 @@ wire            axi_disable;
 wire            axi_flush;
 wire            rd_disable;
 wire            wr_disable;
-
-// rd/wr_disable are always synchronized (APB may be async)
-dlsc_syncflop #(
-    .DATA       ( 2 ),
-    .RESET      ( 2'b11 )
-) dlsc_syncflop_disable (
-    .in         ( { axi_rd_disable, axi_wr_disable } ),
-    .clk        ( axi_clk ),
-    .rst        ( bridge_rst ),
-    .out        ( {     rd_disable,     wr_disable } )
-);
+wire            rd_busy;
+wire            wr_busy;
 
 generate
-if(ASYNC==0) begin:GEN_SYNC
+if(APB_EN) begin:GEN_APB
+
+    if(APB_CLK_DOMAIN!=IB_CLK_DOMAIN) begin:GEN_APB_ASYNC
+
+        dlsc_syncflop #(
+            .DATA       ( 2 ),
+            .RESET      ( 2'b11 )
+        ) dlsc_syncflop_disable (
+            .in         ( { apb_ib_rd_disable, apb_ib_wr_disable } ),
+            .clk        ( axi_clk ),
+            .rst        ( bridge_rst ),
+            .out        ( {        rd_disable,        wr_disable } )
+        );
+        
+        dlsc_syncflop #(
+            .DATA       ( 2 ),
+            .RESET      ( 2'b11 )
+        ) dlsc_syncflop_busy (
+            .in         ( {        rd_busy,        wr_busy } ),
+            .clk        ( apb_clk ),
+            .rst        ( apb_rst ),
+            .out        ( { apb_ib_rd_busy, apb_ib_wr_busy } )
+        );
+
+    end else begin:GEN_APB_SYNC
+
+        assign          rd_disable          = apb_ib_rd_disable;
+        assign          wr_disable          = apb_ib_wr_disable;
+        assign          apb_ib_rd_busy      = rd_busy;
+        assign          apb_ib_wr_busy      = wr_busy;
+
+    end
+
+end else begin:GEN_NO_APB
+    
+    assign          rd_disable          = 1'b0;
+    assign          wr_disable          = 1'b0;
+    assign          apb_ib_rd_busy      = 1'b0;
+    assign          apb_ib_wr_busy      = 1'b0;
+
+end
+
+if(IB_CLK_DOMAIN!=0) begin:GEN_SYNC
     
     assign          pcie_rx_np_ok       = rx_np_ok;
 
@@ -211,7 +257,7 @@ end else begin:GEN_ASYNC
         .rst            ( axi_rst ),
         .cross_rst      ( cross_rst ),
         .bridge_rst     ( bridge_rst ),
-        .axi_busy       ( axi_rd_busy || axi_wr_busy ),
+        .axi_busy       ( rd_busy || wr_busy ),
         .axi_disable    ( axi_disable ),
         .axi_flush      ( axi_flush )
     );
@@ -492,7 +538,7 @@ if(WRITE_EN) begin:GEN_WRITE
         .axi_b_ready    ( axi_b_ready ),
         .axi_b_valid    ( axi_b_valid ),
         .axi_b_resp     ( axi_b_resp ),
-        .wr_busy        ( axi_wr_busy ),
+        .wr_busy        ( wr_busy ),
         .wr_disable     ( axi_disable || wr_disable ),
         .wr_flush       ( axi_flush )
     );
@@ -522,7 +568,7 @@ end else begin:GEN_NOWRITE
 
     assign          axi_b_ready         = 1'b0;
 
-    assign          axi_wr_busy         = 1'b0;
+    assign          wr_busy             = 1'b0;
 
 end
 endgenerate
@@ -586,7 +632,7 @@ if(READ_EN) begin:GEN_READ
         .axi_r_last     ( axi_r_last ),
         .axi_r_data     ( axi_r_data ),
         .axi_r_resp     ( axi_r_resp ),
-        .rd_busy        ( axi_rd_busy ),
+        .rd_busy        ( rd_busy ),
         .rd_disable     ( axi_disable || rd_disable ),
         .rd_flush       ( axi_flush )
     );
@@ -616,7 +662,7 @@ end else begin:GEN_NOREAD
 
     assign          axi_r_ready         = 1'b0;
     
-    assign          axi_rd_busy         = 1'b0;
+    assign          rd_busy             = 1'b0;
 
 end
 endgenerate

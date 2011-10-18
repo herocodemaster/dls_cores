@@ -10,7 +10,9 @@ module dlsc_pcie_s6 #(
     parameter OB_CLK_DOMAIN     = 0,
 
     // ** APB **
-    parameter APB_EN            = 1,                // enable APB registers and interrupts
+    parameter APB_EN            = 1,                // enable APB registers and internal interrupts
+    parameter APB_INT_EN        = APB_EN,           // enable outbound interrupts
+    parameter APB_CONFIG_EN     = APB_EN,           // enable APB access to PCIe configuration space
     parameter APB_ADDR          = 32,               // width of APB address bus
     parameter AUTO_POWEROFF     = 1,                // automatically acknowledge power-off requests
     parameter INTERRUPTS        = 1,                // number of interrupt request inputs (1-32)
@@ -266,21 +268,128 @@ module dlsc_pcie_s6 #(
 
 // ** Registers ** (TODO)
 
-assign      apb_ready               = apb_sel && apb_enable;
-assign      apb_rdata               = 32'd0;
-assign      apb_slverr              = 1'b0;
+wire        apb_ob_rd_disable;
+wire        apb_ob_wr_disable;
+wire        apb_ob_rd_busy;
+wire        apb_ob_wr_busy;
 
-assign      apb_int_out             = 1'b0;
+wire        apb_ib_rd_disable;
+wire        apb_ib_wr_disable;
+wire        apb_ib_rd_busy;
+wire        apb_ib_wr_busy;
 
-// tie-off (TODO)
-assign      cfg_rd_en               = 1'b0;
-assign      cfg_dwaddr              = 10'd0;
-assign      cfg_turnoff_ok          = cfg_to_turnoff;
-assign      cfg_pm_wake             = 1'b0;
-assign      cfg_dsn                 = {64{1'b0}};
-assign      cfg_interrupt           = 1'b0;
-assign      cfg_interrupt_assert    = 1'b0;
-assign      cfg_interrupt_di        = 8'd0;
+wire [APB_ADDR-1:0] apb_ob_addr;
+wire        apb_ob_sel;
+wire        apb_ob_enable;
+wire        apb_ob_write;
+wire [31:0] apb_ob_wdata;
+wire [3:0]  apb_ob_strb;
+wire        apb_ob_ready;
+wire [31:0] apb_ob_rdata;
+
+generate
+if(APB_EN) begin:GEN_APB
+
+    dlsc_pcie_s6_registers #(
+        .APB_CLK_DOMAIN                 ( APB_CLK_DOMAIN ),
+        .APB_EN                         ( APB_EN ),
+        .APB_INT_EN                     ( APB_INT_EN ),
+        .APB_CONFIG_EN                  ( APB_CONFIG_EN ),
+        .APB_ADDR                       ( APB_ADDR ),
+        .AUTO_POWEROFF                  ( AUTO_POWEROFF ),
+        .INTERRUPTS                     ( INTERRUPTS ),
+        .INT_ASYNC                      ( INT_ASYNC )
+    ) dlsc_pcie_s6_registers_inst (
+        .apb_clk                        ( apb_clk ),
+        .apb_rst                        ( apb_rst ),
+        .apb_addr                       ( apb_addr ),
+        .apb_sel                        ( apb_sel ),
+        .apb_enable                     ( apb_enable ),
+        .apb_write                      ( apb_write ),
+        .apb_wdata                      ( apb_wdata ),
+        .apb_strb                       ( apb_strb ),
+        .apb_ready                      ( apb_ready ),
+        .apb_rdata                      ( apb_rdata ),
+        .apb_slverr                     ( apb_slverr ),
+        .apb_int_in                     ( apb_int_in ),
+        .apb_int_out                    ( apb_int_out ),
+        .apb_ob_addr                    ( apb_ob_addr ),
+        .apb_ob_sel                     ( apb_ob_sel ),
+        .apb_ob_enable                  ( apb_ob_enable ),
+        .apb_ob_write                   ( apb_ob_write ),
+        .apb_ob_wdata                   ( apb_ob_wdata ),
+        .apb_ob_strb                    ( apb_ob_strb ),
+        .apb_ob_ready                   ( apb_ob_ready ),
+        .apb_ob_rdata                   ( apb_ob_rdata ),
+        .apb_ob_rd_disable              ( apb_ob_rd_disable ),
+        .apb_ob_wr_disable              ( apb_ob_wr_disable ),
+        .apb_ob_rd_busy                 ( apb_ob_rd_busy ),
+        .apb_ob_wr_busy                 ( apb_ob_wr_busy ),
+        .apb_ib_rd_disable              ( apb_ib_rd_disable ),
+        .apb_ib_wr_disable              ( apb_ib_wr_disable ),
+        .apb_ib_rd_busy                 ( apb_ib_rd_busy ),
+        .apb_ib_wr_busy                 ( apb_ib_wr_busy ),
+        .pcie_clk                       ( user_clk_out ),
+        .pcie_rst                       ( user_reset_out ),
+        .pcie_user_lnk_up               ( user_lnk_up ),
+        .pcie_cfg_rd_en                 ( cfg_rd_en ),
+        .pcie_cfg_dwaddr                ( cfg_dwaddr ),
+        .pcie_cfg_rd_wr_done            ( cfg_rd_wr_done ),
+        .pcie_cfg_do                    ( cfg_do ),
+        .pcie_cfg_bus_number            ( cfg_bus_number ),
+        .pcie_cfg_device_number         ( cfg_device_number ),
+        .pcie_cfg_function_number       ( cfg_function_number ),
+        .pcie_cfg_status                ( cfg_status ),
+        .pcie_cfg_command               ( cfg_command ),
+        .pcie_cfg_dstatus               ( cfg_dstatus ),
+        .pcie_cfg_dcommand              ( cfg_dcommand ),
+        .pcie_cfg_lstatus               ( cfg_lstatus ),
+        .pcie_cfg_lcommand              ( cfg_lcommand ),
+        .pcie_cfg_pcie_link_state       ( cfg_pcie_link_state ),
+        .pcie_cfg_to_turnoff            ( cfg_to_turnoff ),
+        .pcie_cfg_turnoff_ok            ( cfg_turnoff_ok ),
+        .pcie_cfg_pm_wake               ( cfg_pm_wake ),
+        .pcie_cfg_interrupt_msienable   ( cfg_interrupt_msienable ),
+        .pcie_cfg_interrupt_mmenable    ( cfg_interrupt_mmenable ),
+        .pcie_cfg_interrupt_rdy         ( cfg_interrupt_rdy ),
+        .pcie_cfg_interrupt             ( cfg_interrupt ),
+        .pcie_cfg_interrupt_assert      ( cfg_interrupt_assert ),
+        .pcie_cfg_interrupt_di          ( cfg_interrupt_di )
+    );
+
+    assign      cfg_dsn                 = {64{1'b0}};
+
+end else begin:GEN_NO_APB
+
+    assign      apb_ready               = apb_sel && apb_enable;
+    assign      apb_rdata               = 32'd0;
+    assign      apb_slverr              = 1'b0;
+
+    assign      apb_int_out             = 1'b0;
+
+    assign      cfg_rd_en               = 1'b0;
+    assign      cfg_dwaddr              = 10'd0;
+    assign      cfg_turnoff_ok          = cfg_to_turnoff;
+    assign      cfg_pm_wake             = 1'b0;
+    assign      cfg_dsn                 = {64{1'b0}};
+    assign      cfg_interrupt           = 1'b0;
+    assign      cfg_interrupt_assert    = 1'b0;
+    assign      cfg_interrupt_di        = 8'd0;
+
+    assign      apb_ob_addr             = {APB_ADDR{1'b0}};
+    assign      apb_ob_sel              = 1'b0;
+    assign      apb_ob_enable           = 1'b0;
+    assign      apb_ob_write            = 1'b0;
+    assign      apb_ob_wdata            = 32'd0;
+    assign      apb_ob_strb             = 4'd0;
+
+    assign      apb_ib_rd_disable       = 1'b0;
+    assign      apb_ib_wr_disable       = 1'b0;
+    assign      apb_ob_rd_disable       = 1'b0;
+    assign      apb_ob_wr_disable       = 1'b0;
+
+end
+endgenerate
 
 
 // ** Inbound **
@@ -301,7 +410,8 @@ wire        ib_err_valid;
 wire        ib_err_unsupported;
 
 dlsc_pcie_s6_inbound #(
-    .ASYNC                  ( IB_CLK_DOMAIN != 0 ),
+    .APB_CLK_DOMAIN         ( APB_CLK_DOMAIN ),
+    .IB_CLK_DOMAIN          ( IB_CLK_DOMAIN ),
     .ADDR                   ( IB_ADDR ),
     .LEN                    ( IB_LEN ),
     .WRITE_EN               ( IB_WRITE_EN ),
@@ -350,10 +460,10 @@ dlsc_pcie_s6_inbound #(
     .axi_b_ready            ( ib_b_ready ),
     .axi_b_valid            ( ib_b_valid ),
     .axi_b_resp             ( ib_b_resp ),
-    .axi_rd_disable         ( 1'b0 ),   // TODO
-    .axi_wr_disable         ( 1'b0 ),   // TODO
-    .axi_rd_busy            (  ),       // TODO
-    .axi_wr_busy            (  ),       // TODO
+    .apb_ib_rd_disable      ( apb_ib_rd_disable ),
+    .apb_ib_wr_disable      ( apb_ib_wr_disable ),
+    .apb_ib_rd_busy         ( apb_ib_rd_busy ),
+    .apb_ib_wr_busy         ( apb_ib_wr_busy ),
     .pcie_clk               ( user_clk_out ),
     .pcie_rst               ( user_reset_out ),
     .pcie_rx_np_ok          ( rx_np_ok ),
@@ -396,10 +506,10 @@ wire        ob_err_unexpected;
 wire        ob_err_timeout;
 
 dlsc_pcie_s6_outbound #(
-    .APB_ASYNC              ( APB_CLK_DOMAIN != 0 ),
+    .APB_CLK_DOMAIN         ( APB_CLK_DOMAIN ),
+    .OB_CLK_DOMAIN          ( OB_CLK_DOMAIN ),
     .APB_EN                 ( APB_EN ),
     .APB_ADDR               ( APB_ADDR ),
-    .ASYNC                  ( OB_CLK_DOMAIN != 0 ),
     .ADDR                   ( OB_ADDR ),
     .LEN                    ( OB_LEN ),
     .WRITE_EN               ( OB_WRITE_EN ),
@@ -434,19 +544,18 @@ dlsc_pcie_s6_outbound #(
 ) dlsc_pcie_s6_outbound_inst (
     .apb_clk                ( apb_clk ),
     .apb_rst                ( apb_rst ),
-    .apb_addr               ( {APB_ADDR{1'b0}} ),
-    .apb_sel                ( 1'b0 ),
-    .apb_enable             ( 1'b0 ),
-    .apb_write              ( 1'b0 ),
-    .apb_wdata              ( 32'd0 ),
-    .apb_strb               ( 4'd0 ),
-    .apb_ready              (  ),
-    .apb_rdata              (  ),
-    .apb_slverr             (  ),
-    .apb_ob_rd_disable      ( 1'b0 ),
-    .apb_ob_wr_disable      ( 1'b0 ),
-    .apb_ob_rd_busy         (  ),
-    .apb_ob_wr_busy         (  ),
+    .apb_addr               ( apb_ob_addr ),
+    .apb_sel                ( apb_ob_sel ),
+    .apb_enable             ( apb_ob_enable ),
+    .apb_write              ( apb_ob_write ),
+    .apb_wdata              ( apb_ob_wdata ),
+    .apb_strb               ( apb_ob_strb ),
+    .apb_ready              ( apb_ob_ready ),
+    .apb_rdata              ( apb_ob_rdata ),
+    .apb_ob_rd_disable      ( apb_ob_rd_disable ),
+    .apb_ob_wr_disable      ( apb_ob_wr_disable ),
+    .apb_ob_rd_busy         ( apb_ob_rd_busy ),
+    .apb_ob_wr_busy         ( apb_ob_wr_busy ),
     .axi_clk                ( ob_clk ),
     .axi_rst                ( ob_rst ),
     .axi_ar_ready           ( ob_ar_ready ),

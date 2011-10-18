@@ -32,7 +32,6 @@ module dlsc_pcie_s6_outbound_trans #(
     input   wire    [3:0]       apb_strb,
     output  wire                apb_ready,
     output  wire    [31:0]      apb_rdata,
-    output  wire                apb_slverr,
 
     // Translation request
     input   wire                trans_req,
@@ -123,7 +122,6 @@ wire [31:0]     mem_rd          = { mem3[mem_addr],
 
 assign          apb_ready       = apb_sel && apb_enable;
 assign          apb_rdata       = apb_sel ? mem_rd : 32'h0;
-assign          apb_slverr      = 1'b0;
 
 wire            mem_wr_en       = apb_sel && apb_write;
 
