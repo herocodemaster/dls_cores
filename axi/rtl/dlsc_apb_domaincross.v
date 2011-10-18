@@ -56,7 +56,7 @@ module dlsc_apb_domaincross #(
     
     output  wire    [ADDR-1:0]      s_apb_addr,
     output  wire                    s_apb_sel,
-    output  wire                    s_apb_enable,
+    output  reg                     s_apb_enable,
     output  wire                    s_apb_write,
     output  wire    [DATA-1:0]      s_apb_wdata,
     output  wire    [STRB-1:0]      s_apb_strb,
