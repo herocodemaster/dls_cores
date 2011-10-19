@@ -216,7 +216,7 @@ end else begin:GEN_NO_APB
 
 end
 
-if(IB_CLK_DOMAIN!=0) begin:GEN_SYNC
+if(IB_CLK_DOMAIN==0) begin:GEN_SYNC
     
     assign          pcie_rx_np_ok       = rx_np_ok;
 
