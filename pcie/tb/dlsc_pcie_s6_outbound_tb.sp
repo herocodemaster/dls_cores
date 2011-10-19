@@ -23,7 +23,7 @@
 #define READ_CPLD       PARAM_READ_CPLD
 #define READ_TIMEOUT    PARAM_READ_TIMEOUT
 
-#if (PARAM_ASYNC>0)
+#if (PARAM_OB_CLK_DOMAIN!=0)
 #define ASYNC
 #else
 #define SYNC

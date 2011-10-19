@@ -16,7 +16,7 @@
 #define ADDR            PARAM_ADDR
 #define LEN             PARAM_LEN
 
-#if (PARAM_ASYNC>0)
+#if (PARAM_IB_CLK_DOMAIN!=0)
 #define ASYNC
 #else
 #define SYNC

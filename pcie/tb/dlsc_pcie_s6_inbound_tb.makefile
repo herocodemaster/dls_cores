@@ -11,7 +11,9 @@ SP_FILES        += dlsc_pcie_s6_model.sp
 SP_FILES        += dlsc_axi4lb_tlm_slave_32b.sp
 
 V_PARAMS_DEF    += \
-    ASYNC=0 \
+    APB_CLK_DOMAIN=0 \
+    IB_CLK_DOMAIN=0 \
+    APB_EN=1 \
     ADDR=32 \
     LEN=4 \
     WRITE_EN=1 \
@@ -29,11 +31,11 @@ sims1:
 	$(MAKE) -f $(THIS) V_PARAMS="WRITE_EN=0"
 
 sims2:
-	$(MAKE) -f $(THIS) V_PARAMS="ASYNC=1"
+	$(MAKE) -f $(THIS) V_PARAMS="IB_CLK_DOMAIN=1"
 
 sims3:
-	$(MAKE) -f $(THIS) V_PARAMS="ASYNC=1 READ_EN=0"
-	$(MAKE) -f $(THIS) V_PARAMS="ASYNC=1 WRITE_EN=0"
+	$(MAKE) -f $(THIS) V_PARAMS="IB_CLK_DOMAIN=1 READ_EN=0"
+	$(MAKE) -f $(THIS) V_PARAMS="IB_CLK_DOMAIN=1 WRITE_EN=0"
 
 include $(DLSC_MAKEFILE_BOT)
 
