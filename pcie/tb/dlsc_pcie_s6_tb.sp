@@ -21,7 +21,6 @@
 #define APB_ADDR PARAM_APB_ADDR
 #define AUTO_POWEROFF PARAM_AUTO_POWEROFF
 #define INTERRUPTS PARAM_INTERRUPTS
-#define INT_ASYNC PARAM_INT_ASYNC
 #define IB_ADDR PARAM_IB_ADDR
 #define IB_LEN PARAM_IB_LEN
 #define IB_WRITE_BUFFER PARAM_IB_WRITE_BUFFER
@@ -45,38 +44,52 @@
 #define LEN OB_LEN
 #endif
 
-#if (PARAM_APB_CLK_DOMAIN!=0)
-#define APB_ASYNC
-#else
-#define APB_SYNC
-#endif
-#if (PARAM_IB_CLK_DOMAIN!=0)
-#define IB_ASYNC
-#else
-#define IB_SYNC
-#endif
-#if (PARAM_OB_CLK_DOMAIN!=0)
-#define OB_ASYNC
-#else
-#define OB_SYNC
-#endif
-
 #if (PARAM_APB_EN>0)
-#define APB_EN
+#define APB_EN 1
+#define INT_EN 1
+#define CFG_EN 1
 #endif
 #if (PARAM_IB_READ_EN>0)
-#define IB_READ_EN
+#define IB_READ_EN 1
 #endif
 #if (PARAM_IB_WRITE_EN>0)
-#define IB_WRITE_EN
+#define IB_WRITE_EN 1
 #endif
 #if (PARAM_OB_READ_EN>0)
-#define OB_READ_EN
+#define OB_READ_EN 1
 #endif
 #if (PARAM_OB_WRITE_EN>0)
-#define OB_WRITE_EN
+#define OB_WRITE_EN 1
 #endif
 
+
+#if (PARAM_APB_CLK_DOMAIN==1)
+    #define APB_CLK clk1
+#elif (PARAM_APB_CLK_DOMAIN==2)
+    #define APB_CLK clk2
+#elif (PARAM_APB_CLK_DOMAIN==3)
+    #define APB_CLK clk3
+#else
+    #define APB_CLK user_clk_out
+#endif
+#if (PARAM_IB_CLK_DOMAIN==1)
+    #define IB_CLK clk1
+#elif (PARAM_IB_CLK_DOMAIN==2)
+    #define IB_CLK clk2
+#elif (PARAM_IB_CLK_DOMAIN==3)
+    #define IB_CLK clk3
+#else
+    #define IB_CLK user_clk_out
+#endif
+#if (PARAM_OB_CLK_DOMAIN==1)
+    #define OB_CLK clk1
+#elif (PARAM_OB_CLK_DOMAIN==2)
+    #define OB_CLK clk2
+#elif (PARAM_OB_CLK_DOMAIN==3)
+    #define OB_CLK clk3
+#else
+    #define OB_CLK user_clk_out
+#endif
 
 
 SC_MODULE (__MODULE__) {
@@ -96,6 +109,10 @@ private:
 
     void stim_thread();
     void watchdog_thread();
+    
+    void reg_write(uint32_t addr, uint32_t data);
+    uint32_t reg_read(uint32_t addr);
+    dlsc_tlm_initiator_nb<uint32_t> *apb_initiator;
 
     dlsc_tlm_initiator_nb<uint32_t> *initiator;
     typedef dlsc_tlm_initiator_nb<uint32_t>::transaction transaction;
@@ -125,6 +142,15 @@ public:
 #include <boost/shared_array.hpp>
 
 #include "dlsc_main.cpp"
+
+const uint32_t REG_CONTROL         = 0x0;
+const uint32_t REG_STATUS          = 0x1;
+const uint32_t REG_INT_FLAGS       = 0x2;
+const uint32_t REG_INT_SELECT      = 0x3;
+const uint32_t REG_OBINT_FORCE     = 0x4;
+const uint32_t REG_OBINT_FLAGS     = 0x5;
+const uint32_t REG_OBINT_SELECT    = 0x6;
+const uint32_t REG_OBINT_ACK       = 0x7;
 
 SP_CTOR_IMP(__MODULE__) :
     sys_clk("sys_clk",10,SC_NS),
@@ -249,11 +275,13 @@ SP_CTOR_IMP(__MODULE__) :
     initiator       = new dlsc_tlm_initiator_nb<uint32_t>("initiator",(1<<LEN));
     initiator->socket.bind(fabric->in_socket);          // outbound
     initiator->socket.bind(pcie_channel->in_socket);    // inbound
-    initiator->socket.bind(apb_master->socket);         // TODO
     pcie_channel->out_socket.bind(pcie->target_socket);
 
     pcie->initiator_socket.bind(pcie_channel->in_socket);
     pcie_channel->out_socket.bind(memory->socket);
+    
+    apb_initiator   = new dlsc_tlm_initiator_nb<uint32_t>("apb_initiator",1);
+    apb_initiator->socket.bind(apb_master->socket);
 
     rst1            = 1;
     rst2            = 1;
@@ -262,6 +290,17 @@ SP_CTOR_IMP(__MODULE__) :
 
     SC_THREAD(stim_thread);
     SC_THREAD(watchdog_thread);
+}
+
+void __MODULE__::reg_write(uint32_t addr, uint32_t data) {
+    dlsc_verb("wrote 0x" << std::hex << addr << " : 0x" << data);
+    apb_initiator->b_write(addr<<2,data);
+}
+
+uint32_t __MODULE__::reg_read(uint32_t addr) {
+    uint32_t data = apb_initiator->b_read(addr<<2);
+    dlsc_verb("read 0x" << std::hex << addr << " : 0x" << data);
+    return data;
 }
 
 void __MODULE__::set_reset(bool rst) {
@@ -276,11 +315,18 @@ void __MODULE__::set_reset(bool rst) {
     wait(clk1.posedge_event());
 }
 
-void __MODULE__::stim_thread() {
+void __MODULE__::stim_thread() { 
+    int i,j;
+    transaction ts, tswait;
+    std::deque<uint32_t> data;
+    std::deque<uint32_t> strb;
+
     wait(1,SC_US);
     wait(sys_clk.posedge_event());
     sys_reset       = 0;
     set_reset(false);
+
+    wait(1,SC_US);
 
     memory->set_error_rate_read(1.0);
     memtest->set_ignore_error_read(true);
@@ -289,11 +335,6 @@ void __MODULE__::stim_thread() {
     memtest->test(0,4*4096,1*1000*10);
 
     // test link reset recovery
-    transaction ts, tswait;
-    std::deque<uint32_t> data;
-    std::deque<uint32_t> strb;
-    
-    int i,j;
 
     for(i=0;i<20;++i) {     // resets
         dlsc_info("testing reset recovery (" << (i+1) << "/20)");
@@ -329,7 +370,7 @@ void __MODULE__::stim_thread() {
             wait(user_clk_out.posedge_event());
         }
     }
-
+    
     // test bandwidth
     memory->set_error_rate_read(0.0);
     data.resize(1<<LEN);
@@ -385,6 +426,65 @@ void __MODULE__::stim_thread() {
     // run another memtest
     memory->set_error_rate_read(1.0);
     memtest->test(0,4*4096,1*1000*1);
+
+#ifdef CFG_EN
+    dlsc_info("testing config space");
+    for(i=0;i<0x400;++i) {
+        j = reg_read(i+0x400);
+        dlsc_assert_equals(i,j);
+    }
+#endif
+
+#ifdef INT_EN
+    // test interrupts
+    dlsc_info("testing legacy interrupts");
+    reg_write(REG_CONTROL,0x0);
+    reg_write(REG_INT_SELECT,(1u<<31));
+    reg_write(REG_OBINT_SELECT,1);
+    pcie->set_interrupt_mode(false);
+    dlsc_assert(pcie->get_interrupt(0) == false);
+    
+    wait(APB_CLK.posedge_event());
+    apb_int_in = 1;
+    wait(1,SC_US);
+    dlsc_assert_equals(apb_int_out,1);
+    dlsc_assert(pcie->get_interrupt(0) == true);
+
+    wait(APB_CLK.posedge_event());
+    apb_int_in = 0;
+    wait(1,SC_US);
+    dlsc_assert_equals(apb_int_out,0);
+    dlsc_assert(pcie->get_interrupt(0) == false);
+
+    dlsc_info("testing MSI");
+    pcie->set_interrupt_mode(true);
+    
+    wait(APB_CLK.posedge_event());
+    apb_int_in = 1;
+    wait(1,SC_US);
+    dlsc_assert_equals(apb_int_out,1);
+    dlsc_assert(pcie->get_interrupt(0) == true);
+    wait(1,SC_US);
+    dlsc_assert_equals(apb_int_out,1);
+    dlsc_assert(pcie->get_interrupt(0) == false);
+
+    reg_write(REG_OBINT_ACK,1); // should re-trigger (since int_in = 1)
+    wait(1,SC_US);
+    dlsc_assert_equals(apb_int_out,1);
+    dlsc_assert(pcie->get_interrupt(0) == true);
+    wait(1,SC_US);
+    dlsc_assert_equals(apb_int_out,1);
+    dlsc_assert(pcie->get_interrupt(0) == false);
+
+    wait(APB_CLK.posedge_event());
+    apb_int_in = 0;
+    wait(APB_CLK.posedge_event());
+    wait(APB_CLK.posedge_event());
+    reg_write(REG_OBINT_ACK,1); // won't re-trigger (since int_in = 0)
+    wait(1,SC_US);
+    dlsc_assert_equals(apb_int_out,0);
+    dlsc_assert(pcie->get_interrupt(0) == false);
+#endif
 
     wait(1,SC_US);
     dut->final();
