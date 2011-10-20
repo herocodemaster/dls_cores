@@ -119,6 +119,12 @@ public:
     virtual void target_callback(t_transaction ts);
 
 
+    // ********** Functions **********
+
+    void                        set_bar(int bar, bool enabled, uint64_t mask, uint64_t base, bool b64=false);
+    void                        set_interrupt_mode(bool msi);
+    bool                        get_interrupt(int index, bool ack=true);
+
     
     /*AUTOMETHODS*/
 
@@ -137,10 +143,20 @@ private:
     unsigned int                max_read_request;
     unsigned int                rcb;                // read completion boundary (64 or 128 bytes)
     uint64_t                    rcb_mask;
-
+    bool                        bar_enabled[7];     // BAR0-BAR5,ROM
+    uint64_t                    bar_mask[7];
+    uint64_t                    bar_base[7];
 
     // Error interface
     void                        err_method();
+
+    // Configuration interface
+    void                        cfg_method();
+    bool                        cfg_rd_pending;
+
+    // Interrupt interface
+    void                        int_method();
+    bool                        int_state[32];
 
     // Transmit interface
     std::deque<uint32_t>        txi_queue;          // words for a single TLP being receive over TX
@@ -235,12 +251,59 @@ SP_CTOR_IMP(__MODULE__) /*AUTOINIT*/,
     rcb                 = 128;  // 128 or 64
     rcb_mask            = (rcb==128) ? 0x7F: 0x3F; // [6:0] : [5:0]
 
+    bar_enabled[0]      = true;
+    bar_mask[0]         = 0xFFFFFFFF;
+    bar_base[0]         = 0;
+
+    for(int i=1;i<7;++i) {
+        bar_enabled[i]      = false;
+        bar_mask[i]         = 0;
+        bar_base[i]         = 0;
+    }
+
     txi_pct             = 95;
     rxi_pct             = 95;
 
     tgt_allow_io        = true;
 
     init_method();
+}
+
+void __MODULE__::set_bar(int bar, bool enabled, uint64_t mask, uint64_t base, bool b64) {
+    assert(bar >= 0 && bar < 7);
+    bar_enabled[bar] = enabled;
+    if(!enabled) {
+        return;
+    }
+    if(!b64) {
+        assert( (mask >> 32) == 0 );
+        assert( (base >> 32) == 0 );
+    } else {
+        assert( (bar % 2) == 0 );
+        assert(!bar_enabled[bar+1]);    // 64-bit BARs require two adjacent registers
+    }
+    assert( (mask & base) == 0 );
+    bar_mask[bar]   = mask;
+    bar_base[bar]   = base;
+}
+
+void __MODULE__::set_interrupt_mode(bool msi) {
+    for(int i=0;i<32;++i) {
+        if(int_state[i]) {
+            dlsc_warn("interrupt mode changed with interrupts pending");
+            break;
+        }
+    }
+    cfg_interrupt_msienable = msi;
+}
+
+bool __MODULE__::get_interrupt(int index, bool ack) {
+    assert(index >= 0 && index < 32);
+    bool interrupt = int_state[index];
+    if(ack && cfg_interrupt_msienable) {
+        int_state[index] = false;
+    }
+    return interrupt;
 }
 
 void __MODULE__::user_clk_thread() {
@@ -256,18 +319,28 @@ void __MODULE__::user_clk_thread() {
 
 void __MODULE__::init_method() {
 
+    // config
+    cfg_rd_pending      = false;
+
+    // interrupts
+    std::fill(int_state,int_state+32,false);
+
+    // transmit
     txi_queue.clear();
     txi_dsc             = false;
     txi_str             = false;
     txi_str_err         = false;
     txi_err             = false;
 
+    // recieve
     rxi_queue.clear();
     rxi_arb_ini         = false;
 
+    // initiator
     ini_queue.clear();
     ini_rxi_tlp_queue.clear();
     
+    // target
     while(!tgt_ts_queue.empty()) {
         dlsc_verb("lost transaction to reset (tgt_ts_queue)");
         t_transaction ts = tgt_ts_queue.front(); tgt_ts_queue.pop_front();
@@ -301,6 +374,8 @@ void __MODULE__::clk_method() {
         rst_method();
     } else {
         err_method();
+        cfg_method();
+        int_method();
         txi_method();
         ini_method();
         tgt_method();
@@ -343,7 +418,7 @@ void __MODULE__::rst_method() {
     cfg_interrupt_rdy       = 0;
     cfg_interrupt_do        = 0;
     cfg_interrupt_mmenable  = 0;
-    cfg_interrupt_msienable = 0;
+//  cfg_interrupt_msienable = 0;
     cfg_err_cpl_rdy         = 0;
 
     // TODO
@@ -404,6 +479,70 @@ void __MODULE__::err_method() {
         }
     }
 
+}
+
+void __MODULE__::cfg_method() {
+
+    if(cfg_rd_en) {
+        if(cfg_rd_pending) {
+            dlsc_error("cfg_rd_en should only be asserted for 1 cycle");
+        }
+        cfg_rd_pending  = true;
+        if(cfg_dwaddr > 0x3FF) {
+            dlsc_error("cfg_dwaddr must be less than 0x3FF");
+        }
+    }
+
+    if(cfg_rd_wr_done) {
+        cfg_rd_wr_done  = 0;
+        cfg_do          = 0;
+        cfg_rd_pending  = 0;
+    }
+
+    if(cfg_rd_pending) {
+        if((rand()%100) < 30) {
+            cfg_rd_wr_done  = 1;
+            cfg_do          = cfg_dwaddr;   // address pattern
+        }
+    }
+
+}
+
+void __MODULE__::int_method() {
+
+    if(cfg_interrupt_rdy) {
+        cfg_interrupt_rdy   = 0;
+        if(!cfg_interrupt) {
+            dlsc_error("cfg_interrupt should remain asserted until cfg_interrupt_rdy");
+        }
+        int i = cfg_interrupt_di.read();
+        if(cfg_interrupt_msienable) {
+            // MSI
+            int lim = (1<<cfg_interrupt_mmenable.read())-1;
+            assert(lim >= 0 && lim < 32);
+            if(i > lim) {
+                dlsc_error("cfg_interrupt_di (" << i << ") exceeds cfg_interrupt_mmenable limit (" << lim << ")");
+            } else {
+                dlsc_verb("interrupt " << i << " asserted");
+                int_state[i] = true;
+            }
+        } else {
+            // legacy
+            if(i > 0x3) {
+                dlsc_error("cfg_interrupt_di (" << i << ") must be <= 0x3 in legacy mode");
+            } else {
+                if(int_state[i] && cfg_interrupt_assert) {
+                    dlsc_warn("interrupt " << i << " already asserted");
+                } else if(!int_state[i] && !cfg_interrupt_assert) {
+                    dlsc_warn("interrupt " << i << " already deasserted");
+                }
+                int_state[i] = cfg_interrupt_assert;
+                dlsc_verb("interrupt " << i << (int_state[i] ? " asserted" : " deasserted"));
+            }
+        }
+    } else if(cfg_interrupt && (rand()%100) < 25) {
+        cfg_interrupt_rdy   = 1;
+    }
 }
 
 void __MODULE__::txi_method() {
@@ -530,7 +669,18 @@ void __MODULE__::rxi_method() {
                 tuser               |= (1<<1);
             }
 
-            // TODO: BARs
+            if(tlp->type_mem || tlp->type_io) {
+                // BARs
+                int bar = -1;
+                for(int i=0;i<=7;++i) {
+                    if( bar_enabled[i] && (tlp->dest_addr & ~bar_mask[i]) == bar_base[i] ) {
+                        bar = i;
+                        break;
+                    }
+                }
+                assert(bar >= 0 && bar < 7);
+                tuser               |= (1<<(bar+2));
+            }
 
             m_axis_rx_tuser     = tuser;
         }
