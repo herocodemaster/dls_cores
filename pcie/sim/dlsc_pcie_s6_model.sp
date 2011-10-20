@@ -553,23 +553,22 @@ void __MODULE__::txi_method() {
 
         if(s_axis_tx_tvalid) {
 
-            if(s_axis_tx_tuser & (1<<3)) {
+            if(s_axis_tx_tuser.read() & (1<<3)) {
                 // source discontinue
                 txi_dsc             = true;
             }
-            if(s_axis_tx_tuser & (1<<2)) {
+            if(s_axis_tx_tuser.read() & (1<<1)) {
                 // poison
                 txi_err             = true;
             }
-            if((s_axis_tx_tuser & (1<<1)) != txi_str) {
+            if(!(s_axis_tx_tuser.read() & (1<<2)) == txi_str) {
                 // streaming
-                if(!txi_queue.empty()) {
+                if(txi_queue.empty()) {
+                    txi_str             = true;
+                } else {
                     // must remain constant after first dword
                     dlsc_error("TX: streaming must be asserted for entire TLP");
                     txi_str_err         = true;
-                }
-                if(s_axis_tx_tuser & (1<<1)) {
-                    txi_str             = true;
                 }
             }
 
@@ -587,6 +586,10 @@ void __MODULE__::txi_method() {
                     if(!tlp->deserialize(txi_queue)) {
                         dlsc_error("TX: failed to deserialize TLP");
                     } else {
+                        if(txi_err) {
+                            dlsc_verb("TX: poisoned");
+                            tlp->set_poisoned(true);
+                        }
                         txi_tlp_process(tlp);
                     }
                 }
