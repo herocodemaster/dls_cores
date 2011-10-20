@@ -47,7 +47,7 @@ int _dlsc_err_cnt   = 0;
 
 
 void dlsc_assert_report() {
-    std::cout << std::endl << sc_time_stamp() << " : ";
+    std::cout << std::dec << std::endl << sc_time_stamp() << " : ";
 
     if(_dlsc_err_cnt > 0 || _dlsc_chk_cnt == 0) {
         std::cout << "*** FAILED *** (" << _dlsc_err_cnt << " errors/" << _dlsc_chk_cnt << " assertions, ";
