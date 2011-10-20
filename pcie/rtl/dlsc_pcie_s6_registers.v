@@ -208,7 +208,7 @@ if(APB_CLK_DOMAIN!=0 && APB_CONFIG_EN!=0) begin:GEN_APB_CONFIG_ASYNC
         .m_clk          ( apb_clk ),
         .m_rst          ( apb_pcie_rst ),
         .m_apb_addr     ( apb_addr[11:2] ),
-        .m_apb_sel      ( apb_sel ),
+        .m_apb_sel      ( apb_pcie_sel ),
         .m_apb_enable   ( apb_enable ),
         .m_apb_write    ( apb_write ),
         .m_apb_wdata    ( 32'd0 ),
@@ -230,7 +230,7 @@ if(APB_CLK_DOMAIN!=0 && APB_CONFIG_EN!=0) begin:GEN_APB_CONFIG_ASYNC
     );
 end else begin:GEN_APB_CONFIG_SYNC
     assign  pcie_apb_addr   = apb_addr[11:2];
-    assign  pcie_apb_sel    = apb_sel;
+    assign  pcie_apb_sel    = apb_pcie_sel;
     assign  pcie_apb_enable = apb_enable;
     assign  pcie_apb_write  = apb_write;
     assign  apb_pcie_ready  = pcie_apb_ready;
@@ -272,7 +272,7 @@ always @* begin
     apb_pcie_sel    = 1'b0;
     apb_null_sel    = 1'b0;
 
-    if(apb_sel) begin
+    if(apb_sel && !apb_ready) begin
         casez(apb_addr[12:2])
             11'b000_0000_0???: apb_csr_sel  = 1'b1;
             11'b000_0001_????: apb_ob_sel   = 1'b1;
