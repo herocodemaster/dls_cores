@@ -455,7 +455,7 @@ void __MODULE__::dma_check(std::deque<dma_desc> src_descs, std::deque<dma_desc> 
 
     int srci = 1, desti = 1;
 
-    while(!data_src.empty()) {
+    while(true) {
 
         if(data_src.front() != data_dest.front()) {
             dlsc_error("miscompare! src.addr: 0x" << std::hex << src.addr <<
@@ -470,18 +470,22 @@ void __MODULE__::dma_check(std::deque<dma_desc> src_descs, std::deque<dma_desc> 
 
         data_src.pop_front();
         data_dest.pop_front();
+
+        if(data_src.empty()) break;
         
-        src.len     -= 4;
+        src.len     -= 1;
         src.addr    += 4;
         if(src.len == 0) {
+            assert(!src_descs.empty());
             src         = src_descs.front();
             src_descs.pop_front();
             srci++;
         }
 
-        dest.len    -= 4;
+        dest.len    -= 1;
         dest.addr   += 4;
         if(dest.len == 0) {
+            assert(!dest_descs.empty());
             dest        = dest_descs.front();
             dest_descs.pop_front();
             desti++;
