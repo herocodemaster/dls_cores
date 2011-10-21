@@ -22,7 +22,7 @@ public:
 
     dlsc_tlm_memory(
         const sc_core::sc_module_name   &nm,
-        const unsigned int              mem_size,
+        const uint64_t                  mem_size,
         const uint64_t                  base_addr       = 0,
         const sc_core::sc_time          byte_latency    = sc_core::SC_ZERO_TIME,    // time it takes to transfer a single byte
         const sc_core::sc_time          access_latency  = sc_core::SC_ZERO_TIME);   // time it takes to setup a burst
@@ -76,8 +76,8 @@ private:
 
     const unsigned int          bus_width;
 
-    const unsigned int          mem_size;
-    const unsigned int          block_size;
+    const uint64_t              mem_size;
+    const uint64_t              block_size;
 
     const uint64_t              mem_mask;
     const uint64_t              block_mask;
@@ -108,7 +108,7 @@ private:
 template <typename DATATYPE>
 dlsc_tlm_memory<DATATYPE>::dlsc_tlm_memory(
     const sc_core::sc_module_name &nm,
-    const unsigned int mem_size,
+    const uint64_t mem_size,
     const uint64_t base_addr,
     const sc_core::sc_time byte_latency,
     const sc_core::sc_time access_latency
