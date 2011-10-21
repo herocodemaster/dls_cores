@@ -60,7 +60,8 @@ dlsc_dma_rwcontrol #(
     .LEN                ( LEN ),
     .LSB                ( LSB ),
     .BUFA               ( BUFA ),
-    .MOT                ( MOT )
+    .MOT                ( MOT ),
+    .TRIG               ( TRIG )
 ) dlsc_dma_rwcontrol_inst (
     .clk                ( clk ),
     .rst                ( rst ),
