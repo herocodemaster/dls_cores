@@ -24,7 +24,8 @@ public:
 
     SC_HAS_PROCESS(dlsc_tlm_memtest);
 
-    bool test(uint64_t addr, unsigned int length, unsigned int iterations);
+    void test(uint64_t addr, unsigned int length, unsigned int iters, bool fork=false);
+    void wait();
 
     void set_ignore_error(const bool ignore_error) { set_ignore_error_read(ignore_error); set_ignore_error_write(ignore_error); }
     void set_ignore_error_read(const bool ignore_error_read) { this->ignore_error_read = ignore_error_read; }
@@ -58,6 +59,7 @@ private:
     // parameters
     uint64_t            base_addr;      // beginning of region-under-test
     unsigned int        size;           // size of region-under-test
+    unsigned int        iterations;     // transactions to run per test
     const unsigned int  max_length;     // max burst length
     unsigned int        max_mots;       // max multiple-outstanding-transactions
     bool                ignore_error_read;  // don't flag failed transactions as an error
@@ -96,6 +98,12 @@ private:
         unsigned int    index,
         unsigned int    length,
         uint8_t         *pending);      // read_pending,    write_pending
+
+    // fork support
+    void                test_thread();
+    bool                done;
+    sc_core::sc_event   trig_event;
+    sc_core::sc_event   done_event;
 };
 
 template <typename DATATYPE>
@@ -121,6 +129,10 @@ dlsc_tlm_memtest<DATATYPE>::dlsc_tlm_memtest(
     ignore_error_write  = false;
     strb_pct            = 20;
     max_mots            = 4;
+
+    done                = true;
+
+    SC_THREAD(test_thread);
 }
 
 template <typename DATATYPE>
@@ -132,108 +144,140 @@ void dlsc_tlm_memtest<DATATYPE>::end_of_elaboration() {
 }
 
 template <typename DATATYPE>
-bool dlsc_tlm_memtest<DATATYPE>::test(
+void dlsc_tlm_memtest<DATATYPE>::test(
     uint64_t addr,
     unsigned int length,
-    unsigned int iterations)
+    unsigned int iters,
+    bool fork)
 {
     base_addr   = addr;
     size        = length;
+    iterations  = iters;
 
     assert(base_addr % max_length == 0);
 
-    init();
-
-    delay = sc_core::SC_ZERO_TIME;
-
-    dlsc_info("initializing memory");
-
-    initiator->set_socket(0);
-
-    for(unsigned int i=0;i<size;i+=max_length) {
-        launch_write(0,i,max_length,false);
-        if(outstanding[0].size() >= max_mots) {
-            transaction ts = outstanding[0].front(); outstanding[0].pop_front();
-            ts->wait(delay);
-            complete(ts);
-        }
-    }
-    
-    start_time = sc_core::sc_time_stamp();
-    std::fill(errors.begin(),errors.end(),0);
-    std::fill(bytes_read.begin(),bytes_read.end(),0);
-    std::fill(bytes_written.begin(),bytes_written.end(),0);
-
-    for(unsigned int i=0;i<iterations;++i) {
-        bool launched = false;
-
-        do {
-            // complete finished transactions
-            for(unsigned int j=0;j<outstanding.size();++j) {
-                while(!outstanding[j].empty() && outstanding[j].front()->nb_done(delay)) {
-                    transaction ts = outstanding[j].front(); outstanding[j].pop_front();
-                    ts->wait(delay);
-                    complete(ts);
-                }
-            }
-
-            // launch a new one, if possible
-            for(unsigned int j=0;j<outstanding.size();++j) {
-                unsigned int socket_id = (j+i)%outstanding.size();
-                if(outstanding[socket_id].size() < max_mots) {
-                    launch(socket_id);
-                    launched = true;
-                    break;
-                }
-            }
-
-            // if couldn't launch, wait until something completes
-            if(!launched) {
-                outstanding[rand()%outstanding.size()].front()->wait(delay);
-            }
-        } while(!launched);
-
-        if(i%(iterations/10)==0) {
-            wait(delay); delay = sc_core::SC_ZERO_TIME;
-            dlsc_info("testing memory .. " << ((i*100)/iterations) << "%" );
-        }
+    if(!done) {
+        dlsc_info("test already in progress; waiting for completion before starting next test");
+        sc_core::wait(done_event);
     }
 
-    dlsc_info("testing memory .. 100%");
+    assert(done);
 
-    for(unsigned int i=0;i<outstanding.size();++i) {
-        while(!outstanding[i].empty()) {
-            transaction ts = outstanding[i].front(); outstanding[i].pop_front();
-            ts->wait(delay);
-            complete(ts);
-        }
+    done        = false;
+    trig_event.notify();
+
+    if(!fork) {
+        this->wait();
     }
-    
-    wait(delay); delay = sc_core::SC_ZERO_TIME;
+}
 
-    sc_core::sc_time elapsed = sc_core::sc_time_stamp() - start_time;
+template <typename DATATYPE>
+void dlsc_tlm_memtest<DATATYPE>::wait() {
+    if(done) return;
+    sc_core::wait(done_event);
+    assert(done);
+}
 
-    unsigned int total_bytes_read = 0, total_bytes_written = 0;
-    
-    dlsc_info("Elapsed time: " << elapsed);
-    for(unsigned int i=0;i<initiator->get_socket_size();++i) {
-        total_bytes_read += bytes_read[i];
-        total_bytes_written += bytes_written[i];
-        double mbps = ( bytes_read[i] + bytes_written[i] + 0.0 ) / (elapsed.to_seconds()*1000000.0);
-        dlsc_info("For socket #" << std::dec << i << ": read: " << bytes_read[i] << ", wrote: " << bytes_written[i] << ", throughput: " << mbps << " MB/s");
-        if(errors[i] > 0) {
-            if(ignore_error_read || ignore_error_write) {
-                dlsc_info("Bytes errored: " << errors[i] << " (but ignored)");
-            } else {
-                dlsc_error("Bytes errored: " << errors[i]);
+template <typename DATATYPE>
+void dlsc_tlm_memtest<DATATYPE>::test_thread() {
+    while(true) {
+        sc_core::wait(trig_event);
+        assert(!done);
+
+        init();
+
+        delay = sc_core::SC_ZERO_TIME;
+
+        dlsc_info("initializing memory");
+
+        initiator->set_socket(0);
+
+        for(unsigned int i=0;i<size;i+=max_length) {
+            launch_write(0,i,max_length,false);
+            if(outstanding[0].size() >= max_mots) {
+                transaction ts = outstanding[0].front(); outstanding[0].pop_front();
+                ts->wait(delay);
+                complete(ts);
             }
         }
-    }
         
-    double mbps = ( total_bytes_read + total_bytes_written + 0.0 ) / (elapsed.to_seconds()*1000000.0);
-    dlsc_info("Combined:      read: " << total_bytes_read << ", wrote: " << total_bytes_written << ", throughput: " << mbps << " MB/s");
+        start_time = sc_core::sc_time_stamp();
+        std::fill(errors.begin(),errors.end(),0);
+        std::fill(bytes_read.begin(),bytes_read.end(),0);
+        std::fill(bytes_written.begin(),bytes_written.end(),0);
 
-    return true;
+        for(unsigned int i=0;i<iterations;++i) {
+            bool launched = false;
+
+            do {
+                // complete finished transactions
+                for(unsigned int j=0;j<outstanding.size();++j) {
+                    while(!outstanding[j].empty() && outstanding[j].front()->nb_done(delay)) {
+                        transaction ts = outstanding[j].front(); outstanding[j].pop_front();
+                        ts->wait(delay);
+                        complete(ts);
+                    }
+                }
+
+                // launch a new one, if possible
+                for(unsigned int j=0;j<outstanding.size();++j) {
+                    unsigned int socket_id = (j+i)%outstanding.size();
+                    if(outstanding[socket_id].size() < max_mots) {
+                        launch(socket_id);
+                        launched = true;
+                        break;
+                    }
+                }
+
+                // if couldn't launch, wait until something completes
+                if(!launched) {
+                    outstanding[rand()%outstanding.size()].front()->wait(delay);
+                }
+            } while(!launched);
+
+            if(i%(iterations/10)==0) {
+                sc_core::wait(delay); delay = sc_core::SC_ZERO_TIME;
+                dlsc_info("testing memory .. " << ((i*100)/iterations) << "%" );
+            }
+        }
+
+        dlsc_info("testing memory .. 100%");
+
+        for(unsigned int i=0;i<outstanding.size();++i) {
+            while(!outstanding[i].empty()) {
+                transaction ts = outstanding[i].front(); outstanding[i].pop_front();
+                ts->wait(delay);
+                complete(ts);
+            }
+        }
+        
+        sc_core::wait(delay); delay = sc_core::SC_ZERO_TIME;
+
+        sc_core::sc_time elapsed = sc_core::sc_time_stamp() - start_time;
+
+        unsigned int total_bytes_read = 0, total_bytes_written = 0;
+        
+        dlsc_info("Elapsed time: " << elapsed);
+        for(unsigned int i=0;i<initiator->get_socket_size();++i) {
+            total_bytes_read += bytes_read[i];
+            total_bytes_written += bytes_written[i];
+            double mbps = ( bytes_read[i] + bytes_written[i] + 0.0 ) / (elapsed.to_seconds()*1000000.0);
+            dlsc_info("For socket #" << std::dec << i << ": read: " << bytes_read[i] << ", wrote: " << bytes_written[i] << ", throughput: " << mbps << " MB/s");
+            if(errors[i] > 0) {
+                if(ignore_error_read || ignore_error_write) {
+                    dlsc_info("Bytes errored: " << errors[i] << " (but ignored)");
+                } else {
+                    dlsc_error("Bytes errored: " << errors[i]);
+                }
+            }
+        }
+            
+        double mbps = ( total_bytes_read + total_bytes_written + 0.0 ) / (elapsed.to_seconds()*1000000.0);
+        dlsc_info("Combined:      read: " << total_bytes_read << ", wrote: " << total_bytes_written << ", throughput: " << mbps << " MB/s");
+
+        done        = true;
+        done_event.notify();
+    }
 }
 
 // clears all allocated memory
