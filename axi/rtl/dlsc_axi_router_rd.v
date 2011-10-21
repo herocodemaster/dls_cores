@@ -9,7 +9,7 @@ module dlsc_axi_router_rd #(
     parameter LANES             = 1,            // number of internal data lanes
     parameter INPUTS            = 1,            // number of inputs (from masters)
     parameter OUTPUTS           = 1,            // number of outputs (to slaves)
-    parameter [(OUTPUTS*ADDR)-1:0] MASKS = {(OUTPUTS*ADDR){1'b0}},  // output/slave address masks
+    parameter [(OUTPUTS*ADDR)-1:0] MASKS = {(OUTPUTS*ADDR){1'b1}},  // output/slave address masks
     parameter [(OUTPUTS*ADDR)-1:0] BASES = {(OUTPUTS*ADDR){1'b0}}   // output/slave address bases
 ) (
     // System
