@@ -260,6 +260,7 @@ int __MODULE__::dma_check(dma_op op) {
 void __MODULE__::dma_run(dma_op op) {
 
     std::deque<uint32_t> data;
+    uint64_t addr;
 
     sc_core::sc_time elapsed = sc_core::sc_time_stamp();
 
@@ -269,16 +270,28 @@ void __MODULE__::dma_run(dma_op op) {
     data.clear();
     dma_desc_serialize(op->srcq,data);
     op->src_cmd_len     = data.size();
-    op->src_cmd_addr    = dlsc_rand_u32(0x00000,0x0F000) & 0xFF000;
-    initiator->nb_write(MEM_BASE+op->src_cmd_addr,data);
+    op->src_cmd_addr    = dlsc_rand_u32(0x00000,0x0F000) & 0xFFF00;
+    addr                = op->src_cmd_addr;
+    while(data.size() > 16) {
+        initiator->nb_write(MEM_BASE+addr,data.begin(),data.begin()+16);
+        data.erase(data.begin(),data.begin()+16);
+        addr+=(16*4);
+    }
+    initiator->nb_write(MEM_BASE+addr,data);
 
     // destination commands
     data.clear();
     op->destq.back().trig_out = 0x1;
     dma_desc_serialize(op->destq,data);
     op->dest_cmd_len    = data.size();
-    op->dest_cmd_addr   = dlsc_rand_u32(0x10000,0x1F000) & 0xFF000;
-    initiator->nb_write(MEM_BASE+op->dest_cmd_addr,data);
+    op->dest_cmd_addr   = dlsc_rand_u32(0x10000,0x1F000) & 0xFFF00;
+    addr                = op->dest_cmd_addr;
+    while(data.size() > 16) {
+        initiator->nb_write(MEM_BASE+addr,data.begin(),data.begin()+16);
+        data.erase(data.begin(),data.begin()+16);
+        addr+=(16*4);
+    }
+    initiator->nb_write(MEM_BASE+addr,data);
 
     uint32_t dev = op->dir_wr ? REG_DMA_WR : REG_DMA_RD;
 
@@ -356,6 +369,12 @@ void __MODULE__::stim_thread() {
     memtest->set_strobe_rate(1);        // sparse strobes are very slow over PCIe
     memtest->test(MEM_BASE,4*4096,1*1000*10);
     memory_mig->set_error_rate_read(0.0);
+    
+    // provide background traffic during DMA test
+    memtest->set_max_outstanding(8);
+    memtest->set_ignore_error_read(false);
+    memtest->test(MEM_BASE+64ull*1024*1024,1*4096,1*1000*5,true);
+    wait(100,SC_US);
 
     dma_op op;
     dma_desc desc;
@@ -364,10 +383,10 @@ void __MODULE__::stim_thread() {
     op          = dma_op(new dma_op_type);
     op->dir_wr  = false;
     desc.len    = 1024;
-    for(i=0;i<16;++i) {
+    for(i=0;i<64;++i) {
         desc.addr   = dlsc_rand_u64(0,8ull*1024*1024*1024 - (desc.len*4)) & ~0x3ull;
         op->srcq.push_back(desc);
-        desc.addr   = dlsc_rand_u64(0x20000,128ull*1024*1024 - (desc.len*4)) & ~0x3ull;
+        desc.addr   = dlsc_rand_u64(0x20000,64ull*1024*1024 - (desc.len*4)) & ~0x3ull;
         op->destq.push_back(desc);
     }
     dma_run(op);
@@ -376,13 +395,15 @@ void __MODULE__::stim_thread() {
     op          = dma_op(new dma_op_type);
     op->dir_wr  = true;
     desc.len    = 1024;
-    for(i=0;i<16;++i) {
+    for(i=0;i<64;++i) {
         desc.addr   = dlsc_rand_u64(0,8ull*1024*1024*1024 - (desc.len*4)) & ~0x3ull;
         op->destq.push_back(desc);
-        desc.addr   = dlsc_rand_u64(0x20000,128ull*1024*1024 - (desc.len*4)) & ~0x3ull;
+        desc.addr   = dlsc_rand_u64(0x20000,64ull*1024*1024 - (desc.len*4)) & ~0x3ull;
         op->srcq.push_back(desc);
     }
     dma_run(op);
+
+    memtest->wait();
 
     wait(1,SC_US);
     dut->final();
