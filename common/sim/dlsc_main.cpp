@@ -151,3 +151,27 @@ unsigned int dlsc_log2(uint64_t i) {
     return l;
 }
 
+bool dlsc_rand_bool(double true_pct) {
+    assert(true_pct >= 0.0 && true_pct <= 100.0);
+    bool r = ((rand()%1000) < (true_pct * 10));
+    return r;
+}
+
+uint32_t dlsc_rand_u32(uint32_t min,uint32_t max) {
+    uint32_t r = rand();
+    r <<= 16;
+    r |= rand();
+    r %= (max-min);
+    r += min;
+    return r;
+}
+
+uint64_t dlsc_rand_u64(uint64_t min,uint64_t max) {
+    uint64_t r = dlsc_rand_u32(0,0xFFFFFFFFul);
+    r <<= 32;
+    r |= dlsc_rand_u32(0,0xFFFFFFFFul);
+    r %= (max-min);
+    r += min;
+    return r;
+}
+
