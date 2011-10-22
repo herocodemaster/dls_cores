@@ -2,7 +2,9 @@
 module dlsc_sp605_core #(
     parameter MIG_ID            = 4,
     parameter MIG_ADDR          = 32,
-    parameter MIG_LEN           = 8
+    parameter MIG_LEN           = 8,
+    parameter OB_READ_CPLH      = 40,
+    parameter OB_READ_CPLD      = 467
 ) (
     // ** System **
     input   wire                    clk,
@@ -361,8 +363,8 @@ dlsc_pcie_s6 #(
     .OB_WRITE_MOT       ( 16 ),
     .OB_READ_EN         ( 1 ),
     .OB_READ_MOT        ( 16 ),
-    .OB_READ_CPLH       ( 40 ),
-    .OB_READ_CPLD       ( 467 ),
+    .OB_READ_CPLH       ( OB_READ_CPLH ),
+    .OB_READ_CPLD       ( OB_READ_CPLD ),
     .OB_READ_SIZE       ( 8192 ),           // 8192 bytes
     .OB_TRANS_REGIONS   ( 0 )               // no outbound translation (DMA engines will generate full 64-bit addresses)
 ) dlsc_pcie_s6_inst (
