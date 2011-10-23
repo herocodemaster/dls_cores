@@ -663,7 +663,7 @@ if(APB_INT_EN) begin:GEN_OB_INT
         .apb_clk                        ( apb_clk ),
         .apb_rst                        ( apb_rst ),
         .apb_pcie_rst                   ( apb_pcie_rst ),
-        .apb_int_ob                     ( apb_int_ob && !int_disable ),
+        .apb_int_ob                     ( apb_int_ob && !apb_int_disable ),
         .apb_int_redo                   ( apb_int_redo ),
         .pcie_clk                       ( pcie_clk ),
         .pcie_rst                       ( pcie_rst ),
