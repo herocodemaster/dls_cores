@@ -110,7 +110,7 @@ dlsc_dma_command_fifo dlsc_dma_command_fifo_inst (
 
 // AXI command
 
-reg  [LEN-1:0]  ar_len;
+reg  [LENI-1:0] ar_len;
 reg  [63:0]     ar_addr;
 
 always @(posedge clk) begin
@@ -125,7 +125,7 @@ always @(posedge clk) begin
     end
 end
 
-assign          axi_ar_len      = ar_len;
+assign          axi_ar_len      = { {(LEN-LENI){1'b0}}, ar_len };
 assign          axi_ar_addr     = { ar_addr[ADDR-1:LSB], {LSB{1'b0}} };
 
 always @(posedge clk) begin
