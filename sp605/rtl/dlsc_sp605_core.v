@@ -4,7 +4,10 @@ module dlsc_sp605_core #(
     parameter MIG_ADDR          = 32,
     parameter MIG_LEN           = 8,
     parameter OB_READ_CPLH      = 40,
-    parameter OB_READ_CPLD      = 467
+    parameter OB_READ_CPLD      = 467,
+    parameter BYTE_SWAP         = 0,        // set for x86 hosts
+    parameter LOCAL_DMA_DESC    = 1,        // fetch DMA commands from MIG (otherwise fetch over PCIe)
+    parameter BUFFER            = 0         // enable buffering in AXI routers
 ) (
     // ** System **
     input   wire                    clk,
@@ -264,7 +267,10 @@ localparam INTERRUPTS       = 3;
 localparam OB_ADDR          = 64;
 localparam OB_LEN           = 8;
 
-localparam [ADDR-1:0] APB_MASK  = 32'h00FF_FFFF;    // 16 MB
+localparam CMD_ADDR         = LOCAL_DMA_DESC ? ADDR : OB_ADDR;
+localparam CMD_LEN          = LOCAL_DMA_DESC ? LEN  : OB_LEN;
+
+localparam [ADDR-1:0] APB_MASK  = 32'h000F_FFFF;    // 1 MB
 localparam [ADDR-1:0] APB_BASE  = 32'h8000_0000;
 localparam [ADDR-1:0] DRAM_MASK = 32'h07FF_FFFF;    // 128 MB
 localparam [ADDR-1:0] DRAM_BASE = 32'h0000_0000;
@@ -345,6 +351,7 @@ dlsc_pcie_s6 #(
     // ** Inbound **
     .IB_ADDR            ( ADDR ),
     .IB_LEN             ( LEN ),
+    .IB_BYTE_SWAP       ( BYTE_SWAP ),
     .IB_WRITE_EN        ( 1 ),
     .IB_WRITE_BUFFER    ( 32 ),             // 128 bytes
     .IB_WRITE_MOT       ( 16 ),
@@ -358,6 +365,7 @@ dlsc_pcie_s6 #(
     // ** Outbound **
     .OB_ADDR            ( OB_ADDR ),
     .OB_LEN             ( OB_LEN ),
+    .OB_BYTE_SWAP       ( BYTE_SWAP ),
     .OB_WRITE_EN        ( 1 ),
     .OB_WRITE_SIZE      ( 512 ),            // 512 bytes
     .OB_WRITE_MOT       ( 16 ),
@@ -568,7 +576,7 @@ dlsc_axi_router_rd #(
     .ADDR       ( ADDR ),
     .DATA       ( 32 ),
     .LEN        ( LEN ),
-    .BUFFER     ( 0 ),
+    .BUFFER     ( BUFFER ),
     .INPUTS     ( 1 ),
     .OUTPUTS    ( 2 ),
     .MASKS      ( { DRAM_MASK, APB_MASK } ),
@@ -600,7 +608,7 @@ dlsc_axi_router_wr #(
     .ADDR       ( ADDR ),
     .DATA       ( 32 ),
     .LEN        ( LEN ),
-    .BUFFER     ( 0 ),
+    .BUFFER     ( BUFFER ),
     .INPUTS     ( 1 ),
     .OUTPUTS    ( 2 ),
     .MASKS      ( { DRAM_MASK, APB_MASK } ),
@@ -661,20 +669,20 @@ reg                     apb_sel_dmawr;
 wire                    apb_ready_dmawr;
 wire    [31:0]          apb_rdata_dmawr;
 
-wire                    dmawr_ar_ready;
-wire                    dmawr_ar_valid;
-wire    [ADDR-1:0]      dmawr_ar_addr;
-wire    [LEN-1:0]       dmawr_ar_len;
-wire                    dmawr_r_ready;
-wire                    dmawr_r_valid;
-wire                    dmawr_r_last;
-wire    [31:0]          dmawr_r_data;
-wire    [1:0]           dmawr_r_resp;
+wire                    dmawr_cmd_ar_ready;
+wire                    dmawr_cmd_ar_valid;
+wire    [CMD_ADDR-1:0]  dmawr_cmd_ar_addr;
+wire    [CMD_LEN-1:0]   dmawr_cmd_ar_len;
+wire                    dmawr_cmd_r_ready;
+wire                    dmawr_cmd_r_valid;
+wire                    dmawr_cmd_r_last;
+wire    [31:0]          dmawr_cmd_r_data;
+wire    [1:0]           dmawr_cmd_r_resp;
 
 dlsc_dma_core #(
     .APB_ADDR       ( APB_ADDR ),
-    .CMD_ADDR       ( ADDR ),
-    .CMD_LEN        ( LEN ),
+    .CMD_ADDR       ( CMD_ADDR ),
+    .CMD_LEN        ( CMD_LEN ),
     .READ_ADDR      ( MIG_ADDR ),
     .READ_LEN       ( MIG_LEN ),
     .READ_MOT       ( 16 ),
@@ -699,15 +707,15 @@ dlsc_dma_core #(
     .apb_wdata ( apb_wdata ),
     .apb_rdata ( apb_rdata_dmawr ),
     .apb_ready ( apb_ready_dmawr ),
-    .cmd_ar_ready ( dmawr_ar_ready ),
-    .cmd_ar_valid ( dmawr_ar_valid ),
-    .cmd_ar_addr ( dmawr_ar_addr ),
-    .cmd_ar_len ( dmawr_ar_len ),
-    .cmd_r_ready ( dmawr_r_ready ),
-    .cmd_r_valid ( dmawr_r_valid ),
-    .cmd_r_last ( dmawr_r_last ),
-    .cmd_r_data ( dmawr_r_data ),
-    .cmd_r_resp ( dmawr_r_resp ),
+    .cmd_ar_ready ( dmawr_cmd_ar_ready ),
+    .cmd_ar_valid ( dmawr_cmd_ar_valid ),
+    .cmd_ar_addr ( dmawr_cmd_ar_addr ),
+    .cmd_ar_len ( dmawr_cmd_ar_len ),
+    .cmd_r_ready ( dmawr_cmd_r_ready ),
+    .cmd_r_valid ( dmawr_cmd_r_valid ),
+    .cmd_r_last ( dmawr_cmd_r_last ),
+    .cmd_r_data ( dmawr_cmd_r_data ),
+    .cmd_r_resp ( dmawr_cmd_r_resp ),
     .rd_ar_ready ( c3_s1_axi_arready ),
     .rd_ar_valid ( c3_s1_axi_arvalid ),
     .rd_ar_addr ( c3_s1_axi_araddr ),
@@ -749,20 +757,30 @@ reg                     apb_sel_dmard;
 wire                    apb_ready_dmard;
 wire    [31:0]          apb_rdata_dmard;
 
-wire                    dmard_ar_ready;
-wire                    dmard_ar_valid;
-wire    [ADDR-1:0]      dmard_ar_addr;
-wire    [LEN-1:0]       dmard_ar_len;
-wire                    dmard_r_ready;
-wire                    dmard_r_valid;
-wire                    dmard_r_last;
-wire    [31:0]          dmard_r_data;
-wire    [1:0]           dmard_r_resp;
+wire                    dmard_cmd_ar_ready;
+wire                    dmard_cmd_ar_valid;
+wire    [CMD_ADDR-1:0]  dmard_cmd_ar_addr;
+wire    [CMD_LEN-1:0]   dmard_cmd_ar_len;
+wire                    dmard_cmd_r_ready;
+wire                    dmard_cmd_r_valid;
+wire                    dmard_cmd_r_last;
+wire    [31:0]          dmard_cmd_r_data;
+wire    [1:0]           dmard_cmd_r_resp;
+
+wire                    dmard_data_ar_ready;
+wire                    dmard_data_ar_valid;
+wire    [OB_ADDR-1:0]   dmard_data_ar_addr;
+wire    [OB_LEN-1:0]    dmard_data_ar_len;
+wire                    dmard_data_r_ready;
+wire                    dmard_data_r_valid;
+wire                    dmard_data_r_last;
+wire    [31:0]          dmard_data_r_data;
+wire    [1:0]           dmard_data_r_resp;
 
 dlsc_dma_core #(
     .APB_ADDR       ( APB_ADDR ),
-    .CMD_ADDR       ( ADDR ),
-    .CMD_LEN        ( LEN ),
+    .CMD_ADDR       ( CMD_ADDR ),
+    .CMD_LEN        ( CMD_LEN ),
     .READ_ADDR      ( OB_ADDR ),
     .READ_LEN       ( OB_LEN ),
     .READ_MOT       ( 16 ),
@@ -787,24 +805,24 @@ dlsc_dma_core #(
     .apb_wdata ( apb_wdata ),
     .apb_rdata ( apb_rdata_dmard ),
     .apb_ready ( apb_ready_dmard ),
-    .cmd_ar_ready ( dmard_ar_ready ),
-    .cmd_ar_valid ( dmard_ar_valid ),
-    .cmd_ar_addr ( dmard_ar_addr ),
-    .cmd_ar_len ( dmard_ar_len ),
-    .cmd_r_ready ( dmard_r_ready ),
-    .cmd_r_valid ( dmard_r_valid ),
-    .cmd_r_last ( dmard_r_last ),
-    .cmd_r_data ( dmard_r_data ),
-    .cmd_r_resp ( dmard_r_resp ),
-    .rd_ar_ready ( ob_ar_ready ),
-    .rd_ar_valid ( ob_ar_valid ),
-    .rd_ar_addr ( ob_ar_addr ),
-    .rd_ar_len ( ob_ar_len ),
-    .rd_r_ready ( ob_r_ready ),
-    .rd_r_valid ( ob_r_valid ),
-    .rd_r_last ( ob_r_last ),
-    .rd_r_data ( ob_r_data ),
-    .rd_r_resp ( ob_r_resp ),
+    .cmd_ar_ready ( dmard_cmd_ar_ready ),
+    .cmd_ar_valid ( dmard_cmd_ar_valid ),
+    .cmd_ar_addr ( dmard_cmd_ar_addr ),
+    .cmd_ar_len ( dmard_cmd_ar_len ),
+    .cmd_r_ready ( dmard_cmd_r_ready ),
+    .cmd_r_valid ( dmard_cmd_r_valid ),
+    .cmd_r_last ( dmard_cmd_r_last ),
+    .cmd_r_data ( dmard_cmd_r_data ),
+    .cmd_r_resp ( dmard_cmd_r_resp ),
+    .rd_ar_ready ( dmard_data_ar_ready ),
+    .rd_ar_valid ( dmard_data_ar_valid ),
+    .rd_ar_addr ( dmard_data_ar_addr ),
+    .rd_ar_len ( dmard_data_ar_len ),
+    .rd_r_ready ( dmard_data_r_ready ),
+    .rd_r_valid ( dmard_data_r_valid ),
+    .rd_r_last ( dmard_data_r_last ),
+    .rd_r_data ( dmard_data_r_data ),
+    .rd_r_resp ( dmard_data_r_resp ),
     .wr_aw_ready ( c3_s1_axi_awready ),
     .wr_aw_valid ( c3_s1_axi_awvalid ),
     .wr_aw_addr ( c3_s1_axi_awaddr ),
@@ -829,35 +847,90 @@ assign  c3_s1_axi_awqos                     = 4'b0000;  // no QoS
 
 // ** Command Router **
 
-dlsc_axi_router_rd #(
-    .ADDR       ( ADDR ),
-    .DATA       ( 32 ),
-    .LEN        ( LEN ),
-    .BUFFER     ( 0 ),
-    .INPUTS     ( 2 ),
-    .OUTPUTS    ( 1 )
-) dlsc_axi_router_rd_dmacmd (
-    .clk ( clk ),
-    .rst ( rst ),
-    .in_ar_ready ( { dmawr_ar_ready , dmard_ar_ready } ),
-    .in_ar_valid ( { dmawr_ar_valid , dmard_ar_valid } ),
-    .in_ar_addr ( { dmawr_ar_addr , dmard_ar_addr } ),
-    .in_ar_len ( { dmawr_ar_len , dmard_ar_len } ),
-    .in_r_ready ( { dmawr_r_ready , dmard_r_ready } ),
-    .in_r_valid ( { dmawr_r_valid , dmard_r_valid } ),
-    .in_r_last ( { dmawr_r_last , dmard_r_last } ),
-    .in_r_data ( { dmawr_r_data , dmard_r_data } ),
-    .in_r_resp ( { dmawr_r_resp , dmard_r_resp } ),
-    .out_ar_ready ( c3_s2_axi_arready ),
-    .out_ar_valid ( c3_s2_axi_arvalid ),
-    .out_ar_addr ( c3_s2_axi_araddr ),
-    .out_ar_len ( c3_s2_axi_arlen[LEN-1:0] ),
-    .out_r_ready ( c3_s2_axi_rready ),
-    .out_r_valid ( c3_s2_axi_rvalid ),
-    .out_r_last ( c3_s2_axi_rlast ),
-    .out_r_data ( c3_s2_axi_rdata ),
-    .out_r_resp ( c3_s2_axi_rresp )
-);
+generate
+if(LOCAL_DMA_DESC) begin:GEN_LOCAL_DMA_DESC
+
+    dlsc_axi_router_rd #(
+        .ADDR       ( ADDR ),
+        .DATA       ( 32 ),
+        .LEN        ( LEN ),
+        .BUFFER     ( BUFFER ),
+        .INPUTS     ( 2 ),
+        .OUTPUTS    ( 1 )
+    ) dlsc_axi_router_rd_dmacmd (
+        .clk ( clk ),
+        .rst ( rst ),
+        .in_ar_ready ( { dmawr_cmd_ar_ready , dmard_cmd_ar_ready } ),
+        .in_ar_valid ( { dmawr_cmd_ar_valid , dmard_cmd_ar_valid } ),
+        .in_ar_addr ( { dmawr_cmd_ar_addr , dmard_cmd_ar_addr } ),
+        .in_ar_len ( { dmawr_cmd_ar_len , dmard_cmd_ar_len } ),
+        .in_r_ready ( { dmawr_cmd_r_ready , dmard_cmd_r_ready } ),
+        .in_r_valid ( { dmawr_cmd_r_valid , dmard_cmd_r_valid } ),
+        .in_r_last ( { dmawr_cmd_r_last , dmard_cmd_r_last } ),
+        .in_r_data ( { dmawr_cmd_r_data , dmard_cmd_r_data } ),
+        .in_r_resp ( { dmawr_cmd_r_resp , dmard_cmd_r_resp } ),
+        .out_ar_ready ( c3_s2_axi_arready ),
+        .out_ar_valid ( c3_s2_axi_arvalid ),
+        .out_ar_addr ( c3_s2_axi_araddr ),
+        .out_ar_len ( c3_s2_axi_arlen[LEN-1:0] ),
+        .out_r_ready ( c3_s2_axi_rready ),
+        .out_r_valid ( c3_s2_axi_rvalid ),
+        .out_r_last ( c3_s2_axi_rlast ),
+        .out_r_data ( c3_s2_axi_rdata ),
+        .out_r_resp ( c3_s2_axi_rresp )
+    );
+
+    // pass-through outbound read
+    assign  dmard_data_ar_ready = ob_ar_ready;
+    assign  ob_ar_valid         = dmard_data_ar_valid;
+    assign  ob_ar_addr          = dmard_data_ar_addr;
+    assign  ob_ar_len           = dmard_data_ar_len;
+    assign  ob_r_ready          = dmard_data_r_ready;
+    assign  dmard_data_r_valid  = ob_r_valid;
+    assign  dmard_data_r_last   = ob_r_last;
+    assign  dmard_data_r_data   = ob_r_data;
+    assign  dmard_data_r_resp   = ob_r_resp;
+
+end else begin:GEN_REMOTE_DMA_DESC
+
+    dlsc_axi_router_rd #(
+        .ADDR       ( OB_ADDR ),
+        .DATA       ( 32 ),
+        .LEN        ( OB_LEN ),
+        .BUFFER     ( BUFFER ),
+        .INPUTS     ( 3 ),
+        .OUTPUTS    ( 1 )
+    ) dlsc_axi_router_rd_dmacmd (
+        .clk ( clk ),
+        .rst ( rst ),
+        .in_ar_ready ( { dmard_data_ar_ready , dmawr_cmd_ar_ready , dmard_cmd_ar_ready } ),
+        .in_ar_valid ( { dmard_data_ar_valid , dmawr_cmd_ar_valid , dmard_cmd_ar_valid } ),
+        .in_ar_addr ( { dmard_data_ar_addr , dmawr_cmd_ar_addr , dmard_cmd_ar_addr } ),
+        .in_ar_len ( { dmard_data_ar_len , dmawr_cmd_ar_len , dmard_cmd_ar_len } ),
+        .in_r_ready ( { dmard_data_r_ready , dmawr_cmd_r_ready , dmard_cmd_r_ready } ),
+        .in_r_valid ( { dmard_data_r_valid , dmawr_cmd_r_valid , dmard_cmd_r_valid } ),
+        .in_r_last ( { dmard_data_r_last , dmawr_cmd_r_last , dmard_cmd_r_last } ),
+        .in_r_data ( { dmard_data_r_data , dmawr_cmd_r_data , dmard_cmd_r_data } ),
+        .in_r_resp ( { dmard_data_r_resp , dmawr_cmd_r_resp , dmard_cmd_r_resp } ),
+        .out_ar_ready ( ob_ar_ready ),
+        .out_ar_valid ( ob_ar_valid ),
+        .out_ar_addr ( ob_ar_addr ),
+        .out_ar_len ( ob_ar_len ),
+        .out_r_ready ( ob_r_ready ),
+        .out_r_valid ( ob_r_valid ),
+        .out_r_last ( ob_r_last ),
+        .out_r_data ( ob_r_data ),
+        .out_r_resp ( ob_r_resp )
+    );
+
+    // tie-off now-unused MIG signals
+    assign  c3_s2_axi_arvalid                   = 1'b0;
+    assign  c3_s2_axi_araddr                    = 0;
+    assign  c3_s2_axi_arlen[LEN-1:0]            = 0;
+    assign  c3_s2_axi_rready                    = 1'b0;
+
+end
+endgenerate
 
 assign  c3_s2_axi_aclk                      = clk;
 assign  c3_s2_axi_aresetn                   = !rst;
@@ -933,10 +1006,11 @@ always @* begin
     apb_sel_null    = 1'b0;
 
     if(apb_sel) begin
-        case(apb_addr[APB_ADDR-1:16])
-            0: apb_sel_pcie     = 1'b1;
-            1: apb_sel_dmard    = 1'b1;
-            2: apb_sel_dmawr    = 1'b1;
+        case(apb_addr[19:12])
+            0: apb_sel_pcie     = 1'b1; // PCIe registers
+            1: apb_sel_pcie     = 1'b1; // PCIe config space
+            2: apb_sel_dmard    = 1'b1;
+            3: apb_sel_dmawr    = 1'b1;
             default: apb_sel_null = 1'b1;
         endcase
     end

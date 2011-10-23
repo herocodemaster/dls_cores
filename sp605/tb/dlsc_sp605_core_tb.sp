@@ -12,6 +12,10 @@
 
 // for syntax highlighter: SC_MODULE
 
+#if (PARAM_LOCAL_DMA_DESC)
+#define LOCAL_DMA_DESC
+#endif
+
 /*AUTOSUBCELL_CLASS*/
 
 struct dma_desc {
@@ -80,14 +84,15 @@ public:
 
 #include "dlsc_main.cpp"
 
-//                                                  00FFFFFF
-const uint64_t REG_BASE                 = 0x0042CAFEBE000000;
+//                                                  000FFFFF
+const uint64_t REG_BASE                 = 0x0042CAFEBE300000;
 //                                                  07FFFFFF
 const uint64_t MEM_BASE                 = 0x0000000038000000;
 
 const uint32_t REG_PCIE                 = 0;
-const uint32_t REG_DMA_RD               = 1;
-const uint32_t REG_DMA_WR               = 2;
+const uint32_t REG_PCIE_CONFIG          = 1;
+const uint32_t REG_DMA_RD               = 2;
+const uint32_t REG_DMA_WR               = 3;
 
 const uint32_t REG_PCIE_CONTROL         = 0x0;
 const uint32_t REG_PCIE_STATUS          = 0x1;
@@ -97,7 +102,6 @@ const uint32_t REG_PCIE_OBINT_FORCE     = 0x4;
 const uint32_t REG_PCIE_OBINT_FLAGS     = 0x5;
 const uint32_t REG_PCIE_OBINT_SELECT    = 0x6;
 const uint32_t REG_PCIE_OBINT_ACK       = 0x7;
-const uint32_t REG_PCIE_CONFIG_BASE     = 0x400;
 
 const uint32_t REG_DMA_CONTROL          = 0x0;
 const uint32_t REG_DMA_STATUS           = 0x1;
@@ -147,7 +151,7 @@ SP_CTOR_IMP(__MODULE__) :
     initiator       = new dlsc_tlm_initiator_nb<uint32_t>("initiator",128);
     initiator->socket.bind(pcie->target_socket);
 
-    pcie->set_bar(0,true,0x00FFFFFF,REG_BASE,true); //  16 MB
+    pcie->set_bar(0,true,0x000FFFFF,REG_BASE,true); //   1 MB
     pcie->set_bar(2,true,0x07FFFFFF,MEM_BASE,true); // 128 MB
 
     rst             = 1;
@@ -270,28 +274,40 @@ void __MODULE__::dma_run(dma_op op) {
     data.clear();
     dma_desc_serialize(op->srcq,data);
     op->src_cmd_len     = data.size();
-    op->src_cmd_addr    = dlsc_rand_u32(0x00000,0x0F000) & 0xFFF00;
-    addr                = op->src_cmd_addr;
+#ifdef LOCAL_DMA_DESC
+    addr                = dlsc_rand_u32(0x00000,0x0F000) & 0xFFF00;
+    op->src_cmd_addr    = addr;
     while(data.size() > 16) {
         initiator->nb_write(MEM_BASE+addr,data.begin(),data.begin()+16);
         data.erase(data.begin(),data.begin()+16);
         addr+=(16*4);
     }
     initiator->nb_write(MEM_BASE+addr,data);
+#else
+    addr                = dlsc_rand_u64(0,8ull*1024*1024*1024 - 0x10000) & ~0xFFull;
+    op->src_cmd_addr    = addr;
+    memory_host->nb_write(addr,data);
+#endif
 
     // destination commands
     data.clear();
     op->destq.back().trig_out = 0x1;
     dma_desc_serialize(op->destq,data);
     op->dest_cmd_len    = data.size();
-    op->dest_cmd_addr   = dlsc_rand_u32(0x10000,0x1F000) & 0xFFF00;
-    addr                = op->dest_cmd_addr;
+#ifdef LOCAL_DMA_DESC
+    addr                = dlsc_rand_u32(0x10000,0x1F000) & 0xFFF00;
+    op->dest_cmd_addr   = addr;
     while(data.size() > 16) {
         initiator->nb_write(MEM_BASE+addr,data.begin(),data.begin()+16);
         data.erase(data.begin(),data.begin()+16);
         addr+=(16*4);
     }
     initiator->nb_write(MEM_BASE+addr,data);
+#else
+    addr                = dlsc_rand_u64(0,8ull*1024*1024*1024 - 0x10000) & ~0xFFull;
+    op->dest_cmd_addr   = addr;
+    memory_host->nb_write(addr,data);
+#endif
 
     uint32_t dev = op->dir_wr ? REG_DMA_WR : REG_DMA_RD;
 
@@ -327,7 +343,7 @@ void __MODULE__::dma_run(dma_op op) {
 }
 
 void __MODULE__::reg_write(uint32_t device, uint32_t addr, uint32_t data, bool nb) {
-    uint64_t addr64 = REG_BASE + (device*0x10000) + (addr<<2);
+    uint64_t addr64 = REG_BASE + (device*0x1000) + (addr<<2);
     if(nb) {
         initiator->nb_write(addr64,&data,(&data)+1);
     } else {
@@ -337,7 +353,7 @@ void __MODULE__::reg_write(uint32_t device, uint32_t addr, uint32_t data, bool n
 }
 
 uint32_t __MODULE__::reg_read(uint32_t device, uint32_t addr) {
-    uint64_t addr64 = REG_BASE + (device*0x10000) + (addr<<2);
+    uint64_t addr64 = REG_BASE + (device*0x1000) + (addr<<2);
     uint32_t data = initiator->b_read(addr64);
     dlsc_info("read 0x" << std::hex << addr64 << " : 0x" << data);
     return data;
@@ -359,7 +375,7 @@ void __MODULE__::stim_thread() {
     dlsc_info("testing config space");
     for(i=0;i<100;++i) {
         uint32_t r = dlsc_rand_u32(0,0x400);
-        uint32_t d = reg_read(REG_PCIE,REG_PCIE_CONFIG_BASE+r);
+        uint32_t d = reg_read(REG_PCIE_CONFIG,r);
         dlsc_assert_equals(r,d);
     }
     

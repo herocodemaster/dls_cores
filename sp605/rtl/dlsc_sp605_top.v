@@ -43,12 +43,16 @@ module dlsc_sp605_top (
     input   wire                    pci_exp_rxn
 );
 
-localparam MIG_ID       = 4;
-localparam MIG_ADDR     = 32;
-localparam MIG_LEN      = 8;
+localparam MIG_ID           = 4;
+localparam MIG_ADDR         = 32;
+localparam MIG_LEN          = 8;
 
-localparam OB_READ_CPLH = 40;
-localparam OB_READ_CPLD = 467;
+localparam OB_READ_CPLH     = 40;
+localparam OB_READ_CPLD     = 467;
+
+localparam BYTE_SWAP        = 1;    // swap bytes for x86 host
+localparam LOCAL_DMA_DESC   = 0;    // DMA descriptors in host memory
+localparam BUFFER           = 1;    // enable extra buffering in AXI routers
 
 wire                    clk;
 wire                    rst;
@@ -569,7 +573,10 @@ dlsc_sp605_core #(
     .MIG_ADDR           ( MIG_ADDR ),
     .MIG_LEN            ( MIG_LEN ),
     .OB_READ_CPLH       ( OB_READ_CPLH ),
-    .OB_READ_CPLD       ( OB_READ_CPLD )
+    .OB_READ_CPLD       ( OB_READ_CPLD ),
+    .BYTE_SWAP          ( BYTE_SWAP ),
+    .LOCAL_DMA_DESC     ( LOCAL_DMA_DESC ),
+    .BUFFER             ( BUFFER )
 ) dlsc_sp605_core (
     .clk ( clk ),
     .rst ( rst ),
