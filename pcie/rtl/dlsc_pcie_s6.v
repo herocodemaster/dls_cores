@@ -22,6 +22,7 @@ module dlsc_pcie_s6 #(
     // AXI
     parameter IB_ADDR           = 32,               // width of AXI address bus
     parameter IB_LEN            = 4,                // width of AXI length field
+    parameter IB_BYTE_SWAP      = 0,                // re-order bytes (set for x86 host)
     // Write
     parameter IB_WRITE_EN       = 1,                // enable inbound write path
     parameter IB_WRITE_BUFFER   = 32,
@@ -52,6 +53,7 @@ module dlsc_pcie_s6 #(
     // AXI
     parameter OB_ADDR           = 32,               // width of AXI address bus
     parameter OB_LEN            = 4,                // width of AXI length field
+    parameter OB_BYTE_SWAP      = 0,                // re-order bytes (set for x86 host)
     // Write
     parameter OB_WRITE_EN       = 1,                // enable outbound write path
     parameter OB_WRITE_SIZE     = 128,              // max write size (in bytes; power of 2)
@@ -409,6 +411,31 @@ wire        ib_err_ready;
 wire        ib_err_valid;
 wire        ib_err_unsupported;
 
+wire [31:0] ib_r_data_swap;
+wire [31:0] ib_w_data_swap;
+wire [3:0]  ib_w_strb_swap;
+
+generate
+if(IB_BYTE_SWAP) begin:GEN_IB_SWAP
+    assign  ib_r_data_swap  = { ib_r_data[ 7: 0],
+                                ib_r_data[15: 8],
+                                ib_r_data[23:16],
+                                ib_r_data[31:24] };
+    assign  ib_w_data       = { ib_w_data_swap[ 7: 0],
+                                ib_w_data_swap[15: 8],
+                                ib_w_data_swap[23:16],
+                                ib_w_data_swap[31:24] };
+    assign  ib_w_strb       = { ib_w_strb_swap[0],
+                                ib_w_strb_swap[1],
+                                ib_w_strb_swap[2],
+                                ib_w_strb_swap[3] };
+end else begin:GEN_IB_NOSWAP
+    assign  ib_r_data_swap  = ib_r_data;
+    assign  ib_w_data       = ib_w_data_swap;
+    assign  ib_w_strb       = ib_w_strb_swap;
+end
+endgenerate
+
 dlsc_pcie_s6_inbound #(
     .APB_CLK_DOMAIN         ( APB_CLK_DOMAIN ),
     .IB_CLK_DOMAIN          ( IB_CLK_DOMAIN ),
@@ -446,7 +473,7 @@ dlsc_pcie_s6_inbound #(
     .axi_r_ready            ( ib_r_ready ),
     .axi_r_valid            ( ib_r_valid ),
     .axi_r_last             ( ib_r_last ),
-    .axi_r_data             ( ib_r_data ),
+    .axi_r_data             ( ib_r_data_swap ),
     .axi_r_resp             ( ib_r_resp ),
     .axi_aw_ready           ( ib_aw_ready ),
     .axi_aw_valid           ( ib_aw_valid ),
@@ -455,8 +482,8 @@ dlsc_pcie_s6_inbound #(
     .axi_w_ready            ( ib_w_ready ),
     .axi_w_valid            ( ib_w_valid ),
     .axi_w_last             ( ib_w_last ),
-    .axi_w_data             ( ib_w_data ),
-    .axi_w_strb             ( ib_w_strb ),
+    .axi_w_data             ( ib_w_data_swap ),
+    .axi_w_strb             ( ib_w_strb_swap ),
     .axi_b_ready            ( ib_b_ready ),
     .axi_b_valid            ( ib_b_valid ),
     .axi_b_resp             ( ib_b_resp ),
@@ -504,6 +531,31 @@ wire        ob_err_ready;
 wire        ob_err_valid;
 wire        ob_err_unexpected;
 wire        ob_err_timeout;
+
+wire [31:0] ob_r_data_swap;
+wire [31:0] ob_w_data_swap;
+wire [3:0]  ob_w_strb_swap;
+
+generate
+if(OB_BYTE_SWAP) begin:GEN_OB_SWAP
+    assign  ob_r_data       = { ob_r_data_swap[ 7: 0],
+                                ob_r_data_swap[15: 8],
+                                ob_r_data_swap[23:16],
+                                ob_r_data_swap[31:24] };
+    assign  ob_w_data_swap  = { ob_w_data[ 7: 0],
+                                ob_w_data[15: 8],
+                                ob_w_data[23:16],
+                                ob_w_data[31:24] };
+    assign  ob_w_strb_swap  = { ob_w_strb[0],
+                                ob_w_strb[1],
+                                ob_w_strb[2],
+                                ob_w_strb[3] };
+end else begin:GEN_OB_NOSWAP
+    assign  ob_r_data       = ob_r_data_swap;
+    assign  ob_w_data_swap  = ob_w_data;
+    assign  ob_w_strb_swap  = ob_w_strb;
+end
+endgenerate
 
 dlsc_pcie_s6_outbound #(
     .APB_CLK_DOMAIN         ( APB_CLK_DOMAIN ),
@@ -565,7 +617,7 @@ dlsc_pcie_s6_outbound #(
     .axi_r_ready            ( ob_r_ready ),
     .axi_r_valid            ( ob_r_valid ),
     .axi_r_last             ( ob_r_last ),
-    .axi_r_data             ( ob_r_data ),
+    .axi_r_data             ( ob_r_data_swap ),
     .axi_r_resp             ( ob_r_resp ),
     .axi_aw_ready           ( ob_aw_ready ),
     .axi_aw_valid           ( ob_aw_valid ),
@@ -574,8 +626,8 @@ dlsc_pcie_s6_outbound #(
     .axi_w_ready            ( ob_w_ready ),
     .axi_w_valid            ( ob_w_valid ),
     .axi_w_last             ( ob_w_last ),
-    .axi_w_strb             ( ob_w_strb ),
-    .axi_w_data             ( ob_w_data ),
+    .axi_w_strb             ( ob_w_strb_swap ),
+    .axi_w_data             ( ob_w_data_swap ),
     .axi_b_ready            ( ob_b_ready ),
     .axi_b_valid            ( ob_b_valid ),
     .axi_b_resp             ( ob_b_resp ),
