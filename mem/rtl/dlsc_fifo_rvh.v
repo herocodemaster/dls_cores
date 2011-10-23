@@ -44,6 +44,7 @@ module dlsc_fifo_rvh (
 );
 
 `include "dlsc_clog2.vh"
+`include "dlsc_synthesis.vh"
 
 // ** Parameters **
 
@@ -58,7 +59,7 @@ parameter DATA          = 8;                    // width of data in FIFO
 parameter ALMOST_FULL   = 0;                    // assert almost_full when <= ALMOST_FULL free spaces remain
 parameter ALMOST_EMPTY  = 0;                    // assert almost_empty when <= ALMOST_EMPTY valid entries remain
 parameter FAST_FLAGS    = 1;                    // disallow pessimistic flags
-parameter BRAM          = ((DATA*DEPTHI)>=4096);// use block RAM (instead of distributed RAM)
+parameter BRAM          = ((DATA*DEPTHI)>=2048);// use block RAM (instead of distributed RAM)
 parameter REGISTER      = 1;                    // register output
 
 
@@ -117,10 +118,13 @@ dlsc_fifo #(
 );
 
 generate
-if(REGISTER>0) begin:GEN_REG
+// no need to register for shallow (DEPTH<=2) FIFOs, since they're
+// internally registered
+if(REGISTER>0 && DEPTHI>2) begin:GEN_REG
 
+    `DLSC_NO_SHREG reg [DATA-1:0] data;
+    
     reg             valid;
-    reg  [DATA-1:0] data;
 
     assign          rd_valid        = valid;
     assign          rd_data         = data;
@@ -131,7 +135,7 @@ if(REGISTER>0) begin:GEN_REG
             valid   <= 1'b0;
         end else begin
             if(rd_ready) valid <= 1'b0;
-            if(pop)       valid <= 1'b1;
+            if(pop)      valid <= 1'b1;
         end
     end
 
