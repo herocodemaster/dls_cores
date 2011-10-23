@@ -96,9 +96,8 @@ generate
 if(BUFFER>0) begin:GEN_BUFFER
     dlsc_fifo_rvh #(
         .DATA           ( DATA+1 ),
-        .DEPTH          ( 16 ),
-        .ALMOST_FULL    ( 12 ),
-        .REGISTER       ( 1 )
+        .DEPTH          ( 2 ),
+        .ALMOST_FULL    ( 1 )
     ) dlsc_fifo_data (
         .clk            ( clk ),
         .rst            ( rst ),
