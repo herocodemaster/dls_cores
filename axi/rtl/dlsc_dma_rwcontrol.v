@@ -165,11 +165,11 @@ wire                cs_ready;
 wire [ADDR-1:LSB]   cs_addr;
 wire                cs_last;
 
-dlsc_dma_rwcontrol_cmdsplit #(
+dlsc_dma_cmdsplit #(
     .ADDR           ( ADDR - LSB ),
     .ILEN           ( 32 - LSB ),
     .OLEN           ( LEN )
-) dlsc_dma_rwcontrol_cmdsplit_inst (
+) dlsc_dma_cmdsplit_inst (
     .clk            ( clk ),
     .rst            ( rst ),
     .in_ready       ( cp_ready ),

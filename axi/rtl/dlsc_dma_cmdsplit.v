@@ -1,5 +1,5 @@
 
-module dlsc_dma_rwcontrol_cmdsplit #(
+module dlsc_dma_cmdsplit #(
     parameter ADDR      = 30,
     parameter ILEN      = 30,   // bits for input command length (must be >= OLEN)
     parameter OLEN      = 4     // bits for output command length
