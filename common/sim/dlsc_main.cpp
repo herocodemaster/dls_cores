@@ -160,8 +160,10 @@ bool dlsc_rand_bool(double true_pct) {
 uint32_t dlsc_rand_u32(uint32_t min,uint32_t max) {
     uint32_t r = rand();
     r <<= 16;
-    r |= rand();
-    r %= (max-min);
+    r ^= rand();
+    if(min != 0 || (~max) != 0) {
+        r %= (max-min+1ul);
+    }
     r += min;
     return r;
 }
@@ -169,8 +171,10 @@ uint32_t dlsc_rand_u32(uint32_t min,uint32_t max) {
 uint64_t dlsc_rand_u64(uint64_t min,uint64_t max) {
     uint64_t r = dlsc_rand_u32(0,0xFFFFFFFFul);
     r <<= 32;
-    r |= dlsc_rand_u32(0,0xFFFFFFFFul);
-    r %= (max-min);
+    r ^= dlsc_rand_u32(0,0xFFFFFFFFul);
+    if(min != 0 || (~max) != 0) {
+        r %= (max-min+1ull);
+    }
     r += min;
     return r;
 }
