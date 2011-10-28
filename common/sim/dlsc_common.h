@@ -71,7 +71,7 @@ extern int _dlsc_err_cnt;
     if((lhs)==(rhs)) { \
         dlsc_okay("dlsc_assert_equals( " << #lhs << " , " << #rhs << " ) passed"); \
     } else { \
-        dlsc_error("dlsc_assert_equals( " << #lhs << " ('" << (lhs) << "') , " << #rhs << " ('" << (rhs) << "') ) failed!"); \
+        dlsc_error("dlsc_assert_equals( " << #lhs << " ('" << std::hex << (lhs) << "') , " << #rhs << " ('" << (rhs) << "') ) failed!"); \
     } } while(0)
 
 #endif
