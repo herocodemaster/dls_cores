@@ -26,9 +26,9 @@ module dlsc_axi_reader #(
 
     // AXI read command
     input   wire                    axi_ar_ready,
-    output  wire                    axi_ar_valid,
-    output  wire    [ADDR-1:0]      axi_ar_addr,
-    output  wire    [LEN-1:0]       axi_ar_len,
+    output  reg                     axi_ar_valid,
+    output  reg     [ADDR-1:0]      axi_ar_addr,
+    output  reg     [LEN-1:0]       axi_ar_len,
 
     // AXI read response
     output  wire                    axi_r_ready,
