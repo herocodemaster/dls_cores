@@ -116,7 +116,7 @@ wire    [1:0]           pos_g;
 wire    [1:0]           pos_b;
 wire    [1:0]           pos_a;
 wire                    px_rst_bus;
-wire                    px_rst_all;
+wire                    px_rst_drv;
 wire                    px_frame_start;
 wire                    px_frame_done;
 wire                    px_underrun;
@@ -153,7 +153,7 @@ dlsc_vga_registers #(
     .clk                ( clk ),
     .rst_in             ( rst ),
     .rst_bus            ( rst_bus ),
-    .rst_all            (  ),
+    .rst_drv            (  ),
     .apb_addr           ( apb_addr ),
     .apb_sel            ( apb_sel ),
     .apb_enable         ( apb_enable ),
@@ -185,7 +185,7 @@ dlsc_vga_registers #(
     .px_clk             ( px_clk ),
     .px_rst_in          ( px_rst ),
     .px_rst_bus         ( px_rst_bus ),
-    .px_rst_all         ( px_rst_all ),
+    .px_rst_drv         ( px_rst_drv ),
     .px_frame_start     ( px_frame_start ),
     .px_frame_done      ( px_frame_done ),
     .px_underrun        ( px_underrun ),
@@ -296,14 +296,14 @@ dlsc_data_unpacker #(
     .out_data           ( up_data )
 );
 
-// output
+// output driver
 
 dlsc_vga_output #(
     .XBITS              ( XBITS ),
     .YBITS              ( YBITS )
 ) dlsc_vga_output_inst (
     .clk                ( px_clk ),
-    .rst                ( px_rst_all ),
+    .rst                ( px_rst_drv ),
     .frame_start        ( px_frame_start ),
     .frame_done         ( px_frame_done ),
     .underrun           ( px_underrun ),

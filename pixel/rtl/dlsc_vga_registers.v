@@ -39,7 +39,7 @@ module dlsc_vga_registers #(
     input   wire                    clk,
     input   wire                    rst_in,
     output  wire                    rst_bus,
-    output  wire                    rst_all,
+    output  wire                    rst_drv,
 
     // APB register bus
     input   wire    [APB_ADDR-1:0]  apb_addr,
@@ -66,7 +66,7 @@ module dlsc_vga_registers #(
     output  wire    [BLEN-1:0]      axi_cmd_bytes,
 
     // Config to modeline
-    // (will be constant when px_rst_all deasserts)
+    // (will be constant when px_rst_drv deasserts)
     output  reg     [XBITS-1:0]     hdisp,
     output  reg     [XBITS-1:0]     hsyncstart,
     output  reg     [XBITS-1:0]     hsyncend,
@@ -85,8 +85,8 @@ module dlsc_vga_registers #(
     // System
     input   wire                    px_clk,
     input   wire                    px_rst_in,
-    output  wire                    px_rst_bus, // just reset bus interface logic (excluding timing)
-    output  wire                    px_rst_all, // reset all logic (including timing)
+    output  wire                    px_rst_bus, // just reset bus interface logic
+    output  wire                    px_rst_drv, // reset output driver
 
     // Status
     input   wire                    px_frame_start,
@@ -171,28 +171,28 @@ dlsc_syncflop #(
 
 dlsc_domaincross_pulse dlsc_domaincross_pulse_frame_start (
     .in_clk         ( px_clk ),
-    .in_rst         ( px_rst_all ),
+    .in_rst         ( px_rst_drv ),
     .in_pulse       ( px_frame_start ),
     .out_clk        ( clk ),
-    .out_rst        ( rst_all ),
+    .out_rst        ( rst_drv ),
     .out_pulse      ( frame_start )
 );
 
 dlsc_domaincross_pulse dlsc_domaincross_pulse_frame_done (
     .in_clk         ( px_clk ),
-    .in_rst         ( px_rst_all ),
+    .in_rst         ( px_rst_drv ),
     .in_pulse       ( px_frame_done ),
     .out_clk        ( clk ),
-    .out_rst        ( rst_all ),
+    .out_rst        ( rst_drv ),
     .out_pulse      ( frame_done )
 );
 
 dlsc_domaincross_pulse dlsc_domaincross_pulse_underrun (
     .in_clk         ( px_clk ),
-    .in_rst         ( px_rst_all ),
+    .in_rst         ( px_rst_drv ),
     .in_pulse       ( px_underrun ),
     .out_clk        ( clk ),
-    .out_rst        ( rst_all ),
+    .out_rst        ( rst_drv ),
     .out_pulse      ( underrun )
 );
 
@@ -401,26 +401,26 @@ end
 // resets
 
 reg             st_rst_bus;     // st == ST_RST || st == ST_UR_RST
-reg             st_rst_all;     // st == ST_RST
+reg             st_rst_drv;     // st == ST_RST || st == ST_HALT
 
 assign          rst_bus         = rst_in || st_rst_bus;
-assign          rst_all         = rst_in || st_rst_all;
+assign          rst_drv         = rst_in || st_rst_drv;
 
 wire            px_st_rst_bus;
-wire            px_st_rst_all;
+wire            px_st_rst_drv;
 
 dlsc_syncflop #(
     .DATA           ( 2 ),
     .RESET          ( 2'b11 )
 ) dlsc_syncflop_px_st_rst (
-    .in             ( { st_rst_all, st_rst_bus } ),
+    .in             ( { st_rst_drv, st_rst_bus } ),
     .clk            ( px_clk ),
     .rst            ( px_rst_in ),
-    .out            ( { px_st_rst_all, px_st_rst_bus } )
+    .out            ( { px_st_rst_drv, px_st_rst_bus } )
 );
 
 assign          px_rst_bus      = px_rst_in || px_st_rst_bus;
-assign          px_rst_all      = px_rst_in || px_st_rst_all;
+assign          px_rst_drv      = px_rst_in || px_st_rst_drv;
 
 // synchronize unpacker command
 
@@ -560,15 +560,21 @@ end
 always @(posedge clk) begin
     if(rst_in) begin
         st          <= ST_RST;
-        st_rst_all  <= 1'b1;
+        st_rst_drv  <= 1'b1;
         st_rst_bus  <= 1'b1;
         axi_halt    <= 1'b1;
     end else begin
         st          <= next_st;
-        st_rst_all  <= next_st == ST_RST;
-        st_rst_bus  <= next_st == ST_RST  || next_st == ST_UR_RST;
-        axi_halt    <= next_st == ST_RST  || next_st == ST_UR_RST ||
-                       next_st == ST_HALT || next_st == ST_UR_HALT;
+        
+        // output driver should be immediately reset upon disable
+        st_rst_drv  <= next_st == ST_RST    || next_st == ST_HALT;
+        
+        // bus interface can only be reset once the bus is idle
+        st_rst_bus  <= next_st == ST_RST    || next_st == ST_UR_RST;
+
+        // halt bus in prep for reset
+        axi_halt    <= next_st == ST_RST    || next_st == ST_HALT ||
+                       next_st == ST_UR_RST || next_st == ST_UR_HALT;
     end
 end
 

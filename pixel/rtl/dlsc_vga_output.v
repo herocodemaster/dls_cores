@@ -92,7 +92,7 @@ always @(posedge clk) begin
     px_g            <= 0;
     px_b            <= 0;
     px_a            <= 0;
-    if(xfer && in_valid) begin
+    if(xfer && in_valid && !underrun) begin
         px_r            <= in_data[ (pos_r*8) +: 8 ];
         px_g            <= in_data[ (pos_g*8) +: 8 ];
         px_b            <= in_data[ (pos_b*8) +: 8 ];
