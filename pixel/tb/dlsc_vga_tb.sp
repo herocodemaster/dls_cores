@@ -138,7 +138,7 @@ const uint32_t REG_VTOTAL       = 0xF;
 
 SP_CTOR_IMP(__MODULE__) :
     clk("clk",10,SC_NS),
-    px_clk("px_clk",8,SC_NS)
+    px_clk("px_clk",12,SC_NS)
     /*AUTOINIT*/
 {
     SP_AUTO_CTOR;
@@ -312,13 +312,28 @@ void __MODULE__::stim_thread() {
 
     for(int i=0;i<10;++i) {
         dlsc_info("iteration " << i);
+
+        // disable
         reg_write(REG_CONTROL,0);
-        wait(1000,SC_NS);
+        wait(100,SC_NS);
+        dlsc_assert(!px_en);
+
+        // new config
         cfg.randomize();
         cfg_write();
         cur_addr = dlsc_rand_u32(0,MEM_SIZE-(cfg.vdisp*cfg.row_step)-1);
         reg_write(REG_BUF_ADDR,cur_addr);
+
+        // randomize memory
+        std::deque<uint32_t> data;
+        for(int j=0;j<(cfg.vdisp*cfg.row_step)/4;++j) {
+            data.push_back(dlsc_rand_u32());
+        }
+        memory->nb_write(cur_addr&~0x3u,data);
+
+        // enable
         reg_write(REG_CONTROL,1);
+
         wait(frame_done_event);
         wait(frame_done_event);
         wait(dlsc_rand_u32(0,1000),SC_US);
