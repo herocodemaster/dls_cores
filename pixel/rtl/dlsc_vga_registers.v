@@ -291,10 +291,6 @@ end
 reg  [BLEN-1:0] bytes_per_row;
 reg  [AXI_ADDR-1:0] row_step;
 reg  [1:0]      bytes_per_pixel;
-reg  [1:0]      pos_r;
-reg  [1:0]      pos_g;
-reg  [1:0]      pos_b;
-reg  [1:0]      pos_a;
 
 always @(posedge clk) begin
     if(rst_in) begin
