@@ -111,7 +111,7 @@ wire            f_pop           = axi_r_ready && axi_r_valid && axi_r_last;
 wire            f_last;
 
 wire            f_empty;
-assign          axi_busy        = !f_empty;
+assign          axi_busy        = !f_empty || out_valid;
 
 dlsc_fifo #(
     .DEPTH          ( MOT ),
