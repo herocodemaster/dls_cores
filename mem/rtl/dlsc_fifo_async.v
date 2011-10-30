@@ -3,7 +3,8 @@ module dlsc_fifo_async #(
     parameter DATA          = 8,    // width of data in FIFO
     parameter ADDR          = 4,    // depth of FIFO is 2**ADDR; width of free/count ports is ADDR+1
     parameter ALMOST_FULL   = 0,    // assert almost_full when <= ALMOST_FULL free spaces remain (0 makes it equivalent to full)
-    parameter ALMOST_EMPTY  = 0     // assert almost_empty when <= ALMOST_EMPTY valid entries remain (0 makes it equivalent to empty)
+    parameter ALMOST_EMPTY  = 0,    // assert almost_empty when <= ALMOST_EMPTY valid entries remain (0 makes it equivalent to empty)
+    parameter BRAM          = (((2**ADDR)*DATA)>=2048)  // use block RAMs (instead of LUTs)
 ) (
 
     // input
@@ -34,21 +35,47 @@ localparam [ADDR:0] MSB = {1'b1,{ADDR{1'b0}}};
 
 // ** memory **
 
-`DLSC_FANOUT_REG reg [ADDR  :0] wr_addr_r;
-`DLSC_FANOUT_REG reg            wr_push_r;
-`DLSC_PIPE_REG   reg [DATA-1:0] wr_data_r;
+`DLSC_FANOUT_REG reg  [ADDR  :0] wr_addr_r;
+`DLSC_FANOUT_REG reg             wr_push_r;
+`DLSC_PIPE_REG   reg  [DATA-1:0] wr_data_r;
+    
+                 wire [ADDR  :0] rd_addr_next;
+`DLSC_FANOUT_REG reg  [ADDR  :0] rd_addr;
 
-`DLSC_LUTRAM         reg [DATA-1:0] mem[DEPTH-1:0];
+generate
+if(!BRAM) begin:GEN_LUTRAM
 
-always @(posedge wr_clk) begin
-    if(wr_push_r) begin
-        mem[wr_addr_r[ADDR-1:0]] <= wr_data_r;
+    `DLSC_LUTRAM     reg [DATA-1:0] mem[DEPTH-1:0];
+
+    always @(posedge wr_clk) begin
+        if(wr_push_r) begin
+            mem[wr_addr_r[ADDR-1:0]] <= wr_data_r;
+        end
     end
+
+    assign rd_data = mem[rd_addr[ADDR-1:0]];
+
+end else begin:GEN_BRAM
+
+    dlsc_ram_dp #(
+        .DATA           ( DATA ),
+        .ADDR           ( ADDR ),
+        .PIPELINE_WR    ( 0 ),
+        .PIPELINE_RD    ( 1 ),
+        .WARNINGS       ( 0 )
+    ) dlsc_ram_dp_inst (
+        .write_clk      ( wr_clk ),
+        .write_en       ( wr_push_r ),
+        .write_addr     ( wr_addr_r[ADDR-1:0] ),
+        .write_data     ( wr_data_r ),
+        .read_clk       ( rd_clk ),
+        .read_en        ( 1'b1 ),
+        .read_addr      ( rd_addr_next[ADDR-1:0] ),
+        .read_data      ( rd_data )
+    );
+
 end
-
-`DLSC_FANOUT_REG reg [ADDR  :0] rd_addr;
-
-assign rd_data = mem[rd_addr[ADDR-1:0]];
+endgenerate
 
 
 // ** input / write **
@@ -170,7 +197,7 @@ reg  [ADDR  :0] rd_wr_addr;
 // read address
 reg  [ADDR  :0] rd_addr_p1;
 wire [ADDR  :0] rd_addr_p1_next     = rd_pop ? rd_addr_p1 + 1 : rd_addr_p1;
-wire [ADDR  :0] rd_addr_next        = rd_pop ? rd_addr_p1     : rd_addr;
+assign          rd_addr_next        = rd_pop ? rd_addr_p1     : rd_addr;
 
 // count
 wire [ADDR  :0] rd_count_next       = rd_wr_addr -  rd_addr_next;
