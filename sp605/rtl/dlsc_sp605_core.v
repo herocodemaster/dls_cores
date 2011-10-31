@@ -1101,6 +1101,8 @@ always @* begin
     apb_sel_pcie    = 1'b0;
     apb_sel_dmard   = 1'b0;
     apb_sel_dmawr   = 1'b0;
+    apb_sel_vga     = 1'b0;
+    apb_sel_i2c     = 1'b0;
     apb_sel_null    = 1'b0;
 
     if(apb_sel) begin
