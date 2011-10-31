@@ -89,7 +89,7 @@ IBUFDS pcie_clk_buf (
     .IB ( pcie_clk_n )
 );
 
-wire                    mig_rst         = btn[0];
+wire                    mig_rst         = btn[0] && btn[3];
 wire                    mig_ready;
 
 (* KEEP = "TRUE" *) wire clk;
@@ -630,7 +630,7 @@ dlsc_sp605_ch7301c #(
     .out_vsync_n ( dvi_v )
 );
 
-assign                  dvi_reset_b = !px_rst;
+assign                  dvi_reset_b = !(px_rst || btn[1]);
 
 wire                    scl_in;
 wire                    scl_out;
@@ -896,7 +896,7 @@ dlsc_sp605_core #(
 assign led[0] = mig_ready;
 assign led[1] = !rst;
 assign led[2] = !user_reset_out;
-assign led[3] = cfg_trn_pending;
+assign led[3] = sda_oe || !dvi_reset_b || cfg_trn_pending;
 
 endmodule
 
