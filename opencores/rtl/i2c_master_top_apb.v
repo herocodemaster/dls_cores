@@ -38,13 +38,24 @@ wire        wb_stb_i;
 wire        wb_cyc_i;
 wire        wb_ack_o;
 
+reg         rst_trig;
+wire        rst_i = rst || rst_trig;
+
+always @(posedge clk) begin
+    rst_trig <= 1'b0;
+    if(apb_sel && apb_enable && apb_write && apb_wdata[31] && apb_strb[3] && apb_ready) begin
+        // write with MSbit set triggers reset of core
+        rst_trig <= 1'b1;
+    end
+end
+
 dlsc_apb_to_wb #(
     .REGISTER       ( 0 ),
     .ADDR           ( 3 ),
     .DATA           ( 8 )
 ) dlsc_apb_to_wb_inst (
     .clk            ( clk ),
-    .rst            ( rst ),
+    .rst            ( rst_i ),
     .apb_addr       ( apb_addr[4:2] ),
     .apb_sel        ( apb_sel ),
     .apb_enable     ( apb_enable ),
@@ -75,7 +86,7 @@ i2c_master_top #(
     .ARST_LVL       ( 1'b0 )
 ) i2c_master_top_inst (
     .wb_clk_i       ( clk ),
-    .wb_rst_i       ( rst ),
+    .wb_rst_i       ( rst_i ),
     .arst_i         ( 1'b1 ),
     .wb_adr_i       ( wb_adr_i ),
     .wb_dat_i       ( wb_dat_i ),
