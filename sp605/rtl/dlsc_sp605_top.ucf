@@ -1,26 +1,51 @@
-CONFIG PART = xc6slx45t-fgg484-3ces;
+CONFIG PART = xc6slx45t-fgg484-2;
 
 # UCF
-
+# ** System **
 NET "clk200_n"                      LOC = "K22";   ##
 NET "clk200_p"                      LOC = "K21";   ##
-Net clk200_p TNM_NET = clk200_p;
-TIMESPEC TS_clk200_p = PERIOD clk200_p 5000 ps;
+NET "clk200_p" TNM_NET = "clk200_p";
+TIMESPEC "TS_clk200_p" = PERIOD "clk200_p" 5000 ps;
+
+TIMESPEC TS_clk0_to_clk1_tig = FROM "dlsc_sp605_clocks_clk0_pre" TO "dlsc_sp605_clocks_clk1_pre" TIG;
+TIMESPEC TS_clk1_to_clk0_tig = FROM "dlsc_sp605_clocks_clk1_pre" TO "dlsc_sp605_clocks_clk0_pre" TIG;
 
 NET "btn<0>"                  LOC = "F3";    ## 2   on SW4 pushbutton (active-high)
 NET "btn<1>"                  LOC = "G6";    ## 2   on SW7 pushbutton (active-high)
 NET "btn<2>"                  LOC = "F5";    ## 2   on SW5 pushbutton (active-high)
 NET "btn<3>"                  LOC = "C1";    ## 2   on SW8 pushbutton (active-high)
+NET "led<0>"    LOC = "D17" |IOSTANDARD = LVCMOS25;    # DS3
+NET "led<1>"    LOC = "AB4" |IOSTANDARD = LVCMOS25;    # DS4
+NET "led<2>"    LOC = "D21" |IOSTANDARD = LVCMOS25;    # DS5
+NET "led<3>"    LOC = "W15" |IOSTANDARD = LVCMOS25;    # DS6
+# ** VGA **
+NET "dvi_scl" LOC = "W13" |IOSTANDARD = LVCMOS25 |PULLUP;
+NET "dvi_sda" LOC = "AA4" |IOSTANDARD = LVCMOS25 |PULLUP;
 
-NET "led<0>"    LOC = "D17" | IOSTANDARD = LVCMOS25;    # DS3
-NET "led<1>"    LOC = "AB4" | IOSTANDARD = LVCMOS25;    # DS4
-NET "led<2>"    LOC = "D21" | IOSTANDARD = LVCMOS25;    # DS5
-NET "led<3>"    LOC = "W15" | IOSTANDARD = LVCMOS25;    # DS6
+NET "dvi_gpio" LOC = "D22" |IOSTANDARD = LVCMOS25 |PULLUP;
+
+NET "dvi_reset_b" LOC = "L15" |IOSTANDARD = LVCMOS25 |PULLUP;
+
+NET "dvi_xclk_p" LOC="C20";
+NET "dvi_xclk_n" LOC="C22";
+NET "dvi_d<0>" LOC="K16";
+NET "dvi_d<1>" LOC="U19";
+NET "dvi_d<2>" LOC="T20";
+NET "dvi_d<3>" LOC="N16";
+NET "dvi_d<4>" LOC="P16";
+NET "dvi_d<5>" LOC="M17";
+NET "dvi_d<6>" LOC="M18";
+NET "dvi_d<7>" LOC="R15";
+NET "dvi_d<8>" LOC="R16";
+NET "dvi_d<9>" LOC="P17";
+NET "dvi_d<10>" LOC="P18";
+NET "dvi_d<11>" LOC="R17";
+NET "dvi_de" LOC="J17";
+NET "dvi_h" LOC="J16";
+NET "dvi_v" LOC="B22";
 
 # ** MIG **
-
 CONFIG VCCAUX=2.5; # Valid values are 2.5 and 3.3
-
 CONFIG MCB_PERFORMANCE= EXTENDED;
 
 NET "dlsc_sp605_mig/memc?_wrapper_inst/mcb_ui_top_inst/mcb_raw_wrapper_inst/selfrefresh_mcb_mode" TIG;
@@ -33,25 +58,25 @@ NET "mcb3_dram_dqs_n"                                 IN_TERM = NONE;
 NET "mcb3_dram_udqs"                                  IN_TERM = NONE;
 NET "mcb3_dram_udqs_n"                                IN_TERM = NONE;
 
-NET  "mcb3_dram_dq[*]"                               IOSTANDARD = SSTL15_II  | OUT_TERM = UNTUNED_50;
-NET  "mcb3_dram_a[*]"                                IOSTANDARD = SSTL15_II  | OUT_TERM = UNTUNED_50;
-NET  "mcb3_dram_ba[*]"                               IOSTANDARD = SSTL15_II  | OUT_TERM = UNTUNED_50;
-NET  "mcb3_dram_dqs"                                 IOSTANDARD = DIFF_SSTL15_II  | OUT_TERM = UNTUNED_50;
-NET  "mcb3_dram_udqs"                                IOSTANDARD = DIFF_SSTL15_II  | OUT_TERM = UNTUNED_50;
-NET  "mcb3_dram_dqs_n"                               IOSTANDARD = DIFF_SSTL15_II  | OUT_TERM = UNTUNED_50;
-NET  "mcb3_dram_udqs_n"                              IOSTANDARD = DIFF_SSTL15_II  | OUT_TERM = UNTUNED_50;
-NET  "mcb3_dram_ck"                                  IOSTANDARD = DIFF_SSTL15_II  | OUT_TERM = UNTUNED_50;
-NET  "mcb3_dram_ck_n"                                IOSTANDARD = DIFF_SSTL15_II  | OUT_TERM = UNTUNED_50;
-NET  "mcb3_dram_cke"                                 IOSTANDARD = SSTL15_II  | OUT_TERM = UNTUNED_50;
-NET  "mcb3_dram_ras_n"                               IOSTANDARD = SSTL15_II  | OUT_TERM = UNTUNED_50;
-NET  "mcb3_dram_cas_n"                               IOSTANDARD = SSTL15_II  | OUT_TERM = UNTUNED_50;
-NET  "mcb3_dram_we_n"                                IOSTANDARD = SSTL15_II  | OUT_TERM = UNTUNED_50;
-NET  "mcb3_dram_odt"                                 IOSTANDARD = SSTL15_II  | OUT_TERM = UNTUNED_50;
+NET  "mcb3_dram_dq[*]"                               IOSTANDARD = SSTL15_II  |OUT_TERM = UNTUNED_50;
+NET  "mcb3_dram_a[*]"                                IOSTANDARD = SSTL15_II  |OUT_TERM = UNTUNED_50;
+NET  "mcb3_dram_ba[*]"                               IOSTANDARD = SSTL15_II  |OUT_TERM = UNTUNED_50;
+NET  "mcb3_dram_dqs"                                 IOSTANDARD = DIFF_SSTL15_II  |OUT_TERM = UNTUNED_50;
+NET  "mcb3_dram_udqs"                                IOSTANDARD = DIFF_SSTL15_II  |OUT_TERM = UNTUNED_50;
+NET  "mcb3_dram_dqs_n"                               IOSTANDARD = DIFF_SSTL15_II  |OUT_TERM = UNTUNED_50;
+NET  "mcb3_dram_udqs_n"                              IOSTANDARD = DIFF_SSTL15_II  |OUT_TERM = UNTUNED_50;
+NET  "mcb3_dram_ck"                                  IOSTANDARD = DIFF_SSTL15_II  |OUT_TERM = UNTUNED_50;
+NET  "mcb3_dram_ck_n"                                IOSTANDARD = DIFF_SSTL15_II  |OUT_TERM = UNTUNED_50;
+NET  "mcb3_dram_cke"                                 IOSTANDARD = SSTL15_II  |OUT_TERM = UNTUNED_50;
+NET  "mcb3_dram_ras_n"                               IOSTANDARD = SSTL15_II  |OUT_TERM = UNTUNED_50;
+NET  "mcb3_dram_cas_n"                               IOSTANDARD = SSTL15_II  |OUT_TERM = UNTUNED_50;
+NET  "mcb3_dram_we_n"                                IOSTANDARD = SSTL15_II  |OUT_TERM = UNTUNED_50;
+NET  "mcb3_dram_odt"                                 IOSTANDARD = SSTL15_II  |OUT_TERM = UNTUNED_50;
 NET  "mcb3_dram_reset_n"                             IOSTANDARD = LVCMOS15  ;
-NET  "mcb3_dram_dm"                                  IOSTANDARD = SSTL15_II  | OUT_TERM = UNTUNED_50;
-NET  "mcb3_dram_udm"                                 IOSTANDARD = SSTL15_II  | OUT_TERM = UNTUNED_50;
-NET  "mcb3_rzq"                                      IOSTANDARD = SSTL15_II  | OUT_TERM = UNTUNED_50;
-NET  "mcb3_zio"                                      IOSTANDARD = SSTL15_II  | OUT_TERM = UNTUNED_50;
+NET  "mcb3_dram_dm"                                  IOSTANDARD = SSTL15_II  |OUT_TERM = UNTUNED_50;
+NET  "mcb3_dram_udm"                                 IOSTANDARD = SSTL15_II  |OUT_TERM = UNTUNED_50;
+NET  "mcb3_rzq"                                      IOSTANDARD = SSTL15_II  |OUT_TERM = UNTUNED_50;
+NET  "mcb3_zio"                                      IOSTANDARD = SSTL15_II  |OUT_TERM = UNTUNED_50;
 
 NET  "mcb3_dram_a[0]"                            LOC = "K2" ;
 NET  "mcb3_dram_a[10]"                           LOC = "J4" ;
@@ -104,14 +129,14 @@ NET  "mcb3_rzq"                                  LOC = "K7" ;
 NET  "mcb3_zio"                                  LOC = "M7" ;
 
 # ** PCIe **
-
-NET pcie_reset_n LOC = J7 | IOSTANDARD = LVCMOS25 | PULLUP | NODELAY;
+NET pcie_reset_n LOC = J7 |IOSTANDARD = LVCMOS25 |PULLUP |NODELAY;
 NET pcie_reset_n TIG;
 
 NET pcie_clk_n LOC = B10;
 NET pcie_clk_p LOC = A10;
 
-NET pcie_clk PERIOD = 8ns;
+NET "pcie_clk_p" TNM_NET = "pcie_clk_p";
+TIMESPEC "TS_pcie_clk_p" = PERIOD "pcie_clk_p" 8000 ps;
 
 NET dlsc_sp605_pcie/gt_refclk_out(0) TNM_NET = GT_REFCLK_OUT;
 TIMESPEC TS_GT_REFCLK_OUT = PERIOD GT_REFCLK_OUT 8ns HIGH 50 % ;
@@ -121,4 +146,3 @@ NET pci_exp_txp LOC = B6;
 NET pci_exp_txn LOC = A6;
 NET pci_exp_rxp LOC = D7;
 NET pci_exp_rxn LOC = C7;
-

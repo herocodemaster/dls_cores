@@ -9,6 +9,19 @@ module dlsc_sp605_top (
     input   wire    [3:0]           btn,
     output  wire    [3:0]           led,
 
+    // ** VGA **
+
+    output  wire                    dvi_xclk_p,
+    output  wire                    dvi_xclk_n,
+    output  wire                    dvi_reset_b,
+    output  wire    [11:0]          dvi_d,
+    output  wire                    dvi_de,
+    output  wire                    dvi_h,
+    output  wire                    dvi_v,
+    inout   wire                    dvi_gpio,
+    inout   wire                    dvi_scl,
+    inout   wire                    dvi_sda,
+
     // ** MIG **
    
     inout   wire    [15:0]          mcb3_dram_dq,
@@ -54,11 +67,18 @@ localparam BYTE_SWAP        = 1;    // swap bytes for x86 host
 localparam LOCAL_DMA_DESC   = 0;    // DMA descriptors in host memory
 localparam BUFFER           = 1;    // enable extra buffering in AXI routers
 
-wire                    clk;
-wire                    rst;
+// ** Clocks **
 
-wire                    mig_rst         = btn[0];
-wire                    mig_ready;
+wire                    clk200_buf;
+
+IBUFGDS #(
+    .DIFF_TERM  ( "TRUE" ),
+    .IOSTANDARD ( "LVDS_25" )
+) IBUFGDS_clk_200 (
+    .O          ( clk200_buf ),
+    .I          ( clk200_p ),
+    .IB         ( clk200_n )
+);
 
 wire                    pcie_clk;
 wire                    pcie_rst        = !pcie_reset_n;
@@ -67,6 +87,23 @@ IBUFDS pcie_clk_buf (
     .O  ( pcie_clk ),
     .I  ( pcie_clk_p ),
     .IB ( pcie_clk_n )
+);
+
+wire                    mig_rst         = btn[0];
+wire                    mig_ready;
+
+(* KEEP = "TRUE" *) wire clk;
+(* KEEP = "TRUE" *) wire rst;
+(* KEEP = "TRUE" *) wire px_clk;
+(* KEEP = "TRUE" *) wire px_rst;
+
+dlsc_sp605_clocks dlsc_sp605_clocks (
+    .clk200_in      ( clk200_buf ),
+    .rst_in         ( !mig_ready ),
+    .clk            ( clk ),
+    .rst            ( rst ),
+    .px_clk         ( px_clk ),
+    .px_rst         ( px_rst )
 );
 
 
@@ -251,12 +288,9 @@ dlsc_sp605_mig (
     .mcb3_rzq ( mcb3_rzq ),
     .mcb3_zio ( mcb3_zio ),
     .mcb3_dram_udm ( mcb3_dram_udm ),
-    .c3_sys_clk_p ( clk200_p ),
-    .c3_sys_clk_n ( clk200_n ),
+    .c3_sys_clk ( clk200_buf ),
     .c3_sys_rst_i ( mig_rst ),
     .c3_calib_done ( mig_ready ),
-    .c3_clk0 ( clk ),
-    .c3_rst0 ( rst ),
     .mcb3_dram_dqs ( mcb3_dram_dqs ),
     .mcb3_dram_dqs_n ( mcb3_dram_dqs_n ),
     .mcb3_dram_ck ( mcb3_dram_ck ),
@@ -566,6 +600,52 @@ dlsc_sp605_pcie (
 );
 
 
+// ** VGA **
+    
+wire                    px_en;
+wire                    px_vsync;
+wire                    px_hsync;
+wire                    px_valid;
+wire    [7:0]           px_r;
+wire    [7:0]           px_g;
+wire    [7:0]           px_b;
+
+dlsc_sp605_ch7301c #(
+    .DELAY_CLK          ( 48 ),
+    .DELAY_DATA         ( 0 )
+) dlsc_sp605_ch7301c (
+    .px_clk ( px_clk ),
+    .px_en ( px_en ),
+    .px_vsync ( px_vsync ),
+    .px_hsync ( px_hsync ),
+    .px_valid ( px_valid ),
+    .px_r ( px_r ),
+    .px_g ( px_g ),
+    .px_b ( px_b ),
+    .out_clk_p ( dvi_xclk_p ),
+    .out_clk_n ( dvi_xclk_n ),
+    .out_data ( dvi_d ),
+    .out_de ( dvi_de ),
+    .out_hsync_n ( dvi_h ),
+    .out_vsync_n ( dvi_v )
+);
+
+assign                  dvi_reset_b = !px_rst;
+
+wire                    scl_in;
+wire                    scl_out;
+wire                    scl_oe;
+wire                    sda_in;
+wire                    sda_out;
+wire                    sda_oe;
+
+assign                  scl_in      = dvi_scl;
+assign                  dvi_scl     = scl_oe ? scl_out : 1'bz;
+
+assign                  sda_in      = dvi_sda;
+assign                  dvi_sda     = sda_oe ? sda_out : 1'bz;
+
+
 // ** Core **
 
 dlsc_sp605_core #(
@@ -580,6 +660,21 @@ dlsc_sp605_core #(
 ) dlsc_sp605_core (
     .clk ( clk ),
     .rst ( rst ),
+    .px_clk ( px_clk ),
+    .px_rst ( px_rst ),
+    .px_en ( px_en ),
+    .px_vsync ( px_vsync ),
+    .px_hsync ( px_hsync ),
+    .px_valid ( px_valid ),
+    .px_r ( px_r ),
+    .px_g ( px_g ),
+    .px_b ( px_b ),
+    .scl_in ( scl_in ),
+    .scl_out ( scl_out ),
+    .scl_oe ( scl_oe ),
+    .sda_in ( sda_in ),
+    .sda_out ( sda_out ),
+    .sda_oe ( sda_oe ),
     .c3_s0_axi_aclk ( c3_s0_axi_aclk ),
     .c3_s0_axi_aresetn ( c3_s0_axi_aresetn ),
     .c3_s0_axi_awid ( c3_s0_axi_awid ),
@@ -799,7 +894,7 @@ dlsc_sp605_core #(
 );
 
 assign led[0] = mig_ready;
-assign led[1] = user_lnk_up;
+assign led[1] = !rst;
 assign led[2] = !user_reset_out;
 assign led[3] = cfg_trn_pending;
 

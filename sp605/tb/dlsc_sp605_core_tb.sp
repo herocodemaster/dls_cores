@@ -47,6 +47,9 @@ private:
     sc_clock        clk;
     sc_signal<bool> rst;
 
+    sc_clock        px_clk;
+    sc_signal<bool> px_rst;
+
     void stim_thread();
     void watchdog_thread();
     
@@ -119,7 +122,8 @@ const uint32_t REG_DMA_FWR_HI           = 0xF;
 
 SP_CTOR_IMP(__MODULE__) :
     sys_clk("sys_clk",10,SC_NS),
-    clk("clk",10,SC_NS)
+    clk("clk",10,SC_NS),
+    px_clk("px_clk",12,SC_NS)
     /*AUTOINIT*/
 {
     SP_AUTO_CTOR;
@@ -155,6 +159,7 @@ SP_CTOR_IMP(__MODULE__) :
     pcie->set_bar(2,true,0x07FFFFFF,MEM_BASE,true); // 128 MB
 
     rst             = 1;
+    px_rst          = 1;
     sys_reset       = 1;
 
     SC_THREAD(stim_thread);
@@ -370,6 +375,8 @@ void __MODULE__::stim_thread() {
     sys_reset       = 0;
     wait(clk.posedge_event());
     rst             = 0;
+    wait(px_clk.posedge_event());
+    px_rst          = 0;
     wait(1,SC_US);
 
     dlsc_info("testing config space");
