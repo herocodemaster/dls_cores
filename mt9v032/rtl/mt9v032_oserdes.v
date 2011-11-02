@@ -82,7 +82,7 @@ OSERDES2_inst (
 // clk pattern generation
 reg [35:0] clk_pattern;
 
-always @(posedge clk_9x or posedge rst_9x) begin
+always @(posedge clk_9x) begin
     if(rst_9x) begin
         clk_pattern <= { {18{1'b1}}, {18{1'b0}} };
         skew_ack    <= 1'b0;
@@ -119,7 +119,7 @@ endgenerate
 
 reg [3:0] pi;
 
-always @(posedge clk_9x or posedge rst_9x) begin
+always @(posedge clk_9x) begin
     if(rst_9x) begin
         pi          <= 0;
         os_data     <= 0;

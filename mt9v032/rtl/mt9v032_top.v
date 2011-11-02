@@ -1,8 +1,7 @@
 
 module mt9v032_top #(
     parameter WIDTH     = 1,
-    parameter SWAP      = {WIDTH{1'b0}},
-    parameter _BITS     = (WIDTH*10)
+    parameter SWAP      = {WIDTH{1'b0}}
 ) (
     // inputs to PLL
     input   wire                    clk_in,         // 200 MHz input
@@ -16,9 +15,12 @@ module mt9v032_top #(
     output  reg                     rdy,            // data should be valid
 
     // deserialized pixels
-    output  wire    [_BITS-1:0]     px,
+    output  wire    [(WIDTH*10)-1:0] px,
     output  wire    [WIDTH-1:0]     line_valid,
     output  wire    [WIDTH-1:0]     frame_valid,
+    output  wire    [WIDTH-1:0]     train_done,
+    output  wire    [(WIDTH*8)-1:0] iod_cnt,
+    output  wire    [(WIDTH*8)-1:0] skew_cnt,
 
     // LVDS data inputs from image sensors
     input   wire    [WIDTH-1:0]     in_p,           // connect to top-level port
@@ -81,11 +83,11 @@ iserdes_control #(
 );
 
 // Camera SerDes
-wire [WIDTH-1:0] train_done;
-wire [9:0] data [WIDTH-1:0];
 genvar j;
 generate
     for(j=0;j<WIDTH;j=j+1) begin:GEN_CAMERA_SERDES
+        wire [9:0] data;
+
         mt9v032_serdes #(
             .SWAP   ( SWAP & (1<<j) )
         ) mt9v032_serdes_inst (
@@ -99,8 +101,10 @@ generate
             .clk_36x        ( clk_36x ),
             .strobe_12to2   ( strobe_12to2 ),
             .strobe_36to9   ( strobe_36to9 ),
-            .data           ( data[j] ),
+            .data           ( data ),
             .train_done     ( train_done[j] ),
+            .iod_cnt        ( iod_cnt[ j*8 +: 8 ] ),
+            .skew_cnt       ( skew_cnt[ j*8 +: 8 ] ),
             .inhibit_skew   ( frame_valid[j] ),
             .in_p           ( in_p[j] ),
             .in_n           ( in_n[j] ),
@@ -115,8 +119,8 @@ generate
         mt9v032_post mt9v032_post_inst (
             .rst            ( !train_done[j] ),
             .clk            ( clk ),
-            .data_in        ( data[j] ),
-            .px             ( px[ (j*10)+9 : j*10 ] ),
+            .data_in        ( data ),
+            .px             ( px[ j*10 +: 10 ] ),
             .line_valid     ( line_valid[j] ),
             .frame_valid    ( frame_valid[j] )
         );
@@ -124,8 +128,8 @@ generate
 endgenerate
 
 // generate rdy signal
-reg [7:0] rdy_cnt;
-always @(posedge clk or posedge rst) begin
+reg [11:0] rdy_cnt;
+always @(posedge clk) begin
     if(rst) begin
         rdy     <= 1'b0;
         rdy_cnt <= 0;

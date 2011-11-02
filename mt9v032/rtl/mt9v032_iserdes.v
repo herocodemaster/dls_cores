@@ -17,6 +17,10 @@ module mt9v032_iserdes #(
     // status and deserialized data (synchronous to clk)
     output  reg     [9:0]           data,
     output  reg                     train_done,
+
+    // debug (synchronous to clk_2x)
+    output  reg     [7:0]           iod_cnt,
+    output  reg     [7:0]           skew_cnt,
     
     // iodelay
     input   wire                    iod_rst,        // reset should only be applied once after initial calibration
@@ -26,6 +30,7 @@ module mt9v032_iserdes #(
     output  wire                    iod_busy,
 
     // clk skew control (on clk_2x domain)
+    input   wire                    skew_inhibit,   // prevents clock skew changes when asserted
     output  reg                     skew_en,
     output  reg                     skew_inc,
     input   wire                    skew_ack
@@ -241,7 +246,7 @@ ISERDES2 #(
 reg             xfer_en;        // enable for bs_data -> data transfer
 reg             bs_data_slip;
 
-always @(posedge clk_2x or posedge rst_2x) begin
+always @(posedge clk_2x) begin
     if(rst_2x) begin
         xfer_en     <= 1'b0;
     end else if(!bs_data_slip) begin
@@ -269,7 +274,7 @@ end
 reg     [3:0]   bs_div;
 reg             bs_eval;
 
-always @(posedge clk_2x or posedge rst_2x) begin
+always @(posedge clk_2x) begin
     if(rst_2x) begin
         bs_eval <= 1'b0;
         bs_div  <= 0;
@@ -286,7 +291,7 @@ end
 reg             bs_mismatch;
 reg             bs_mask;
 reg             train_done_pre;
-always @(posedge clk_2x or posedge rst_2x) begin
+always @(posedge clk_2x) begin
     if(rst_2x) begin
         bs_mismatch     <= 1'b0;
         bs_mask         <= 1'b1;
@@ -320,13 +325,13 @@ always @(posedge clk) begin
 end
 
 // bitslip control logic
-reg     [1:0]   is_bitslip_cnt; // count of ISERDES bitslip operations - must invoke bs_data slip when it rolls over
+reg     [2:0]   is_bitslip_cnt; // count of ISERDES bitslip operations - must invoke bs_data slip when it rolls over
 
-always @(posedge clk_2x or posedge rst_2x) begin
+always @(posedge clk_2x) begin
     if(rst_2x) begin
         bs_data_slip    <= 1'b0;
         is_bitslip      <= 1'b0;
-        is_bitslip_cnt  <= 1'b0;
+        is_bitslip_cnt  <= 0;
     end else begin
         bs_data_slip    <= 1'b0;
         is_bitslip      <= 1'b0;
@@ -334,8 +339,11 @@ always @(posedge clk_2x or posedge rst_2x) begin
         if(bs_eval && bs_mismatch) begin
             is_bitslip      <= 1'b1;
             is_bitslip_cnt  <= is_bitslip_cnt + 1;
-            if(&is_bitslip_cnt) begin
+            if(is_bitslip_cnt == 3'd5) begin
+                // bitsip has 6 unique states (cnt goes from 0 to 5, inclusive)
+                // every roll-over we perform a larger slip via bs_data_slip
                 bs_data_slip    <= 1'b1;
+                is_bitslip_cnt  <= 0;
             end
         end        
     end
@@ -345,13 +353,17 @@ end
 // *** phase alignment ***
 
 // filter phase-detector output
-reg     [2:0]   pd_filter;
+reg     [4:0]   pd_filter;
+
+wire            pd_filter_max = (pd_filter == 5'b01111); // +15
+wire            pd_filter_min = (pd_filter == 5'b10001); // -15
+
 reg             pd_fvalid;
 reg             pd_fincdec;
 
-always @(posedge clk_2x or posedge rst_2x) begin
+always @(posedge clk_2x) begin
     if(rst_2x) begin
-        pd_filter   <= 3'b100;
+        pd_filter   <= 0;
         pd_fvalid   <= 1'b0;
         pd_fincdec  <= 1'b0;
     end else begin
@@ -364,16 +376,16 @@ always @(posedge clk_2x or posedge rst_2x) begin
         // don't issue request if one is pending, IODELAY is busy, or it is externally masked
         if(pd_valid && !pd_fvalid && !iod_busy && !iod_mask) begin
             if(pd_incdec) begin
-                if(pd_filter == 3'b111) begin
-                    pd_filter   <= 3'b100;
+                if(pd_filter_max) begin
+                    pd_filter   <= 0;
                     pd_fvalid   <= 1'b1;
                     pd_fincdec  <= 1'b1;
                 end else begin
                     pd_filter   <= pd_filter + 1;
                 end
             end else begin
-                if(pd_filter == 3'b001) begin
-                    pd_filter   <= 3'b100;
+                if(pd_filter_min) begin
+                    pd_filter   <= 0;
                     pd_fvalid   <= 1'b1;
                     pd_fincdec  <= 1'b0;
                 end else begin
@@ -390,18 +402,16 @@ end
 //   would prefer iodelay always have range > +- 550ps to prevent skew oscillation,
 //   but may not be practical given potential tap variation
 
-reg     [5:0]   iod_cnt;
-
-wire            iod_max = ( iod_cnt == 6'b111111 );
-wire            iod_min = ( iod_cnt == 6'b000001 );
+wire            iod_max = ( iod_cnt == 8'b00011111 ); // +31
+wire            iod_min = ( iod_cnt == 8'b11100001 ); // -31
 
 assign iod_ce   = pd_fvalid && ( !iod_max || !pd_fincdec ) && ( !iod_min || pd_fincdec );
 assign iod_inc  = pd_fincdec && iod_ce;
 
 // track how far IODELAY is from center
-always @(posedge clk_2x or posedge iod_rst) begin
+always @(posedge clk_2x) begin
     if(iod_rst) begin
-        iod_cnt     <= 4'b1000;
+        iod_cnt     <= 0;
     end else begin
         if(iod_ce && !iod_busy) begin
             if(iod_inc) iod_cnt <= iod_cnt + 1;
@@ -411,15 +421,18 @@ always @(posedge clk_2x or posedge iod_rst) begin
 end
 
 // generate clock skew control
-reg [11:0] skew_delay;
-always @(posedge clk_2x or posedge iod_rst) begin
+reg     [11:0]  skew_delay;
+wire            skew_delay_max = &skew_delay;
+
+always @(posedge clk_2x) begin
     if(iod_rst) begin
         skew_en     <= 1'b0;
         skew_inc    <= 1'b0;
         skew_delay  <= 0;
+        skew_cnt    <= 0;
     end else begin
         // increment to max
-        if( !(&skew_delay) ) begin
+        if(!skew_delay_max) begin
             skew_delay  <= skew_delay + 1;
         end
 
@@ -431,13 +444,15 @@ always @(posedge clk_2x or posedge iod_rst) begin
         end
 
         // only allow new request if one isn't pending, and enough time has elapsed
-        if(pd_fvalid && &skew_delay && !skew_en && !skew_ack) begin
+        if(pd_fvalid && skew_delay_max && !skew_en && !skew_ack && !skew_inhibit) begin
             if(iod_max && pd_fincdec) begin
                 skew_en     <= 1'b1;
                 skew_inc    <= 1'b1;
+                skew_cnt    <= skew_cnt + 1;
             end else if(iod_min && !pd_fincdec) begin
                 skew_en     <= 1'b1;
                 skew_inc    <= 1'b0;
+                skew_cnt    <= skew_cnt - 1;
             end
         end
     end

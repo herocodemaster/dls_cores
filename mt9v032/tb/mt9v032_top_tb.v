@@ -15,13 +15,16 @@ reg                 rst_in = 1'b1;
 wire                clk_px;
 wire                rst_px;
 wire                rdy;
-wire                line_valid;
-wire                frame_valid;
+wire    [WIDTH-1:0] line_valid;
+wire    [WIDTH-1:0] frame_valid;
 wire    [9:0]       data [WIDTH-1:0];
 wire    [(WIDTH*10)-1:0] data_concat;
 wire    [WIDTH-1:0] in_p;
 wire    [WIDTH-1:0] in_n;
 wire    [WIDTH-1:0] clk_out;
+wire    [WIDTH-1:0] train_done;
+wire    [(WIDTH*8)-1:0] iod_cnt;
+wire    [(WIDTH*8)-1:0] skew_cnt;
 
 mt9v032_top #(
     .WIDTH  ( WIDTH )
@@ -34,6 +37,9 @@ mt9v032_top #(
     .px         ( data_concat ),
     .line_valid ( line_valid ),
     .frame_valid( frame_valid ),
+    .train_done ( train_done ),
+    .iod_cnt    ( iod_cnt ),
+    .skew_cnt   ( skew_cnt ),
     .in_p       ( in_p ),
     .in_n       ( in_n ),
     .clk_out    ( clk_out )
@@ -65,26 +71,28 @@ end
 
 initial begin
     rst_in  = 1'b1;
-    train   = 1'b0;
+    train   = 1'b1;
     #1000;
     @(posedge clk_in);
     rst_in  = 1'b0;
 
     `dlsc_info("deassert reset");
 
-    @(posedge mt9v032_top_inst.train_done);
+    @(posedge train_done[0]);
 
     `dlsc_info("got train_done");
 
     @(posedge rdy);
 
     `dlsc_info("got ready");
+
+    train   = 1'b0;
     
-    @(posedge frame_valid);
+    @(posedge frame_valid[0]);
 
     `dlsc_info("got frame_valid");
 
-    @(negedge frame_valid);
+    @(negedge frame_valid[0]);
 
     `dlsc_info("got whole frame");
 

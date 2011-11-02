@@ -17,6 +17,8 @@ module mt9v032_serdes #(
     // deserialized data
     output  wire    [9:0]           data,           // synchronous to clk
     output  wire                    train_done,
+    output  wire    [7:0]           iod_cnt,
+    output  wire    [7:0]           skew_cnt,
 
     // control
     input   wire                    inhibit_skew,   // prevents clock skew changes when asserted
@@ -38,11 +40,9 @@ module mt9v032_serdes #(
 
 
 // ISERDES
-wire is_skew_en_pre;
+wire is_skew_en;
 wire is_skew_inc;
 wire is_skew_ack;
-
-wire is_skew_en = is_skew_en_pre && !inhibit_skew;
 
 mt9v032_iserdes #(
     .SWAP   ( SWAP )
@@ -57,12 +57,15 @@ mt9v032_iserdes #(
     .in_n           ( in_n ),
     .data           ( data ),
     .train_done     ( train_done ),
+    .iod_cnt        ( iod_cnt ),
+    .skew_cnt       ( skew_cnt ),
     .iod_rst        ( iod_rst ),
     .iod_mask       ( iod_mask ),
     .iod_cal        ( iod_cal ),
     .iod_cal_master ( iod_cal_master ),
     .iod_busy       ( iod_busy ),
-    .skew_en        ( is_skew_en_pre ),
+    .skew_inhibit   ( inhibit_skew ),
+    .skew_en        ( is_skew_en ),
     .skew_inc       ( is_skew_inc ),
     .skew_ack       ( is_skew_ack )
 );
@@ -106,38 +109,6 @@ dlsc_domaincross #(
     .out_rst    ( rst_2x ),
     .out_data   ( { is_skew_ack } )
 );
-
-
-
-//// synchronizers
-//
-//sync #(
-//    .WIDTH  ( 1 ),
-//    .DEPTH  ( 2 )
-//) sync_skew_9x_2d (
-//    .clk            ( clk_9x ),
-//    .in             ( { is_skew_inc } ),
-//    .out            ( { os_skew_inc } )
-//);
-//
-//// delay _en by 1 more cycle, to guarantee _inc is valid when _en asserts
-//sync #(
-//    .WIDTH  ( 1 ),
-//    .DEPTH  ( 3 )
-//) sync_skew_9x_3d (
-//    .clk            ( clk_9x ),
-//    .in             ( { is_skew_en } ),
-//    .out            ( { os_skew_en } )
-//);
-//
-//sync #(
-//    .WIDTH  ( 1 )
-//) sync_skew_2x (
-//    .clk            ( clk_2x ),
-//    .in             ( { os_skew_ack } ),
-//    .out            ( { is_skew_ack } )
-//);
-
 
 endmodule
 

@@ -29,24 +29,25 @@ reg             iod_cnt_rst;
 wire            iod_cnt_max = iod_cnt[11];
 reg     [2:0]   iod_state;
 
-always @(posedge clk_div or posedge rst) begin
-    if(rst) begin
+always @(posedge clk_div) begin
+    if(iod_cnt_rst || iod_cnt_max) begin
         iod_cnt         <= 0;
     end else begin
-        if(iod_cnt_rst || iod_cnt_max)
-            iod_cnt         <= 0;
-        else
-            iod_cnt         <= iod_cnt + 1;
+        iod_cnt         <= iod_cnt + 1;
     end
 end
-        
 
-always @(posedge clk_div or posedge rst) begin
+always @(posedge clk_div) begin
     if(rst) begin
     
-        iod_cnt_rst     <= 1'b1;
         iod_state       <= 0;
-        iod_rst         <= 1'b1;
+        iod_cnt_rst     <= 1'b1;
+
+        // TODO: IODELAY2 simulation model doesn't like this extra reset; unclear
+        // how real hardware behaves.. for now, try without initial reset.
+        //iod_rst         <= 1'b1;
+        iod_rst         <= 1'b0;
+
         iod_mask        <= 1'b1;
         iod_cal         <= 1'b0;
         iod_cal_master  <= 1'b0;
@@ -140,5 +141,5 @@ always @(posedge clk_div or posedge rst) begin
     end
 end
 
-
 endmodule
+

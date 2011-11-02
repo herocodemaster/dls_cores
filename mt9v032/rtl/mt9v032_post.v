@@ -16,7 +16,7 @@ module mt9v032_post (
 reg             line_valid_pre;
 reg     [1:0]   frame_valid_pre;
 
-always @(posedge clk or posedge rst) begin
+always @(posedge clk) begin
     if(rst) begin
         
         px              <= 0;
