@@ -76,6 +76,7 @@ begin
 end
 endtask
 
+integer _dlsc_dump_disable = 0;
 
 // initial setup
 initial begin
@@ -84,8 +85,16 @@ initial begin
     `dlsc_display("using random seed: %0d", `RANDSEED);
 
 `ifdef DUMPFILE
-    $dumpfile(`DUMPFILE);
-    $dumpvars;
+    if($value$plusargs("NODUMP=%d",_dlsc_dump_disable)) begin
+        _dlsc_dump_disable = 1;
+    end
+    if(!_dlsc_dump_disable) begin
+        `dlsc_display("dumping enabled");
+        $dumpfile(`DUMPFILE);
+        $dumpvars;
+    end else begin
+        `dlsc_display("dumping disabled");
+    end
 `endif
 end
 

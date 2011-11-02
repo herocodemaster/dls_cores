@@ -45,10 +45,8 @@
     `define dlsc_okay   `DLSC_DPI_PATH.dlsc_dpi_okay
     `define dlsc_assert `DLSC_DPI_PATH.dlsc_dpi_assert
 
-`endif // `ifdef VERILATOR
+`else
 
-`ifdef ICARUS
-    
     `ifndef DLSC_DEBUG_WARN
         `define DLSC_DEBUG_WARN 0
     `endif
@@ -83,7 +81,7 @@
     // (wrapper for $dist_uniform - initial seed specified with `RANDSEED)
     `define dlsc_rand(min,max) `DLSC_TB._dlsc_rand(min,max)
 
-`endif // `ifdef ICARUS
+`endif // `ifndef VERILATOR
 
 `endif // `ifndef DLSC_SIM_INCLUDED
 `endif // `ifdef DLSC_SIMULATION

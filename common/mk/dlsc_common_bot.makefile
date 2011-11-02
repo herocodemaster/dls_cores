@@ -26,17 +26,17 @@
 
 
 #
-# Verilator or Icarus?
+# SystemC (Verilator) or Verilog (Icarus/ISim)?
 #
 
 ifneq (,$(SP_TESTBENCH))
-    USING_VERILATOR := 1
+    USING_SYSTEMC   := 1
     V_DEFINES       += VERILATOR=1
     TESTBENCH       := $(call dlsc-base,$(SP_TESTBENCH))
 endif
 ifneq (,$(V_TESTBENCH))
-    USING_ICARUS    := 1
-    V_DEFINES       += ICARUS=1
+    USING_VERILOG   := 1
+    V_DEFINES       += VERILOG=1
     TESTBENCH       := $(call dlsc-base,$(V_TESTBENCH))
 endif
 
@@ -155,17 +155,41 @@ CWD := $(CWD_TOP)
 
 
 #
+# Icarus or ISim?
+#
+
+# (handle this stuff after loading dependencies, in case a dependency
+#  (e.g. xilinx.inc) specifies a particular simulator)
+
+ifdef USING_VERILOG
+    ifndef USING_ISIM
+        USING_ICARUS    := 1
+        V_DEFINES       += ICARUS=1
+    else
+        USING_ISIM      := 1
+        V_DEFINES       += ISIM=1 XILINX=1
+    endif
+endif
+
+ifndef USING_ISIM
+    # Verilator and Icarus support $clog2, but not constant functions
+    # ISE and ISim are the opposite
+    V_DEFINES   += USE_CLOG2=1
+endif
+
+
+#
 # Testbench
 #
 
 DEFINES     += DLSC_TB=$(TESTBENCH)
 
-ifdef USING_VERILATOR
+ifdef USING_SYSTEMC
 SP_FILES    += $(SP_TESTBENCH)
 C_DEFINES   += DLSC_DUT=V$(call dlsc-base,$(V_DUT))_tbwrapper
 V_DEFINES   += DLSC_DPI_PATH=$(call dlsc-base,$(V_DUT))_tbwrapper
 endif
-ifdef USING_ICARUS
+ifdef USING_VERILOG
 V_DEFINES   += DLSC_DUT=$(call dlsc-base,$(V_DUT))
 endif
 
@@ -174,12 +198,12 @@ endif
 # Simulation results
 #
 
-LOG_FILES   := $(WORKDIR)/$(TESTBENCH).log
-COV_FILES   := $(WORKDIR)/$(TESTBENCH).cov
-LXT_FILES   := $(WORKDIR)/$(TESTBENCH).lxt
-VCD_FILES   := $(WORKDIR)/$(TESTBENCH).vcd
+LOG_FILE    := $(WORKDIR)/$(TESTBENCH).log
+COV_FILE    := $(WORKDIR)/$(TESTBENCH).cov
+LXT_FILE    := $(WORKDIR)/$(TESTBENCH).lxt
+VCD_FILE    := $(WORKDIR)/$(TESTBENCH).vcd
 
-.PRECIOUS: $(LOG_FILES) $(COV_FILES) $(LXT_FILES) $(VCD_FILES)
+.PRECIOUS: $(LOG_FILE) $(COV_FILE) $(LXT_FILE) $(VCD_FILE)
 
 
 #
@@ -204,10 +228,10 @@ V_FLAGS     += $(addprefix -D,$(V_DEFINES))
 
 V_DUT       := $(sort $(V_DUT))
 
-ifdef USING_VERILATOR
+ifdef USING_SYSTEMC
 V_FILES     += $(V_DUT:.v=_tbwrapper.v)
 endif
-ifdef USING_ICARUS
+ifdef USING_VERILOG
 V_FILES     += $(V_TESTBENCH)
 endif
 
@@ -247,7 +271,7 @@ ifeq (,$(filter _objdir%,$(notdir $(CURDIR))))
 
 VERILATOR_FLAGS += $(V_FLAGS)
 
-ifdef USING_VERILATOR
+ifdef USING_SYSTEMC
 
 V_FILES_MK      := $(patsubst %.v,$(OBJDIR)/V%_classes.mk,$(V_FILES))
 
@@ -284,7 +308,7 @@ vhier: $(V_DUT)
 # SystemPerl
 #
 
-ifdef USING_VERILATOR
+ifdef USING_SYSTEMC
 
 vpath %.sp $(SP_DIRS)
 vpath %.cpp $(SC_DIRS)
@@ -305,10 +329,10 @@ endif
 
 
 #
-# Icarus
+# Verilog (Icarus or ISim)
 #
 
-ifdef USING_ICARUS
+ifdef USING_VERILOG
 
 # create links to files not inside the object dir
 .PHONY: icarus
@@ -328,8 +352,8 @@ endif
 #
 
 # merges results from all simulations run in this WORKROOT
-COV_FILES_ALL := $(wildcard $(WORKROOT)/_*/*.cov)
-$(WORKROOT)/coverage/merged_all.cov: $(COV_FILES_ALL)
+COV_FILE_ALL := $(wildcard $(WORKROOT)/_*/*.cov)
+$(WORKROOT)/coverage/merged_all.cov: $(COV_FILE_ALL)
 	@[ -d $(@D) ] || mkdir -p $(@D)
 	@$(VCOVERAGE) --noreport -write $@ $^
 
@@ -370,7 +394,7 @@ else
 # in objdir now; have prereqs; can build remainder
 
 
-ifdef USING_VERILATOR
+ifdef USING_SYSTEMC
 
 #
 # Verilator
@@ -517,34 +541,34 @@ D_FILES += $(TESTBENCH).bin.d
 #
 
 # run inside $(CWD) to allow executable to consistently reference data files
-$(COV_FILES) $(LOG_FILES) : $(TESTBENCH).bin
-	@cd $(CWD) && $(OBJDIR)/$< --log $(LOG_FILES) --cov $(COV_FILES)
+$(COV_FILE) $(LOG_FILE) : $(TESTBENCH).bin
+	@cd $(CWD) && $(OBJDIR)/$< --log $(LOG_FILE) --cov $(COV_FILE)
 
 # run simulation and generate VCD file.. but send it to a fifo and use vcd2lxt2
 # to convert in real-time to an LXT2 file; from:
 # http://www.veripool.org/boards/2/topics/show/150-Verilator-Converting-VCD-file-to-LXT-file-during-simulation
-$(LXT_FILES) : $(TESTBENCH).bin
+$(LXT_FILE) : $(TESTBENCH).bin
 	@rm -f $@.vcd
 	@mkfifo $@.vcd
 	@vcd2lxt2 $@.vcd $@ &
-	@cd $(CWD) && $(OBJDIR)/$< --log $(LOG_FILES) --cov $(COV_FILES) --vcd $@.vcd
+	@cd $(CWD) && $(OBJDIR)/$< --log $(LOG_FILE) --cov $(COV_FILE) --vcd $@.vcd
 
-$(VCD_FILES) : $(TESTBENCH).bin
-	@cd $(CWD) && $(OBJDIR)/$< --log $(LOG_FILES) --cov $(COV_FILES) --vcd $@
+$(VCD_FILE) : $(TESTBENCH).bin
+	@cd $(CWD) && $(OBJDIR)/$< --log $(LOG_FILE) --cov $(COV_FILE) --vcd $@
 
 .PHONY: build
 build: $(TESTBENCH).bin
 
 .PHONY: coverage
-coverage: $(COV_FILES)
+coverage: $(COV_FILE)
 	@[ -d $(WORKDIR)/coverage ] || mkdir -p $(WORKDIR)/coverage
 	@$(VCOVERAGE) --all-files -o $(WORKDIR)/coverage $(V_FLAGS) $<
 
 
-# ^^^ ifdef USING_VERILATOR
+# ^^^ ifdef USING_SYSTEMC
 endif
 
-
+ifdef USING_VERILOG
 ifdef USING_ICARUS
 
 #
@@ -558,7 +582,7 @@ ICARUS_FLAGS    += $(addprefix -y,$(V_DIRS))
 # compile verilog
 $(TESTBENCH).vvp : $(V_FILES)
 	@echo compiling $@
-	@iverilog -o $@ -M$@.d.pre -D DUMPFILE='"$(LXT_FILES)"' $(ICARUS_FLAGS) $(V_FILES)
+	@iverilog -o $@ -M$@.d.pre -D DUMPFILE='"$(LXT_FILE)"' $(ICARUS_FLAGS) $(V_FILES)
 	@echo -n "$@ : " > $@.d
 	@cat $@.d.pre | sort | uniq | tr '\n' ' ' >> $@.d
 	@rm -f $@.d.pre
@@ -566,12 +590,12 @@ $(TESTBENCH).vvp : $(V_FILES)
 D_FILES         += $(TESTBENCH).vvp.d
 
 # generate just a log file
-$(LOG_FILES) : $(TESTBENCH).vvp
-	@IVERILOG_DUMPER=NONE vvp -l $(LOG_FILES) $<
+$(LOG_FILE) : $(TESTBENCH).vvp
+	@IVERILOG_DUMPER=NONE vvp -l $(LOG_FILE) $<
 
 # generate dump file and log
-$(LXT_FILES) : $(TESTBENCH).vvp
-	@vvp -l $(LOG_FILES) $< -lxt2
+$(LXT_FILE) : $(TESTBENCH).vvp
+	@vvp -l $(LOG_FILE) $< -lxt2
 
 .PHONY: build
 build: $(TESTBENCH).vvp
@@ -584,17 +608,84 @@ coverage: sim
 endif
 
 
-.PHONY: sim
-sim: $(LOG_FILES)
+ifdef USING_ISIM
 
-.PHONY: waves
-waves: $(LXT_FILES)
+#
+# Xilinx ISim
+#
+
+ISIM_FLAGS      += $(addprefix -d ,$(V_DEFINES))
+ISIM_FLAGS      += $(addprefix -i ,$(VH_DIRS))
+ISIM_FLAGS      += $(addprefix --sourcelibdir ,$(V_DIRS))
+ISIM_FLAGS      += -d DUMPFILE='"$(VCD_FILE)"'
+
+ISIM_FUSE_FLAGS += work.$(TESTBENCH)
+ISIM_BIN_FLAGS  += -tclbatch $(DLSC_COMMON)/sim/dlsc_isim_cmd.tcl -log $(LOG_FILE)
+
+# compile verilog
+$(TESTBENCH).bin : $(V_FILES)
+	@echo generating dependency list
+	@vhier --input-files $(V_FLAGS) $(V_FILES) > $@.d.pre
+	@echo -n "$@ : " > $@.d
+	@cat $@.d.pre | sort | uniq | tr '\n' ' ' >> $@.d
+	@rm -f $@.d.pre
+	@echo compiling $@
+	@vlogcomp $(ISIM_FLAGS) $(V_FILES)
+	@echo fusing $@
+	@fuse $(ISIM_FUSE_FLAGS) -o $@
+
+D_FILES         += $(TESTBENCH).bin.d
+
+# generate just a log file
+$(LOG_FILE) : $(TESTBENCH).bin
+	$(OBJDIR)/$< $(ISIM_BIN_FLAGS) -testplusarg NODUMP=1
+
+# generate dump file (.vcd) and log
+$(VCD_FILE) : $(TESTBENCH).bin
+	@rm -f $(VCD_FILE)
+	$(OBJDIR)/$< $(ISIM_BIN_FLAGS)
+
+# TODO: ISim doesn't play nicely with the mkfifo and vcd2lxt2 technique
+## generate dump file (.lxt) and log
+#$(LXT_FILE) : $(TESTBENCH).bin
+#	@rm -f $(VCD_FILE)
+#	@mkfifo $(VCD_FILE)
+#	@vcd2lxt2 $(VCD_FILE) $@ &
+#	$(OBJDIR)/$< $(ISIM_BIN_FLAGS)
+
+.PHONY: build
+build: $(TESTBENCH).bin
+
+# TODO
+coverage: sim
+
+
+# ^^^ ifdef USING_ISIM
+endif
+# ^^^ ifdef USING_VERILOG
+endif
+
+
+.PHONY: sim
+sim: $(LOG_FILE)
 
 .PHONY: vcd
-vcd: $(VCD_FILES)
+vcd: $(VCD_FILE)
 
-.PHONY: gtkwave
-gtkwave: $(LXT_FILES)
+.PHONY: waves gtkwave
+
+ifdef USING_ISIM
+# ISim flow currently only supports VCD
+waves: $(VCD_FILE)
+gtkwave: $(VCD_FILE)
+else
+# Icarus natively supports LXT2, while Verilator supports LXT2
+# by piping through vcd2lxt2
+waves: $(LXT_FILE)
+gtkwave: $(LXT_FILE)
+endif
+
+gtkwave:
 	gtkwave $< &
 
 
