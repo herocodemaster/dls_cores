@@ -39,7 +39,12 @@
 
 module dlsc_domaincross #(
     parameter               DATA    = 32,
+`ifndef ICARUS
+    // Icarus crashes with explicit parameter size; Verilator fails without it.
     parameter [DATA-1:0]    RESET   = {DATA{1'b0}}
+`else
+    parameter               RESET   = {DATA{1'b0}}
+`endif
 ) (
     // source domain
     input   wire                in_clk,

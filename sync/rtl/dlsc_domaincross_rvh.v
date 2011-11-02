@@ -31,7 +31,12 @@
 
 module dlsc_domaincross_rvh #(
     parameter               DATA                = 32,
+`ifndef ICARUS
+    // Icarus crashes with explicit parameter size; Verilator fails without it.
     parameter [DATA-1:0]    RESET               = {DATA{1'b0}},
+`else
+    parameter               RESET               = {DATA{1'b0}},
+`endif
     parameter               RESET_ON_TRANSFER   = 0         // reset out_data after it is accepted
 ) (
     // source domain
