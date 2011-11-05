@@ -12,11 +12,12 @@ V_DEFINES       += XILINX=1
 ISIM_FUSE_FLAGS += -L unisims
 
 ifdef USING_VERILOG
-    # Icarus doesn't much care for Xilinx simulation models..
-    # use Xilinx's ISim instead.
-    ifdef USING_ICARUS
-        undefine USING_ICARUS
+    # Icarus has trouble with some Xilinx models
+    # use Xilinx's ISim if Icarus isn't explicitly requested
+    ifndef USING_ICARUS
+        USING_ISIM      := 1
+    else
+        $(warning Using Icarus with Xilinx simulation models is not recommended)
     endif
-    USING_ISIM      := 1
 endif
 
