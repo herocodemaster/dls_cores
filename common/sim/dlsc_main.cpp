@@ -157,7 +157,15 @@ bool dlsc_rand_bool(double true_pct) {
     return r;
 }
 
+int dlsc_rand(int min, int max) {
+    assert(max>=min);
+    uint64_t r64 = dlsc_rand_u64();
+    r64 %= (max-min+1);
+    return (int)r64 + min;
+}
+
 uint32_t dlsc_rand_u32(uint32_t min,uint32_t max) {
+    assert(max>=min);
     uint32_t r = rand();
     r <<= 16;
     r ^= rand();
@@ -169,6 +177,7 @@ uint32_t dlsc_rand_u32(uint32_t min,uint32_t max) {
 }
 
 uint64_t dlsc_rand_u64(uint64_t min,uint64_t max) {
+    assert(max>=min);
     uint64_t r = dlsc_rand_u32(0,0xFFFFFFFFul);
     r <<= 32;
     r ^= dlsc_rand_u32(0,0xFFFFFFFFul);
