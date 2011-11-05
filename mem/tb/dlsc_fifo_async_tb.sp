@@ -53,6 +53,8 @@ public:
 
 #include "dlsc_main.cpp"
 
+const bool fast_rd_clk = (PARAM_IN_CLK > PARAM_OUT_CLK);
+
 SP_CTOR_IMP(__MODULE__) : wr_clk("wr_clk",PARAM_IN_CLK,SC_NS), rd_clk("rd_clk",PARAM_OUT_CLK,SC_NS) /*AUTOINIT*/ {
     SP_AUTO_CTOR;
 
@@ -89,9 +91,9 @@ void __MODULE__::wr_method() {
 
     dlsc_assert( wr_free <= (DEPTH - rd_vals.size()) );
 
-    if( !wr_full && ((rand()%100) >= write_pct) ) {
+    if( !wr_full && dlsc_rand_bool(write_pct) ) {
 
-        uint32_t d = rand() % DATA_MAX;
+        uint32_t d = dlsc_rand_u32(0,DATA_MAX);
 
         wr_push = 1;
         wr_data = d;
@@ -121,7 +123,7 @@ void __MODULE__::rd_method() {
 
     dlsc_assert( rd_count <= rd_vals.size() );
     
-    if( !rd_vals.empty() && !rd_empty && ((rand()%100) >= read_pct) ) {
+    if( !rd_vals.empty() && !rd_empty && dlsc_rand_bool(read_pct) ) {
 
         rd_pop  = 1;
 
@@ -139,21 +141,21 @@ void __MODULE__::stim_thread() {
     wr_rst  = 1;
     wait(100,SC_NS);
 
-    for(int i=0;i<30;++i) {
+    for(int i=0;i<100;++i) {
         wait(rd_clk.negedge_event());
         rd_rst  = 1;
         wait(wr_clk.negedge_event());
         wr_rst  = 1;
 
-        read_pct    = (rand()%90) + 10;
-        write_pct   = (rand()%90) + 10;
+        read_pct    = dlsc_rand(10,100);
+        write_pct   = dlsc_rand(10,100);
 
         wait(rd_clk.negedge_event());
         rd_rst  = 0;
         wait(wr_clk.negedge_event());
         wr_rst  = 0;
 
-        wait(2,SC_US);
+        wait(5,SC_US);
     }
 
     wait(1,SC_US);
