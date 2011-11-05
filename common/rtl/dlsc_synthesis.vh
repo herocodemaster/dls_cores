@@ -33,6 +33,7 @@
         `define DLSC_SYNTHESIS_XILINX
         `define DLSC_SYNTHESIS_DEFINED
 
+        `define DLSC_KEEP               (* KEEP = "TRUE", OPTIMIZE = "OFF" *)
         `define DLSC_BRAM               (* ram_style = "block", RDADDR_COLLISION_HWCONFIG = "performance" *)
         `define DLSC_LUTRAM             (* ram_style = "distributed" *)
         `define DLSC_SHREG              (* shreg_extract = "yes" *)
@@ -40,7 +41,8 @@
         `define DLSC_KEEP_REG           (* equivalent_register_removal = "no" *)
         `define DLSC_PIPE_REG           (* equivalent_register_removal = "no", shreg_extract="no" *)
         `define DLSC_FANOUT_REG         (* equivalent_register_removal = "no", shreg_extract="no", register_duplication = "yes", max_fanout = "reduce" *)
-        `define DLSC_SYNCFLOP           (* equivalent_register_removal = "no", shreg_extract="no", register_duplication = "no", ASYNC_REG = "TRUE", HBLKNM = "dlsc_syncflops_blknm", IOB = "FALSE", KEEP = "TRUE", OPTIMIZE = "OFF" *)
+        `define DLSC_ASYNC_REG          (* equivalent_register_removal = "no", shreg_extract="no", register_duplication = "no", ASYNC_REG = "TRUE", IOB = "FALSE", KEEP = "TRUE", OPTIMIZE = "OFF" *)
+        `define DLSC_SYNCFLOP           (* equivalent_register_removal = "no", shreg_extract="no", register_duplication = "no", ASYNC_REG = "TRUE", IOB = "FALSE", KEEP = "TRUE", OPTIMIZE = "OFF", HBLKNM = "dlsc_syncflops_blknm" *)
 
     `endif // XILINX
 
@@ -57,6 +59,7 @@
 `ifndef DLSC_SYNTHESIS_DEFINED
     `define DLSC_SYNTHESIS_DEFINED
 
+    `define DLSC_KEEP
     `define DLSC_BRAM
     `define DLSC_LUTRAM
     `define DLSC_SHREG
@@ -64,6 +67,7 @@
     `define DLSC_KEEP_REG
     `define DLSC_PIPE_REG
     `define DLSC_FANOUT_REG
+    `define DLSC_ASYNC_REG
     `define DLSC_SYNCFLOP
 
 `endif // DLSC_SYNTHESIS_DEFINED
