@@ -33,6 +33,9 @@ ifneq (,$(SP_TESTBENCH))
     USING_SYSTEMC   := 1
     V_DEFINES       += VERILATOR=1
     TESTBENCH       := $(call dlsc-base,$(SP_TESTBENCH))
+    ifneq (,$(V_DUT))
+        USING_VERILATOR := 1
+    endif
 endif
 ifneq (,$(V_TESTBENCH))
     USING_VERILOG   := 1
@@ -179,18 +182,29 @@ endif
 
 
 #
+# External tools
+#
+
+include $(DLSC_COMMON)/mk/dlsc_common_tools.makefile
+
+
+#
 # Testbench
 #
 
 DEFINES     += DLSC_TB=$(TESTBENCH)
 
 ifdef USING_SYSTEMC
-SP_FILES    += $(SP_TESTBENCH)
-C_DEFINES   += DLSC_DUT=V$(call dlsc-base,$(V_DUT))_tbwrapper
-V_DEFINES   += DLSC_DPI_PATH=$(call dlsc-base,$(V_DUT))_tbwrapper
+    SP_FILES    += $(SP_TESTBENCH)
+    ifdef USING_VERILATOR
+        C_DEFINES   += DLSC_DUT=V$(call dlsc-base,$(V_DUT))_tbwrapper
+        V_DEFINES   += DLSC_DPI_PATH=$(call dlsc-base,$(V_DUT))_tbwrapper
+    else
+        C_DEFINES   += DLSC_NOT_VERILATED=1
+    endif
 endif
 ifdef USING_VERILOG
-V_DEFINES   += DLSC_DUT=$(call dlsc-base,$(V_DUT))
+    V_DEFINES   += DLSC_DUT=$(call dlsc-base,$(V_DUT))
 endif
 
 
@@ -228,15 +242,18 @@ V_FLAGS     += $(addprefix -D,$(V_DEFINES))
 
 V_DUT       := $(sort $(V_DUT))
 
-ifdef USING_SYSTEMC
-V_FILES     += $(V_DUT:.v=_tbwrapper.v)
+ifdef USING_VERILATOR
+    V_FILES     += $(V_DUT:.v=_tbwrapper.v)
 endif
 ifdef USING_VERILOG
-V_FILES     += $(V_TESTBENCH)
+    V_FILES     += $(V_TESTBENCH)
 endif
 
 V_FILES     := $(sort $(V_FILES))
-V_FILES_MK  := $(patsubst %.v,V%_classes.mk,$(V_FILES))
+
+ifdef USING_VERILATOR
+    V_FILES_MK  := $(patsubst %.v,V%_classes.mk,$(V_FILES))
+endif
 
 
 #
@@ -260,9 +277,11 @@ ifeq (,$(filter _objdir%,$(notdir $(CURDIR))))
 # Verilog DUT
 #
 
+ifdef USING_VERILATOR
 %_tbwrapper.v : %.v
 	@echo creating $(notdir $@)
 	@$(TBWRAPPER) $(V_FLAGS) -i $< -o $@ --module-suffix _tbwrapper --define-prefix PARAM_
+endif
 
 
 #
@@ -271,9 +290,9 @@ ifeq (,$(filter _objdir%,$(notdir $(CURDIR))))
 
 VERILATOR_FLAGS += $(V_FLAGS)
 
-ifdef USING_SYSTEMC
+ifdef USING_VERILATOR
 
-V_FILES_MK      := $(patsubst %.v,$(OBJDIR)/V%_classes.mk,$(V_FILES))
+V_FILES_MK  := $(patsubst %.v,$(OBJDIR)/V%_classes.mk,$(V_FILES))
 
 $(OBJDIR)/V%_classes.mk : %.v | $(OBJDIR)
 	@echo verilating $(notdir $<)
@@ -301,7 +320,7 @@ lint: $(V_DUT)
 .PHONY: vhier
 vhier: $(V_DUT)
 	@echo files required for $(notdir $<):
-	@cd $(DLSC_ROOT) && vhier --input-files $(V_FLAGS) $<
+	@cd $(DLSC_ROOT) && $(VHIER) --input-files $(V_FLAGS) $<
 
 
 #
@@ -335,14 +354,14 @@ endif
 ifdef USING_VERILOG
 
 # create links to files not inside the object dir
-.PHONY: icarus
-icarus: $(V_FILES) | $(OBJDIR)
+.PHONY: verilog
+verilog: $(V_FILES) | $(OBJDIR)
 	@ln -s -f -t $(OBJDIR) $^
 
 else
 
-.PHONY: icarus
-icarus: 
+.PHONY: verilog
+verilog: 
 
 endif
 
@@ -380,7 +399,7 @@ vparams.txt:
 
 # invoke again in the objdir
 .PHONY: recurse
-recurse: gen verilator systemperl icarus vparams.txt $(OBJDIR)
+recurse: gen verilator systemperl verilog vparams.txt $(OBJDIR)
 	+@$(MAKE) --no-print-directory -C $(OBJDIR) -f $(THIS) CWD_TOP=$(CWD_TOP) $(MAKECMDGOALS)
 
 # targets that can be passed through
@@ -400,6 +419,8 @@ ifdef USING_SYSTEMC
 # Verilator
 #
 
+ifdef USING_VERILATOR
+
 # just include results of previous verilator run
 VM_CLASSES_FAST := 
 VM_CLASSES_SLOW := 
@@ -413,6 +434,8 @@ include $(V_FILES_MK)
 SP_FILES    += $(addsuffix .sp,$(VM_CLASSES_FAST) $(VM_CLASSES_SLOW))
 C_FILES     += $(addsuffix .cpp,$(VM_SUPPORT_FAST) $(VM_SUPPORT_SLOW))
 C_FILES     += $(addsuffix .cpp,$(VM_GLOBAL_FAST) $(VM_GLOBAL_SLOW))
+
+endif
     
 C_DIRS      += $(VERILATOR_ROOT)/include
 H_SYS_DIRS  += $(VERILATOR_ROOT)/include $(VERILATOR_ROOT)/include/vltstd
@@ -560,9 +583,13 @@ $(VCD_FILE) : $(TESTBENCH).bin
 build: $(TESTBENCH).bin
 
 .PHONY: coverage
+ifdef USING_VERILATOR
 coverage: $(COV_FILE)
 	@[ -d $(WORKDIR)/coverage ] || mkdir -p $(WORKDIR)/coverage
 	@$(VCOVERAGE) --all-files -o $(WORKDIR)/coverage $(V_FLAGS) $<
+else
+coverage: sim
+endif
 
 
 # ^^^ ifdef USING_SYSTEMC
@@ -582,7 +609,7 @@ ICARUS_FLAGS    += $(addprefix -y,$(V_DIRS))
 # compile verilog
 $(TESTBENCH).vvp : $(V_FILES)
 	@echo compiling $@
-	@iverilog -o $@ -M$@.d.pre -D DUMPFILE='"$(LXT_FILE)"' $(ICARUS_FLAGS) $(V_FILES)
+	@$(ICARUS_IVERILOG) -o $@ -M$@.d.pre -D DUMPFILE='"$(LXT_FILE)"' $(ICARUS_FLAGS) $(V_FILES)
 	@echo -n "$@ : " > $@.d
 	@cat $@.d.pre | sort | uniq | tr '\n' ' ' >> $@.d
 	@rm -f $@.d.pre
@@ -591,11 +618,11 @@ D_FILES         += $(TESTBENCH).vvp.d
 
 # generate just a log file
 $(LOG_FILE) : $(TESTBENCH).vvp
-	@IVERILOG_DUMPER=NONE vvp -l $(LOG_FILE) $<
+	@IVERILOG_DUMPER=NONE $(ICARUS_VVP) -l $(LOG_FILE) $<
 
 # generate dump file and log
 $(LXT_FILE) : $(TESTBENCH).vvp
-	@vvp -l $(LOG_FILE) $< -lxt2
+	@$(ICARUS_VVP) -l $(LOG_FILE) $< -lxt2
 
 .PHONY: build
 build: $(TESTBENCH).vvp
@@ -628,13 +655,13 @@ ISIM_BIN_FLAGS  += -tclbatch $(DLSC_COMMON)/sim/dlsc_isim_cmd.tcl -log $(LOG_FIL
 # compile verilog
 $(TESTBENCH).bin : $(V_FILES)
 	@echo generating dependency list
-	@vhier --module-files --nomissing $(V_FLAGS) $(V_FILES) | awk '{print "verilog $(ISIM_WORK) " $$0}' > $@.prj
+	@$(VHIER) --module-files --nomissing $(V_FLAGS) $(V_FILES) | awk '{print "verilog $(ISIM_WORK) " $$0}' > $@.prj
 	@echo -n "$@ : " > $@.d
-	@vhier --input-files --nomissing $(V_FLAGS) $(V_FILES) | sort | uniq | tr '\n' ' ' >> $@.d
+	@$(VHIER) --input-files --nomissing $(V_FLAGS) $(V_FILES) | sort | uniq | tr '\n' ' ' >> $@.d
 	@echo compiling $@
-	@vlogcomp $(ISIM_FLAGS) --prj $@.prj
+	@$(ISIM_VLOGCOMP) $(ISIM_FLAGS) --prj $@.prj
 	@echo fusing $@
-	@fuse $(ISIM_FUSE_FLAGS) -o $@
+	@$(ISIM_FUSE) $(ISIM_FUSE_FLAGS) -o $@
 
 D_FILES         += $(TESTBENCH).bin.d
 
@@ -688,7 +715,7 @@ gtkwave: $(LXT_FILE)
 endif
 
 gtkwave:
-	gtkwave $< &
+	$(GTKWAVE) $< &
 
 
 # include dependency files

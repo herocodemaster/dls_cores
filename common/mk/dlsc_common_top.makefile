@@ -74,50 +74,28 @@ THIS        := $(realpath $(firstword $(MAKEFILE_LIST)))
 
 
 #
-# External tools
-#
-
-ifndef VERILATOR_ROOT
-$(error VERILATOR_ROOT must be set)
-endif
-ifndef SYSTEMPERL
-$(error SYSTEMPERL must be set)
-endif
-ifndef SYSTEMC
-$(error SYSTEMC must be set)
-endif
-ifndef SYSTEMC_ARCH
-$(error SYSTEMC_ARCH must be set)
-endif
-
-VERILATOR   := $(VERILATOR_ROOT)/bin/verilator
-SP_PREPROC  := $(SYSTEMPERL)/sp_preproc
-VCOVERAGE   := $(SYSTEMPERL)/vcoverage
-PERL        := perl
-
-TBWRAPPER   := $(PERL) $(DLSC_COMMON)/tools/dlsc_tbwrapper.pl
-
-
-#
 # Variables
 #
 
 DLSC_DEPENDS    := common
 
 DEFINES         := DLSC_DEBUG_WARN=1 DLSC_DEBUG_INFO=1
-DEFINES         += SIMULATION=1 DLSC_SIMULATION=1
+ifneq "$(MAKECMDGOALS)" "vhier"
+    # only want to include simulations files when not printing hierarchy
+    DEFINES         += SIMULATION=1 DLSC_SIMULATION=1
+endif
 
 # Testbench
 V_PARAMS        :=
-V_PARAMS_DEF    := 
+V_PARAMS_DEF    :=
 V_DUT           :=
 # one or the other; not both!
-SP_TESTBENCH    := 
+SP_TESTBENCH    :=
 V_TESTBENCH     :=
 
 # Verilog
-V_DEFINES       := 
-V_FILES         := 
+V_DEFINES       :=
+V_FILES         :=
 V_DIRS          := $(CWD)
 VH_DIRS         := $(CWD)
 V_FLAGS         := +libext+.v+.vh
@@ -125,34 +103,34 @@ V_FLAGS         := +libext+.v+.vh
 # UNUSED warning seems to trigger on Verilator-generated coverage code.. can't really use it yet
 VERILATOR_FLAGS := -Wall -Wwarn-style -Wno-UNUSED
 ICARUS_FLAGS    := -Wall -Wno-timescale
-ISIM_FLAGS      := --incremental --sourcelibext .v
-ISIM_FUSE_FLAGS := 
-ISIM_BIN_FLAGS  := 
+ISIM_FLAGS      := --incremental
+ISIM_FUSE_FLAGS :=
+ISIM_BIN_FLAGS  :=
 
 # SystemPerl
-SP_DEFINES      := 
+SP_DEFINES      :=
 SP_FILES        :=
 SP_DIRS         := $(CWD)
-SP_FLAGS        := 
+SP_FLAGS        :=
 
 # SystemC
-SC_FILES        := 
-SCH_FILES       := 
+SC_FILES        :=
+SCH_FILES       :=
 SC_DIRS         := $(CWD)
 
 # C/C++
-C_DEFINES       := 
+C_DEFINES       :=
 C_FILES         :=
 C_DIRS          := $(CWD)
 H_FILES         :=
 H_DIRS          := $(CWD)
-H_SYS_DIRS      := 
-O_FILES         := 
-O_DIRS          := 
+H_SYS_DIRS      :=
+O_FILES         :=
+O_DIRS          :=
 CPPFLAGS        := -O1 -Wall -Wno-uninitialized
 LDFLAGS         := -Wall
 LDLIBS          := -lm -lstdc++
 
 # Dependencies
-D_FILES         := 
+D_FILES         :=
 

@@ -3,9 +3,6 @@ include $(DLSC_MAKEFILE_TOP)
 
 DLSC_DEPENDS    += axi_tlm
 
-# TODO
-V_DUT           += dlsc_empty.v
-
 SP_TESTBENCH    += dlsc_apb_tlm_tb.sp
 
 SP_FILES        += dlsc_apb_tlm_master_32b.sp

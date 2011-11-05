@@ -1,4 +1,8 @@
 
+ifndef XILINX
+    $(error XILINX must be set)
+endif
+
 V_DIRS          += $(XILINX)/verilog/src $(XILINX)/verilog/src/unisims
 
 V_FILES         += glbl.v

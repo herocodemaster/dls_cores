@@ -49,8 +49,6 @@ SP_CTOR_IMP(__MODULE__) : clk("clk",10,SC_NS) /*AUTOINIT*/ {
     SP_AUTO_CTOR;
 
     /*AUTOTIEOFF*/
-    SP_CELL(dut,DLSC_DUT);
-        /*AUTOINST*/
 
     SP_CELL(axi_master,dlsc_axi4lb_tlm_master_32b);
         /*AUTOINST*/
@@ -93,7 +91,6 @@ void __MODULE__::stim_thread() {
     memtest->test(0,4*4096,1*1000*100);
 
     wait(1,SC_US);
-    dut->final();
     sc_stop();
 }
 
@@ -102,7 +99,6 @@ void __MODULE__::watchdog_thread() {
 
     dlsc_error("watchdog timeout");
 
-    dut->final();
     sc_stop();
 }
 

@@ -55,8 +55,6 @@ SP_CTOR_IMP(__MODULE__) : sys_clk("sys_clk",10,SC_NS) /*AUTOINIT*/ {
     SP_AUTO_CTOR;
 
     /*AUTOTIEOFF*/
-    SP_CELL(dut,DLSC_DUT);
-        /*AUTOINST*/
 
     SP_CELL(pcie,dlsc_pcie_s6_model);
         SP_PIN(pcie,user_clk_out,clk);
@@ -118,7 +116,6 @@ void __MODULE__::stim_thread() {
 #endif
 
     wait(1,SC_US);
-    dut->final();
     sc_stop();
 }
 
@@ -127,7 +124,6 @@ void __MODULE__::watchdog_thread() {
 
     dlsc_error("watchdog timeout");
 
-    dut->final();
     sc_stop();
 }
 

@@ -42,16 +42,12 @@ public:
 
 /*AUTOSUBCELL_INCLUDE*/
 
-#define DLSC_NOT_VERILATED
-#define DLSC_NOT_TRACED
 #include "dlsc_main.cpp"
 
 SP_CTOR_IMP(__MODULE__) /*AUTOINIT*/ {
     SP_AUTO_CTOR;
     
     /*AUTOTIEOFF*/
-    SP_CELL(dut,DLSC_DUT);
-        /*AUTOINST*/
 
     memtest = new dlsc_tlm_memtest<uint32_t>("memtest");
     
@@ -96,4 +92,6 @@ void __MODULE__::watchdog_thread() {
 
     sc_stop();
 }
+
+/*AUTOTRACE(__MODULE__)*/
 

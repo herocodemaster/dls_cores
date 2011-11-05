@@ -6,5 +6,7 @@ SC_DIRS         += $(CWD)/sim
 C_DIRS          += $(CWD)/sim
 H_DIRS          += $(CWD)/sim
 
-C_FILES         += dlsc_dpi.cpp
+ifdef USING_VERILATOR
+    C_FILES         += dlsc_dpi.cpp
+endif
 

@@ -3,9 +3,6 @@ include $(DLSC_MAKEFILE_TOP)
 
 DLSC_DEPENDS    += wishbone_tlm
 
-# TODO
-V_DUT           += dlsc_empty.v
-
 SP_TESTBENCH    += dlsc_wishbone_tlm_tb.sp
 
 SP_FILES        += dlsc_wishbone_tlm_master_32b.sp
