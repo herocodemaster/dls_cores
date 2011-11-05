@@ -125,7 +125,7 @@ V_FLAGS         := +libext+.v+.vh
 # UNUSED warning seems to trigger on Verilator-generated coverage code.. can't really use it yet
 VERILATOR_FLAGS := -Wall -Wwarn-style -Wno-UNUSED
 ICARUS_FLAGS    := -Wall -Wno-timescale
-ISIM_FLAGS      := -work work --incremental --sourcelibext .v
+ISIM_FLAGS      := --incremental --sourcelibext .v
 ISIM_FUSE_FLAGS := 
 ISIM_BIN_FLAGS  := 
 

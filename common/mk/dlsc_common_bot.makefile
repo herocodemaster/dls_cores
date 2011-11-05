@@ -616,21 +616,23 @@ ifdef USING_ISIM
 
 ISIM_FLAGS      += $(addprefix -d ,$(V_DEFINES))
 ISIM_FLAGS      += $(addprefix -i ,$(VH_DIRS))
-ISIM_FLAGS      += $(addprefix --sourcelibdir ,$(V_DIRS))
 ISIM_FLAGS      += -d DUMPFILE='"$(VCD_FILE)"'
 
-ISIM_FUSE_FLAGS += work.$(TESTBENCH)
+ISIM_WORK       := work
+
+ISIM_FLAGS      += -work $(ISIM_WORK)
+ISIM_FUSE_FLAGS += $(addprefix $(ISIM_WORK).,$(call dlsc-base,$(V_FILES)))
+
 ISIM_BIN_FLAGS  += -tclbatch $(DLSC_COMMON)/sim/dlsc_isim_cmd.tcl -log $(LOG_FILE)
 
 # compile verilog
 $(TESTBENCH).bin : $(V_FILES)
 	@echo generating dependency list
-	@vhier --input-files $(V_FLAGS) $(V_FILES) > $@.d.pre
+	@vhier --module-files --nomissing $(V_FLAGS) $(V_FILES) | awk '{print "verilog $(ISIM_WORK) " $$0}' > $@.prj
 	@echo -n "$@ : " > $@.d
-	@cat $@.d.pre | sort | uniq | tr '\n' ' ' >> $@.d
-	@rm -f $@.d.pre
+	@vhier --input-files --nomissing $(V_FLAGS) $(V_FILES) | sort | uniq | tr '\n' ' ' >> $@.d
 	@echo compiling $@
-	@vlogcomp $(ISIM_FLAGS) $(V_FILES)
+	@vlogcomp $(ISIM_FLAGS) --prj $@.prj
 	@echo fusing $@
 	@fuse $(ISIM_FUSE_FLAGS) -o $@
 
@@ -638,12 +640,12 @@ D_FILES         += $(TESTBENCH).bin.d
 
 # generate just a log file
 $(LOG_FILE) : $(TESTBENCH).bin
-	$(OBJDIR)/$< $(ISIM_BIN_FLAGS) -testplusarg NODUMP=1
+	@$(OBJDIR)/$< $(ISIM_BIN_FLAGS) -testplusarg NODUMP=1
 
 # generate dump file (.vcd) and log
 $(VCD_FILE) : $(TESTBENCH).bin
 	@rm -f $(VCD_FILE)
-	$(OBJDIR)/$< $(ISIM_BIN_FLAGS)
+	@$(OBJDIR)/$< $(ISIM_BIN_FLAGS)
 
 # TODO: ISim doesn't play nicely with the mkfifo and vcd2lxt2 technique
 ## generate dump file (.lxt) and log
@@ -651,7 +653,7 @@ $(VCD_FILE) : $(TESTBENCH).bin
 #	@rm -f $(VCD_FILE)
 #	@mkfifo $(VCD_FILE)
 #	@vcd2lxt2 $(VCD_FILE) $@ &
-#	$(OBJDIR)/$< $(ISIM_BIN_FLAGS)
+#	@$(OBJDIR)/$< $(ISIM_BIN_FLAGS)
 
 .PHONY: build
 build: $(TESTBENCH).bin

@@ -5,7 +5,7 @@ V_FILES         += glbl.v
 
 V_DEFINES       += XILINX=1
 
-ISIM_FUSE_FLAGS += -L unisims work.glbl
+ISIM_FUSE_FLAGS += -L unisims
 
 ifdef USING_VERILOG
     # Icarus doesn't much care for Xilinx simulation models..
