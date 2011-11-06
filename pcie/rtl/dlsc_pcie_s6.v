@@ -22,7 +22,7 @@ module dlsc_pcie_s6 #(
     // AXI
     parameter IB_ADDR           = 32,               // width of AXI address bus
     parameter IB_LEN            = 4,                // width of AXI length field
-    parameter IB_BYTE_SWAP      = 0,                // re-order bytes (set for x86 host)
+    parameter IB_BYTE_SWAP      = 0,                // re-order bytes (leave at 0 for x86 host)
     // Write
     parameter IB_WRITE_EN       = 1,                // enable inbound write path
     parameter IB_WRITE_BUFFER   = 32,
@@ -53,7 +53,7 @@ module dlsc_pcie_s6 #(
     // AXI
     parameter OB_ADDR           = 32,               // width of AXI address bus
     parameter OB_LEN            = 4,                // width of AXI length field
-    parameter OB_BYTE_SWAP      = 0,                // re-order bytes (set for x86 host)
+    parameter OB_BYTE_SWAP      = 0,                // re-order bytes (leave at 0 for x86 host)
     // Write
     parameter OB_WRITE_EN       = 1,                // enable outbound write path
     parameter OB_WRITE_SIZE     = 128,              // max write size (in bytes; power of 2)

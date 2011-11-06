@@ -191,8 +191,11 @@ end
 
 // Control
 
-assign          tlp_d_data      = rx_data;
 assign          tlp_d_last      = rx_last;
+assign          tlp_d_data      = { rx_data[ 7: 0],
+                                    rx_data[15 :8],
+                                    rx_data[23:16],
+                                    rx_data[31:24] };
 
 always @* begin
     next_st         = st;

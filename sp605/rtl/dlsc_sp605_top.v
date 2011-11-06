@@ -65,7 +65,7 @@ localparam APB_ADDR         = MIG_ADDR;
 localparam OB_READ_CPLH     = 40;
 localparam OB_READ_CPLD     = 467;
 
-localparam BYTE_SWAP        = 1;    // swap bytes for x86 host
+localparam BYTE_SWAP        = 0;
 localparam LOCAL_DMA_DESC   = 0;    // DMA descriptors in host memory
 localparam BUFFER           = 1;    // enable extra buffering in AXI routers
 

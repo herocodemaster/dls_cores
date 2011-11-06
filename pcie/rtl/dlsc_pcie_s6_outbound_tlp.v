@@ -195,7 +195,6 @@ always @(posedge clk) begin
     end
 end
 
-
 always @* begin
     next_st             = st;
 
@@ -259,7 +258,10 @@ always @* begin
     end
 
     if(st == ST_DATA) begin
-        tlp_data_r[31:0]    = wr_tlp_d_data;
+        tlp_data_r[31:0]    = { wr_tlp_d_data[ 7: 0],
+                                wr_tlp_d_data[15: 8],
+                                wr_tlp_d_data[23:16],
+                                wr_tlp_d_data[31:24] };
         wr_tlp_d_ready      = tlp_ready_r;
         tlp_valid_r         = wr_tlp_d_valid;
         tlp_last_r          = wr_tlp_d_last;

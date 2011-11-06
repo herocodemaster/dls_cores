@@ -279,20 +279,20 @@ bool pcie_tlp::deserialize(const deque<uint32_t> &dw) {
 
     // format/header-size
     if(!set_format( static_cast<pcie_fmt>((int)d.range(30,29)) )) {
-//        dlsc_error("invalid format");
+        dlsc_error("invalid format");
         malformed = true;
         return false;
     }
 
     if(dw.size() < fmt_size) {
-//        dlsc_error("insufficient header data (have " << dw.size() << ", but need " << fmt_size << ")");
+        dlsc_error("insufficient header data (have " << dw.size() << ", but need " << fmt_size << ")");
         malformed = true;
         return false;
     }
 
     // type
     if(!set_type( static_cast<pcie_type>((int)d.range(28,24)) )) {
-//        dlsc_error("invalid type");
+        dlsc_error("invalid type");
         malformed = true;
         return false;
     }
@@ -386,24 +386,37 @@ bool pcie_tlp::deserialize(const deque<uint32_t> &dw) {
 
     // ** payload
 
-    if(fmt_data || td) {
-//        if((dw.size()-fmt_size-digest_size) != length) {
-//            dlsc_error("incorrect payload data length (have " << (dw.size()-fmt_size-digest_size) << ", but expected " << length << ")");
-//            return false;
-        data.assign(dw.begin()+fmt_size,dw.end()); // gets digest too
-//        if(data.size() != length) {
-//            malformed = true;
-//        }
+    if(fmt_data) {
+        if((dw.size()-fmt_size-digest_size) != length) {
+            dlsc_error("incorrect payload data length (have " << (dw.size()-fmt_size-digest_size) << ", but expected " << length << ")");
+            return false;
+        }
+    } else {
+        if((dw.size()-fmt_size-digest_size) != 0) {
+            dlsc_error("incorrect payload data length (have " << (dw.size()-fmt_size-digest_size) << ", but expected " << 0 << ")");
+            return false;
+        }
+    }
+
+    // copy payload
+    if(fmt_data) {
+        data.assign(dw.begin()+fmt_size,dw.end()-digest_size);
+    }
+    
+    // swap endianness
+    std::deque<uint32_t>::iterator it;
+    for(it = data.begin();it != data.end();it++) {
+        uint32_t ds = *it;
+        *it = ((ds & 0x000000FF) << 24) |
+              ((ds & 0x0000FF00) <<  8) |
+              ((ds & 0x00FF0000) >>  8) |
+              ((ds & 0xFF000000) >> 24);
     }
 
     // ** digest
     if(td) {
-        if(!data.empty()) {
-            digest      = data.back();
-            data.pop_back();
-        } else {
-            malformed = true;
-        }
+        // TODO: endianness of digest may be wrong
+        digest      = dw.back();
     }
 
     return true;
@@ -536,10 +549,20 @@ void pcie_tlp::serialize(deque<uint32_t> &dw) const {
     // ** payload
     if(fmt_data) {
         dw.insert(dw.end(),data.begin(),data.end());
+        // swap endianness
+        std::deque<uint32_t>::iterator it;
+        for(it = dw.begin()+fmt_size;it != dw.end();it++) {
+            uint32_t ds = *it;
+            *it = ((ds & 0x000000FF) << 24) |
+                  ((ds & 0x0000FF00) <<  8) |
+                  ((ds & 0x00FF0000) >>  8) |
+                  ((ds & 0xFF000000) >> 24);
+        }
     }
 
     // ** digest
     if(td) {
+        // TODO: endianness of digest may be wrong
         dw.push_back(digest);
     }
 }

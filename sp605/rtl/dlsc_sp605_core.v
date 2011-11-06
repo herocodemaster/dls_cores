@@ -6,7 +6,7 @@ module dlsc_sp605_core #(
     parameter APB_ADDR          = MIG_ADDR,
     parameter OB_READ_CPLH      = 40,
     parameter OB_READ_CPLD      = 467,
-    parameter BYTE_SWAP         = 0,        // set for x86 hosts
+    parameter BYTE_SWAP         = 0,        // leave at 0 for x86 hosts
     parameter LOCAL_DMA_DESC    = 1,        // fetch DMA commands from MIG (otherwise fetch over PCIe)
     parameter BUFFER            = 0,        // enable buffering in AXI routers
     parameter SRAM_SIZE         = (64*1024) // size of internal SRAM (in bytes)

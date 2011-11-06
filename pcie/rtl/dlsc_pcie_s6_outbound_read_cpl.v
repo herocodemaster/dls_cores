@@ -260,7 +260,10 @@ always @* begin
     set_timeout     = 1'b0;
 
     if(st == ST_DATA) begin
-        cpl_data        = rx_data;
+        cpl_data        = { rx_data[ 7: 0],
+                            rx_data[15: 8],
+                            rx_data[23:16],
+                            rx_data[31:24] };
         cpl_resp        = AXI_RESP_OKAY;
     end else begin
         cpl_data        = 0;

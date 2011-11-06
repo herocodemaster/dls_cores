@@ -222,7 +222,10 @@ always @* begin
     end
 
     if(st == ST_DATA) begin
-        tlp_data[31:0]      = rd_d_data;
+        tlp_data[31:0]      = { rd_d_data[ 7: 0],
+                                rd_d_data[15: 8],
+                                rd_d_data[23:16],
+                                rd_d_data[31:24] };
         tlp_valid           = rd_d_valid;
         tlp_last            = rd_d_last;
         
