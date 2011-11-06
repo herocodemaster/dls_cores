@@ -1,4 +1,5 @@
-CONFIG PART = xc6slx45t-fgg484-2;
+CONFIG PART = xc6slx45t-fgg484-3;
+CONFIG STEPPING = "ES";
 
 # UCF
 # ** System **
@@ -7,8 +8,8 @@ NET "clk200_p"                      LOC = "K21";   ##
 NET "clk200_p" TNM_NET = "clk200_p";
 TIMESPEC "TS_clk200_p" = PERIOD "clk200_p" 5000 ps;
 
-TIMESPEC TS_clk0_to_clk1_tig = FROM "dlsc_sp605_clocks_clk0_pre" TO "dlsc_sp605_clocks_clk1_pre" TIG;
-TIMESPEC TS_clk1_to_clk0_tig = FROM "dlsc_sp605_clocks_clk1_pre" TO "dlsc_sp605_clocks_clk0_pre" TIG;
+TIMESPEC TS_clk0_to_px_clk_tig = FROM "dlsc_sp605_clocks_clk0_pre" TO "dlsc_dcm_clkgen_px_clk_clk_pre" TIG;
+TIMESPEC TS_px_clk_to_clk0_tig = FROM "dlsc_dcm_clkgen_px_clk_clk_pre" TO "dlsc_sp605_clocks_clk0_pre" TIG;
 
 NET "btn<0>"                  LOC = "F3";    ## 2   on SW4 pushbutton (active-high)
 NET "btn<1>"                  LOC = "G6";    ## 2   on SW7 pushbutton (active-high)
@@ -18,7 +19,11 @@ NET "led<0>"    LOC = "D17" |IOSTANDARD = LVCMOS25;    # DS3
 NET "led<1>"    LOC = "AB4" |IOSTANDARD = LVCMOS25;    # DS4
 NET "led<2>"    LOC = "D21" |IOSTANDARD = LVCMOS25;    # DS5
 NET "led<3>"    LOC = "W15" |IOSTANDARD = LVCMOS25;    # DS6
+
 # ** VGA **
+
+NET "dlsc_sp605_core/dlsc_vga_inst/dlsc_vga_output_inst/px_en" TIG; # feeds async reset on dvi pads; not timing critical
+
 NET "dvi_scl" LOC = "W13" |IOSTANDARD = LVCMOS25 |PULLUP;
 NET "dvi_sda" LOC = "AA4" |IOSTANDARD = LVCMOS25 |PULLUP;
 
@@ -146,3 +151,4 @@ NET pci_exp_txp LOC = B6;
 NET pci_exp_txn LOC = A6;
 NET pci_exp_rxp LOC = D7;
 NET pci_exp_rxn LOC = C7;
+

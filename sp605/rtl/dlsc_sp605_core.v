@@ -3,6 +3,7 @@ module dlsc_sp605_core #(
     parameter MIG_ID            = 4,
     parameter MIG_ADDR          = 32,
     parameter MIG_LEN           = 8,
+    parameter APB_ADDR          = MIG_ADDR,
     parameter OB_READ_CPLH      = 40,
     parameter OB_READ_CPLD      = 467,
     parameter BYTE_SWAP         = 0,        // set for x86 hosts
@@ -14,6 +15,20 @@ module dlsc_sp605_core #(
     input   wire                    rst,
     input   wire                    px_clk,
     input   wire                    px_rst,
+
+    // ** APB **
+    output  wire                    apb_clk,
+    output  wire                    apb_rst,
+    output  wire    [APB_ADDR-1:0]  apb_addr,
+    output  wire                    apb_enable,
+    output  wire                    apb_write,
+    output  wire    [31:0]          apb_wdata,
+    output  wire    [3:0]           apb_strb,
+    
+    input   wire                    int_clkgen,
+    output  reg                     apb_sel_clkgen,
+    input   wire                    apb_ready_clkgen,
+    input   wire    [31:0]          apb_rdata_clkgen,
 
     // ** VGA **
     output  wire                    px_en,
@@ -281,8 +296,7 @@ module dlsc_sp605_core #(
 
 localparam ADDR             = MIG_ADDR;
 localparam LEN              = 4;
-localparam APB_ADDR         = ADDR;
-localparam INTERRUPTS       = 5;
+localparam INTERRUPTS       = 6;
 localparam OB_ADDR          = 64;
 localparam OB_LEN           = 8;
 
@@ -293,13 +307,6 @@ localparam [ADDR-1:0] APB_MASK  = 32'h000F_FFFF;    // 1 MB
 localparam [ADDR-1:0] APB_BASE  = 32'h8000_0000;
 localparam [ADDR-1:0] DRAM_MASK = 32'h07FF_FFFF;    // 128 MB
 localparam [ADDR-1:0] DRAM_BASE = 32'h0000_0000;
-
-wire                    apb_sel;
-wire    [APB_ADDR-1:0]  apb_addr;
-wire                    apb_enable;
-wire                    apb_write;
-wire    [31:0]          apb_wdata;
-wire    [3:0]           apb_strb;
 
 
 // ** PCIe **
@@ -544,6 +551,10 @@ wire                    apb_b_ready;
 wire                    apb_b_valid;
 wire    [1:0]           apb_b_resp;
 
+assign                  apb_clk     = clk;
+assign                  apb_rst     = rst;
+
+wire                    apb_sel;
 wire                    apb_ready;
 wire    [31:0]          apb_rdata;
 wire                    apb_slverr;
@@ -1093,8 +1104,8 @@ assign c3_s3_axi_bready = 0;
 reg    apb_sel_null;
 wire   apb_ready_null   = apb_sel_null && apb_enable;
 
-assign apb_ready        = apb_ready_pcie    | apb_ready_dmard   | apb_ready_dmawr   | apb_ready_vga     | apb_ready_i2c     | apb_ready_null;
-assign apb_rdata        = apb_rdata_pcie    | apb_rdata_dmard   | apb_rdata_dmawr   | apb_rdata_vga     | apb_rdata_i2c;
+assign apb_ready        = apb_ready_pcie    | apb_ready_dmard   | apb_ready_dmawr   | apb_ready_vga     | apb_ready_i2c     | apb_ready_clkgen  | apb_ready_null;
+assign apb_rdata        = apb_rdata_pcie    | apb_rdata_dmard   | apb_rdata_dmawr   | apb_rdata_vga     | apb_rdata_i2c     | apb_rdata_clkgen;
 assign apb_slverr       = apb_slverr_pcie;
 
 always @* begin
@@ -1103,6 +1114,7 @@ always @* begin
     apb_sel_dmawr   = 1'b0;
     apb_sel_vga     = 1'b0;
     apb_sel_i2c     = 1'b0;
+    apb_sel_clkgen  = 1'b0;
     apb_sel_null    = 1'b0;
 
     if(apb_sel) begin
@@ -1113,12 +1125,13 @@ always @* begin
             3: apb_sel_dmawr    = 1'b1;
             4: apb_sel_vga      = 1'b1;
             5: apb_sel_i2c      = 1'b1;
+            6: apb_sel_clkgen   = 1'b1;
             default: apb_sel_null = 1'b1;
         endcase
     end
 end
 
-assign apb_int_in   = { int_i2c, int_vga, int_dmawr, int_dmard, int_pcie };
+assign apb_int_in   = { int_clkgen, int_i2c, int_vga, int_dmawr, int_dmard, int_pcie };
 
 endmodule
 

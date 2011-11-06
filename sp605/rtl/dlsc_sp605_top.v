@@ -60,12 +60,27 @@ localparam MIG_ID           = 4;
 localparam MIG_ADDR         = 32;
 localparam MIG_LEN          = 8;
 
+localparam APB_ADDR         = MIG_ADDR;
+
 localparam OB_READ_CPLH     = 40;
 localparam OB_READ_CPLD     = 467;
 
 localparam BYTE_SWAP        = 1;    // swap bytes for x86 host
 localparam LOCAL_DMA_DESC   = 0;    // DMA descriptors in host memory
 localparam BUFFER           = 1;    // enable extra buffering in AXI routers
+
+
+// ** APB **
+
+wire                apb_clk;
+wire                apb_rst;
+wire    [APB_ADDR-1:0] apb_addr;
+wire                apb_sel;
+wire                apb_enable;
+wire                apb_write;
+wire    [31:0]      apb_wdata;
+wire    [3:0]       apb_strb;
+
 
 // ** Clocks **
 
@@ -94,16 +109,55 @@ wire                    mig_ready;
 
 (* KEEP = "TRUE" *) wire clk;
 (* KEEP = "TRUE" *) wire rst;
-(* KEEP = "TRUE" *) wire px_clk;
-(* KEEP = "TRUE" *) wire px_rst;
 
 dlsc_sp605_clocks dlsc_sp605_clocks (
     .clk200_in      ( clk200_buf ),
     .rst_in         ( !mig_ready ),
     .clk            ( clk ),
     .rst            ( rst ),
-    .px_clk         ( px_clk ),
-    .px_rst         ( px_rst )
+    .px_clk         (  ),
+    .px_rst         (  )
+);
+
+
+// ** DCM_CLKGEN for px_clk **
+
+(* KEEP = "TRUE" *) wire px_clk;
+(* KEEP = "TRUE" *) wire px_clk_n;
+(* KEEP = "TRUE" *) wire px_rst;
+
+wire                int_clkgen;
+
+wire                apb_sel_clkgen;
+wire                apb_ready_clkgen;
+wire    [31:0]      apb_rdata_clkgen;
+
+dlsc_dcm_clkgen #(
+    .ADDR           ( APB_ADDR ),
+    .ENABLE         ( 1 ),
+    .CLK_IN_PERIOD  ( 5.0 ),
+    .CLK_DIVIDE     ( 25 ),             // default px_clk of 24 MHz
+    .CLK_MULTIPLY   ( 3 ),
+    .CLK_MD_MAX     ( (166.0/200.0) ),  // max px_clk of 166 MHz
+    .CLK_DIV_DIVIDE ( 2 )
+) dlsc_dcm_clkgen_px_clk (
+    .apb_clk        ( apb_clk ),
+    .apb_rst        ( apb_rst ),
+    .apb_addr       ( apb_addr ),
+    .apb_sel        ( apb_sel_clkgen ),
+    .apb_enable     ( apb_enable ),
+    .apb_write      ( apb_write ),
+    .apb_wdata      ( apb_wdata ),
+    .apb_strb       ( apb_strb ),
+    .apb_ready      ( apb_ready_clkgen ),
+    .apb_rdata      ( apb_rdata_clkgen ),
+    .apb_int_out    ( int_clkgen ),
+    .clk_in         ( clk200_buf ),
+    .rst_in         ( !mig_ready ),
+    .clk            ( px_clk ),
+    .clk_n          ( px_clk_n ),
+    .clk_div        (  ),
+    .rst            ( px_rst )
 );
 
 
@@ -615,6 +669,7 @@ dlsc_sp605_ch7301c #(
     .DELAY_DATA         ( 0 )
 ) dlsc_sp605_ch7301c (
     .px_clk ( px_clk ),
+    .px_clk_n ( px_clk_n ),
     .px_en ( px_en ),
     .px_vsync ( px_vsync ),
     .px_hsync ( px_hsync ),
@@ -652,6 +707,7 @@ dlsc_sp605_core #(
     .MIG_ID             ( MIG_ID ),
     .MIG_ADDR           ( MIG_ADDR ),
     .MIG_LEN            ( MIG_LEN ),
+    .APB_ADDR           ( APB_ADDR ),
     .OB_READ_CPLH       ( OB_READ_CPLH ),
     .OB_READ_CPLD       ( OB_READ_CPLD ),
     .BYTE_SWAP          ( BYTE_SWAP ),
@@ -662,6 +718,17 @@ dlsc_sp605_core #(
     .rst ( rst ),
     .px_clk ( px_clk ),
     .px_rst ( px_rst ),
+    .apb_clk ( apb_clk ),
+    .apb_rst ( apb_rst ),
+    .apb_addr ( apb_addr ),
+    .apb_enable ( apb_enable ),
+    .apb_write ( apb_write ),
+    .apb_wdata ( apb_wdata ),
+    .apb_strb ( apb_strb ),
+    .int_clkgen ( int_clkgen ),
+    .apb_sel_clkgen ( apb_sel_clkgen ),
+    .apb_ready_clkgen ( apb_ready_clkgen ),
+    .apb_rdata_clkgen ( apb_rdata_clkgen ),
     .px_en ( px_en ),
     .px_vsync ( px_vsync ),
     .px_hsync ( px_hsync ),
