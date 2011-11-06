@@ -16,8 +16,10 @@ integer i;
 
 always @* begin
     match_valid     = 1'b0;
-    match_onehot    = {RANGES{1'bx}};
-    match           = {RANGESB{1'bx}};
+
+    // range 0 is highest priority
+    match_onehot    = 1;
+    match           = 0;
 
     for(i=RANGES;i>=0;i=i-1) begin
         if( (addr & ~MASKS[ (i*ADDR) +: ADDR ]) == (BASES[ (i*ADDR) +: ADDR ] & ~MASKS[ (i*ADDR) +: ADDR ]) ) begin
