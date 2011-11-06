@@ -16,6 +16,8 @@
 #define LOCAL_DMA_DESC
 #endif
 
+#define SRAM_SIZE PARAM_SRAM_SIZE
+
 /*AUTOSUBCELL_CLASS*/
 
 struct dma_desc {
@@ -91,6 +93,7 @@ public:
 const uint64_t REG_BASE                 = 0x0042CAFEBE300000;
 //                                                  07FFFFFF
 const uint64_t MEM_BASE                 = 0x0000000038000000;
+const uint64_t SRAM_BASE                = 0x0000000007F00000 + MEM_BASE; // SRAM overlays top 1 MB of DRAM
 
 const uint32_t REG_PCIE                 = 0;
 const uint32_t REG_PCIE_CONFIG          = 1;
@@ -380,22 +383,28 @@ void __MODULE__::stim_thread() {
     wait(1,SC_US);
 
     dlsc_info("testing config space");
-    for(i=0;i<100;++i) {
+    for(i=0;i<25;++i) {
         uint32_t r = dlsc_rand_u32(0,0x400);
         uint32_t d = reg_read(REG_PCIE_CONFIG,r);
         dlsc_assert_equals(r,d);
     }
     
+    // test DRAM
+    dlsc_info("testing DRAM");
     memory_mig->set_error_rate_read(1.0);
     memtest->set_ignore_error_read(true);
     memtest->set_max_outstanding(16);   // more MOT for improved performance
     memtest->set_strobe_rate(1);        // sparse strobes are very slow over PCIe
     memtest->test(MEM_BASE,4*4096,1*1000*10);
-    memory_mig->set_error_rate_read(0.0);
+
+    // test SRAM
+    dlsc_info("testing SRAM");
+    memtest->set_ignore_error(false);
+    memtest->test(SRAM_BASE,SRAM_SIZE/4,1*1000*10);
     
     // provide background traffic during DMA test
+    memory_mig->set_error_rate_read(0.0);
     memtest->set_max_outstanding(8);
-    memtest->set_ignore_error_read(false);
     memtest->test(MEM_BASE+64ull*1024*1024,1*4096,1*1000*5,true);
     wait(100,SC_US);
 

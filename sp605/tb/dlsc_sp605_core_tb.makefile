@@ -12,7 +12,8 @@ SP_FILES        += dlsc_sp605_mig_model.sp
 SP_FILES        += dlsc_axi4lb_tlm_slave_32b.sp
 
 V_PARAMS_DEF    += \
-    LOCAL_DMA_DESC=1
+    LOCAL_DMA_DESC=1 \
+    SRAM_SIZE=65536
 
 sims0:
 	$(MAKE) -f $(THIS) V_PARAMS=""

@@ -8,7 +8,8 @@ module dlsc_sp605_core #(
     parameter OB_READ_CPLD      = 467,
     parameter BYTE_SWAP         = 0,        // set for x86 hosts
     parameter LOCAL_DMA_DESC    = 1,        // fetch DMA commands from MIG (otherwise fetch over PCIe)
-    parameter BUFFER            = 0         // enable buffering in AXI routers
+    parameter BUFFER            = 0,        // enable buffering in AXI routers
+    parameter SRAM_SIZE         = (64*1024) // size of internal SRAM (in bytes)
 ) (
     // ** System **
     input   wire                    clk,
@@ -307,6 +308,8 @@ localparam [ADDR-1:0] APB_MASK  = 32'h000F_FFFF;    // 1 MB
 localparam [ADDR-1:0] APB_BASE  = 32'h8000_0000;
 localparam [ADDR-1:0] DRAM_MASK = 32'h07FF_FFFF;    // 128 MB
 localparam [ADDR-1:0] DRAM_BASE = 32'h0000_0000;
+localparam [ADDR-1:0] SRAM_MASK = 32'h000F_FFFF;    // 1 MB
+localparam [ADDR-1:0] SRAM_BASE = 32'h07F0_0000;    // SRAM overlays top 1 MB of DRAM
 
 
 // ** PCIe **
@@ -600,6 +603,116 @@ dlsc_axi_to_apb #(
     .apb_slverr ( apb_slverr )
 );
 
+
+// ** SRAM **
+
+wire                    sram_ar_ready;
+wire                    sram_ar_valid;
+wire    [ADDR-1:0]      sram_ar_addr;
+wire    [LEN-1:0]       sram_ar_len;
+wire                    sram_r_ready;
+wire                    sram_r_valid;
+wire                    sram_r_last;
+wire    [31:0]          sram_r_data;
+wire    [1:0]           sram_r_resp;
+wire                    sram_aw_ready;
+wire                    sram_aw_valid;
+wire    [ADDR-1:0]      sram_aw_addr;
+wire    [LEN-1:0]       sram_aw_len;
+wire                    sram_w_ready;
+wire                    sram_w_valid;
+wire                    sram_w_last;
+wire    [31:0]          sram_w_data;
+wire    [3:0]           sram_w_strb;
+wire                    sram_b_ready;
+wire                    sram_b_valid;
+wire    [1:0]           sram_b_resp;
+
+dlsc_axi_ram #(
+    .SIZE       ( SRAM_SIZE ),
+    .DATA       ( 32 ),
+    .ADDR       ( ADDR ),
+    .LEN        ( LEN )
+) dlsc_axi_ram (
+    .clk        ( clk ),
+    .rst        ( rst ),
+    .axi_ar_ready ( sram_ar_ready ),
+    .axi_ar_valid ( sram_ar_valid ),
+    .axi_ar_addr ( sram_ar_addr ),
+    .axi_ar_len ( sram_ar_len ),
+    .axi_r_ready ( sram_r_ready ),
+    .axi_r_valid ( sram_r_valid ),
+    .axi_r_last ( sram_r_last ),
+    .axi_r_data ( sram_r_data ),
+    .axi_r_resp ( sram_r_resp ),
+    .axi_aw_ready ( sram_aw_ready ),
+    .axi_aw_valid ( sram_aw_valid ),
+    .axi_aw_addr ( sram_aw_addr ),
+    .axi_aw_len ( sram_aw_len ),
+    .axi_w_ready ( sram_w_ready ),
+    .axi_w_valid ( sram_w_valid ),
+    .axi_w_last ( sram_w_last ),
+    .axi_w_data ( sram_w_data ),
+    .axi_w_strb ( sram_w_strb ),
+    .axi_b_ready ( sram_b_ready ),
+    .axi_b_valid ( sram_b_valid ),
+    .axi_b_resp ( sram_b_resp )
+);
+
+
+// ** SRAM Router **
+
+wire                    pcie_sram_ar_ready;
+wire                    pcie_sram_ar_valid;
+wire    [ADDR-1:0]      pcie_sram_ar_addr;
+wire    [LEN-1:0]       pcie_sram_ar_len;
+wire                    pcie_sram_r_ready;
+wire                    pcie_sram_r_valid;
+wire                    pcie_sram_r_last;
+wire    [31:0]          pcie_sram_r_data;
+wire    [1:0]           pcie_sram_r_resp;
+
+wire                    vga_sram_ar_ready;
+wire                    vga_sram_ar_valid;
+wire    [ADDR-1:0]      vga_sram_ar_addr;
+wire    [LEN-1:0]       vga_sram_ar_len;
+wire                    vga_sram_r_ready;
+wire                    vga_sram_r_valid;
+wire                    vga_sram_r_last;
+wire    [31:0]          vga_sram_r_data;
+wire    [1:0]           vga_sram_r_resp;
+    
+dlsc_axi_router_rd #(
+    .ADDR       ( ADDR ),
+    .DATA       ( 32 ),
+    .LEN        ( LEN ),
+    .BUFFER     ( BUFFER ),
+    .INPUTS     ( 2 ),
+    .OUTPUTS    ( 1 )
+) dlsc_axi_router_rd_sram (
+    .clk ( clk ),
+    .rst ( rst ),
+    .in_ar_ready ( { pcie_sram_ar_ready , vga_sram_ar_ready } ),
+    .in_ar_valid ( { pcie_sram_ar_valid , vga_sram_ar_valid } ),
+    .in_ar_addr ( { pcie_sram_ar_addr , vga_sram_ar_addr } ),
+    .in_ar_len ( { pcie_sram_ar_len , vga_sram_ar_len } ),
+    .in_r_ready ( { pcie_sram_r_ready , vga_sram_r_ready } ),
+    .in_r_valid ( { pcie_sram_r_valid , vga_sram_r_valid } ),
+    .in_r_last ( { pcie_sram_r_last , vga_sram_r_last } ),
+    .in_r_data ( { pcie_sram_r_data , vga_sram_r_data } ),
+    .in_r_resp ( { pcie_sram_r_resp , vga_sram_r_resp } ),
+    .out_ar_ready ( sram_ar_ready ),
+    .out_ar_valid ( sram_ar_valid ),
+    .out_ar_addr ( sram_ar_addr ),
+    .out_ar_len ( sram_ar_len ),
+    .out_r_ready ( sram_r_ready ),
+    .out_r_valid ( sram_r_valid ),
+    .out_r_last ( sram_r_last ),
+    .out_r_data ( sram_r_data ),
+    .out_r_resp ( sram_r_resp )
+);
+
+
 // ** Inbound Router **
 
 dlsc_axi_router_rd #(
@@ -608,9 +721,9 @@ dlsc_axi_router_rd #(
     .LEN        ( LEN ),
     .BUFFER     ( BUFFER ),
     .INPUTS     ( 1 ),
-    .OUTPUTS    ( 2 ),
-    .MASKS      ( { DRAM_MASK, APB_MASK } ),
-    .BASES      ( { DRAM_BASE, APB_BASE } )
+    .OUTPUTS    ( 3 ),
+    .MASKS      ( { DRAM_MASK, SRAM_MASK, APB_MASK } ),
+    .BASES      ( { DRAM_BASE, SRAM_BASE, APB_BASE } )
 ) dlsc_axi_router_rd_inbound (
     .clk ( clk ),
     .rst ( rst ),
@@ -623,15 +736,15 @@ dlsc_axi_router_rd #(
     .in_r_last ( ib_r_last ),
     .in_r_data ( ib_r_data ),
     .in_r_resp ( ib_r_resp ),
-    .out_ar_ready ( { c3_s0_axi_arready , apb_ar_ready } ),
-    .out_ar_valid ( { c3_s0_axi_arvalid , apb_ar_valid } ),
-    .out_ar_addr ( { c3_s0_axi_araddr , apb_ar_addr } ),
-    .out_ar_len ( { c3_s0_axi_arlen[LEN-1:0] , apb_ar_len } ),
-    .out_r_ready ( { c3_s0_axi_rready , apb_r_ready } ),
-    .out_r_valid ( { c3_s0_axi_rvalid , apb_r_valid } ),
-    .out_r_last ( { c3_s0_axi_rlast , apb_r_last } ),
-    .out_r_data ( { c3_s0_axi_rdata , apb_r_data } ),
-    .out_r_resp ( { c3_s0_axi_rresp , apb_r_resp } )
+    .out_ar_ready ( { c3_s0_axi_arready , pcie_sram_ar_ready , apb_ar_ready } ),
+    .out_ar_valid ( { c3_s0_axi_arvalid , pcie_sram_ar_valid , apb_ar_valid } ),
+    .out_ar_addr ( { c3_s0_axi_araddr , pcie_sram_ar_addr , apb_ar_addr } ),
+    .out_ar_len ( { c3_s0_axi_arlen[LEN-1:0] , pcie_sram_ar_len , apb_ar_len } ),
+    .out_r_ready ( { c3_s0_axi_rready , pcie_sram_r_ready , apb_r_ready } ),
+    .out_r_valid ( { c3_s0_axi_rvalid , pcie_sram_r_valid , apb_r_valid } ),
+    .out_r_last ( { c3_s0_axi_rlast , pcie_sram_r_last , apb_r_last } ),
+    .out_r_data ( { c3_s0_axi_rdata , pcie_sram_r_data , apb_r_data } ),
+    .out_r_resp ( { c3_s0_axi_rresp , pcie_sram_r_resp , apb_r_resp } )
 );
 
 dlsc_axi_router_wr #(
@@ -640,9 +753,9 @@ dlsc_axi_router_wr #(
     .LEN        ( LEN ),
     .BUFFER     ( BUFFER ),
     .INPUTS     ( 1 ),
-    .OUTPUTS    ( 2 ),
-    .MASKS      ( { DRAM_MASK, APB_MASK } ),
-    .BASES      ( { DRAM_BASE, APB_BASE } )
+    .OUTPUTS    ( 3 ),
+    .MASKS      ( { DRAM_MASK, SRAM_MASK, APB_MASK } ),
+    .BASES      ( { DRAM_BASE, SRAM_BASE, APB_BASE } )
 ) dlsc_axi_router_wr_inbound (
     .clk ( clk ),
     .rst ( rst ),
@@ -658,18 +771,18 @@ dlsc_axi_router_wr #(
     .in_b_ready ( ib_b_ready ),
     .in_b_valid ( ib_b_valid ),
     .in_b_resp ( ib_b_resp ),
-    .out_aw_ready ( { c3_s0_axi_awready , apb_aw_ready } ),
-    .out_aw_valid ( { c3_s0_axi_awvalid , apb_aw_valid } ),
-    .out_aw_addr ( { c3_s0_axi_awaddr , apb_aw_addr } ),
-    .out_aw_len ( { c3_s0_axi_awlen[LEN-1:0] , apb_aw_len } ),
-    .out_w_ready ( { c3_s0_axi_wready , apb_w_ready } ),
-    .out_w_valid ( { c3_s0_axi_wvalid , apb_w_valid } ),
-    .out_w_last ( { c3_s0_axi_wlast , apb_w_last } ),
-    .out_w_data ( { c3_s0_axi_wdata , apb_w_data } ),
-    .out_w_strb ( { c3_s0_axi_wstrb , apb_w_strb } ),
-    .out_b_ready ( { c3_s0_axi_bready , apb_b_ready } ),
-    .out_b_valid ( { c3_s0_axi_bvalid , apb_b_valid } ),
-    .out_b_resp ( { c3_s0_axi_bresp , apb_b_resp } )
+    .out_aw_ready ( { c3_s0_axi_awready , sram_aw_ready , apb_aw_ready } ),
+    .out_aw_valid ( { c3_s0_axi_awvalid , sram_aw_valid , apb_aw_valid } ),
+    .out_aw_addr ( { c3_s0_axi_awaddr , sram_aw_addr , apb_aw_addr } ),
+    .out_aw_len ( { c3_s0_axi_awlen[LEN-1:0] , sram_aw_len , apb_aw_len } ),
+    .out_w_ready ( { c3_s0_axi_wready , sram_w_ready , apb_w_ready } ),
+    .out_w_valid ( { c3_s0_axi_wvalid , sram_w_valid , apb_w_valid } ),
+    .out_w_last ( { c3_s0_axi_wlast , sram_w_last , apb_w_last } ),
+    .out_w_data ( { c3_s0_axi_wdata , sram_w_data , apb_w_data } ),
+    .out_w_strb ( { c3_s0_axi_wstrb , sram_w_strb , apb_w_strb } ),
+    .out_b_ready ( { c3_s0_axi_bready , sram_b_ready , apb_b_ready } ),
+    .out_b_valid ( { c3_s0_axi_bvalid , sram_b_valid , apb_b_valid } ),
+    .out_b_resp ( { c3_s0_axi_bresp , sram_b_resp , apb_b_resp } )
 );
 
 assign  c3_s0_axi_aclk                      = clk;
@@ -690,6 +803,7 @@ assign  c3_s0_axi_awlock                    = 1'b0;
 assign  c3_s0_axi_awcache                   = 4'b0011;  // modifiable, bufferable
 assign  c3_s0_axi_awprot                    = 3'b000;   // unprivileged, secure
 assign  c3_s0_axi_awqos                     = 4'b0000;  // no QoS
+
 
 // ** Outbound Write DMA **
 
@@ -778,6 +892,7 @@ assign  c3_s1_axi_arlock                    = 1'b0;
 assign  c3_s1_axi_arcache                   = 4'b0011;  // modifiable, bufferable
 assign  c3_s1_axi_arprot                    = 3'b000;   // unprivileged, secure
 assign  c3_s1_axi_arqos                     = 4'b0000;  // no QoS
+
 
 // ** Outbound Read DMA **
 
@@ -874,6 +989,7 @@ assign  c3_s1_axi_awlock                    = 1'b0;
 assign  c3_s1_axi_awcache                   = 4'b0011;  // modifiable, bufferable
 assign  c3_s1_axi_awprot                    = 3'b000;   // unprivileged, secure
 assign  c3_s1_axi_awqos                     = 4'b0000;  // no QoS
+
 
 // ** Command Router **
 
@@ -973,7 +1089,18 @@ assign  c3_s2_axi_arcache                   = 4'b0011;  // modifiable, bufferabl
 assign  c3_s2_axi_arprot                    = 3'b000;   // unprivileged, secure
 assign  c3_s2_axi_arqos                     = 4'b0000;  // no QoS
 
+
 // ** VGA **
+
+wire                    vga_ar_ready;
+wire                    vga_ar_valid;
+wire    [ADDR-1:0]      vga_ar_addr;
+wire    [LEN-1:0]       vga_ar_len;
+wire                    vga_r_ready;
+wire                    vga_r_valid;
+wire                    vga_r_last;
+wire    [31:0]          vga_r_data;
+wire    [1:0]           vga_r_resp;
 
 wire                    int_vga;
 
@@ -1001,15 +1128,15 @@ dlsc_vga #(
     .apb_ready ( apb_ready_vga ),
     .apb_rdata ( apb_rdata_vga ),
     .int_out ( int_vga ),
-    .axi_ar_ready ( c3_s3_axi_arready ),
-    .axi_ar_valid ( c3_s3_axi_arvalid ),
-    .axi_ar_addr ( c3_s3_axi_araddr ),
-    .axi_ar_len ( c3_s3_axi_arlen[LEN-1:0] ),
-    .axi_r_ready ( c3_s3_axi_rready ),
-    .axi_r_valid ( c3_s3_axi_rvalid ),
-    .axi_r_last ( c3_s3_axi_rlast ),
-    .axi_r_data ( c3_s3_axi_rdata ),
-    .axi_r_resp ( c3_s3_axi_rresp ),
+    .axi_ar_ready ( vga_ar_ready ),
+    .axi_ar_valid ( vga_ar_valid ),
+    .axi_ar_addr ( vga_ar_addr ),
+    .axi_ar_len ( vga_ar_len ),
+    .axi_r_ready ( vga_r_ready ),
+    .axi_r_valid ( vga_r_valid ),
+    .axi_r_last ( vga_r_last ),
+    .axi_r_data ( vga_r_data ),
+    .axi_r_resp ( vga_r_resp ),
     .px_clk ( px_clk ),
     .px_rst ( px_rst ),
     .px_en ( px_en ),
@@ -1024,6 +1151,41 @@ dlsc_vga #(
     .px_a (  )
 );
 
+
+// ** VGA Router **
+
+dlsc_axi_router_rd #(
+    .ADDR       ( ADDR ),
+    .DATA       ( 32 ),
+    .LEN        ( LEN ),
+    .BUFFER     ( BUFFER ),
+    .INPUTS     ( 1 ),
+    .OUTPUTS    ( 2 ),
+    .MASKS      ( { DRAM_MASK, SRAM_MASK } ),
+    .BASES      ( { DRAM_BASE, SRAM_BASE } )
+) dlsc_axi_router_rd_vga (
+    .clk ( clk ),
+    .rst ( rst ),
+    .in_ar_ready ( vga_ar_ready ),
+    .in_ar_valid ( vga_ar_valid ),
+    .in_ar_addr ( vga_ar_addr ),
+    .in_ar_len ( vga_ar_len ),
+    .in_r_ready ( vga_r_ready ),
+    .in_r_valid ( vga_r_valid ),
+    .in_r_last ( vga_r_last ),
+    .in_r_data ( vga_r_data ),
+    .in_r_resp ( vga_r_resp ),
+    .out_ar_ready ( { c3_s3_axi_arready , vga_sram_ar_ready } ),
+    .out_ar_valid ( { c3_s3_axi_arvalid , vga_sram_ar_valid } ),
+    .out_ar_addr ( { c3_s3_axi_araddr , vga_sram_ar_addr } ),
+    .out_ar_len ( { c3_s3_axi_arlen[LEN-1:0] , vga_sram_ar_len } ),
+    .out_r_ready ( { c3_s3_axi_rready , vga_sram_r_ready } ),
+    .out_r_valid ( { c3_s3_axi_rvalid , vga_sram_r_valid } ),
+    .out_r_last ( { c3_s3_axi_rlast , vga_sram_r_last } ),
+    .out_r_data ( { c3_s3_axi_rdata , vga_sram_r_data } ),
+    .out_r_resp ( { c3_s3_axi_rresp , vga_sram_r_resp } )
+);
+
 assign  c3_s3_axi_aclk                      = clk;
 assign  c3_s3_axi_aresetn                   = !rst;
 assign  c3_s3_axi_arid                      = 0;
@@ -1034,6 +1196,7 @@ assign  c3_s3_axi_arlock                    = 1'b0;
 assign  c3_s3_axi_arcache                   = 4'b0011;  // modifiable, bufferable
 assign  c3_s3_axi_arprot                    = 3'b000;   // unprivileged, secure
 assign  c3_s3_axi_arqos                     = 4'b0000;  // no QoS
+
 
 // ** I2C **
 
@@ -1064,6 +1227,7 @@ i2c_master_top_apb #(
     .sda_out ( sda_out ),
     .sda_oe ( sda_oe )
 );
+
 
 // ** Tie-off unused MIG ports **
     
@@ -1099,6 +1263,7 @@ assign c3_s3_axi_wlast = 0;
 assign c3_s3_axi_wvalid = 0;
 assign c3_s3_axi_bready = 0;
 
+
 // ** APB decoding **
 
 reg    apb_sel_null;
@@ -1132,6 +1297,7 @@ always @* begin
 end
 
 assign apb_int_in   = { int_clkgen, int_i2c, int_vga, int_dmawr, int_dmard, int_pcie };
+
 
 endmodule
 
