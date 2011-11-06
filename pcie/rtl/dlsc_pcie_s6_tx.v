@@ -96,6 +96,10 @@ always @* begin
     err_timeout     = 1'b0;
     err_ecrc        = 1'b0;
     err_unsupported = 1'b0;
+
+    rx_err_ready    = 1'b0;
+    ib_err_ready    = 1'b0;
+    ob_err_ready    = 1'b0;
     
     if(rx_err_valid) begin
         rx_err_ready    = err_ready;
