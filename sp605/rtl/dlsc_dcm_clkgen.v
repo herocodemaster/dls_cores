@@ -47,9 +47,19 @@ localparam  REG_CONTROL     = 3'h0,
 
 // 0x0: control (RW)
 //  [0]     : enable
+//  [1]     : use default M/D values
+//  [2]     : ignore DCM stopped status
 // 0x1: status (RO)
 //  [0]     : ready
-//  [1]     : rst_in
+//  [1]     : int_out
+//  [2]     : rst_in
+//  [3]     : rst_out
+//  [4]     : dcm_rst
+//  [5]     : dcm_locked
+//  [6]     : dcm_stopped
+//  [7]     : dcm_ready
+//  [8]     : prog_done
+//  [14:12] : controller state
 // 0x2: interrupt flags (RW; write 1 to clear)
 //  [0]     : enabled
 //  [1]     : disabled
@@ -75,11 +85,26 @@ end
 
 // control/status
 
+wire            obs_dcm_rst;
+wire            obs_dcm_locked;
+wire            obs_dcm_stopped;
+wire            obs_dcm_ready;
+reg             prog_done_r;
+reg  [3:0]      st;
+
 reg             ctrl_enable;
+reg             use_defaults;
+reg             ignore_stopped;
 reg             status_ready;
 
-wire [31:0]     csr_control     = { 31'd0, ctrl_enable };
-wire [31:0]     csr_status      = { 30'd0, obs_rst_in, status_ready };
+wire [31:0]     csr_control     = { 29'd0, ignore_stopped, use_defaults, ctrl_enable };
+
+wire [31:0]     csr_status;
+assign          csr_status[31:16]   = 0;
+assign          csr_status[15:12]   = { 1'b0, st};
+assign          csr_status[11:0]    = { 1'b0,           1'b0,           1'b0,           prog_done_r,
+                                        obs_dcm_ready,  obs_dcm_stopped,obs_dcm_locked, obs_dcm_rst,
+                                        obs_out_rst,    obs_rst_in,     apb_int_out,    status_ready };
 
 wire            set_enabled     = (!obs_out_rst &&  obs_out_rst_prev);
 wire            set_disabled    = ( obs_out_rst && !obs_out_rst_prev) || (ctrl_enable && obs_rst_in);
@@ -87,10 +112,14 @@ wire            set_disabled    = ( obs_out_rst && !obs_out_rst_prev) || (ctrl_e
 always @(posedge apb_clk) begin
     if(apb_rst) begin
         ctrl_enable     <= ENABLE;
+        use_defaults    <= ENABLE;
+        ignore_stopped  <= 1'b0;
         status_ready    <= 1'b0;
     end else begin
-        if(csr_addr == REG_CONTROL && csr_wr[0]) begin
-            ctrl_enable     <= csr_wdata[0];
+        if(csr_addr == REG_CONTROL) begin
+            if(csr_wr[0]) ctrl_enable       <= csr_wdata[0];
+            if(csr_wr[1]) use_defaults      <= csr_wdata[1];
+            if(csr_wr[2]) ignore_stopped    <= csr_wdata[2];
         end
         if(set_enabled) begin
             status_ready    <= 1'b1;
@@ -205,8 +234,6 @@ reg         prog_en;
 reg         prog_data;
 wire        prog_done;
 
-wire        dcm_ready           = !dcm_rst && dcm_locked && !dcm_stopped;
-
 DCM_CLKGEN #(
     .CLKFXDV_DIVIDE     ( CLK_DIV_DIVIDE ),     // CLKFXDV divide value (2, 4, 8, 16, 32)
     .CLKFX_DIVIDE       ( CLK_DIVIDE ),         // Divide value - D - (1-256)
@@ -233,18 +260,17 @@ DCM_CLKGEN #(
 
 // ** sync **
 
-wire            obs_dcm_rst;
-wire            obs_dcm_ready;
-
 dlsc_syncflop #(
-    .DATA       ( 4 ),
-    .RESET      ( 4'b1110 )
+    .DATA       ( 5 ),
+    .RESET      ( 5'b11110 )
 ) dlsc_syncflop_obs (
-    .in         ( {     rst_in,         rst,     dcm_rst,     dcm_ready } ),
+    .in         ( {     rst_in,         rst,     dcm_rst,     dcm_stopped,    dcm_locked } ),
     .clk        ( apb_clk ),
     .rst        ( apb_rst ),
-    .out        ( { obs_rst_in, obs_out_rst, obs_dcm_rst, obs_dcm_ready } )
+    .out        ( { obs_rst_in, obs_out_rst, obs_dcm_rst, obs_dcm_stopped, obs_dcm_locked } )
 );
+
+assign          obs_dcm_ready   = !obs_dcm_rst && obs_dcm_locked && (!obs_dcm_stopped || ignore_stopped);
 
 reg             apb_dcm_rst;
 assign          dcm_rst         = rst_in || apb_dcm_rst;
@@ -259,8 +285,6 @@ dlsc_rstsync #(
     .clk        ( clk ),
     .rst_out    ( rst )
 );
-
-reg             prog_done_r;
 
 always @(posedge apb_clk) begin
     if(apb_rst) begin
@@ -283,7 +307,6 @@ localparam  ST_DISABLED     = 0,    // DCM disabled and held in reset
             ST_LOCKED       = 8,    // DCM ready; remove downstream reset
             ST_DISABLE      = 9;    // shutting down DCM; apply downstream reset
 
-reg  [3:0]      st;
 reg  [3:0]      next_st;
 
 reg  [3:0]      cnt;
@@ -294,7 +317,7 @@ always @(posedge apb_clk) begin
     if(cnt_clear) begin
         cnt     <= 0;
     end else begin
-        cnt     <= cnt + 1;
+        cnt     <= cnt + 4'd1;
     end
 end
 
@@ -325,7 +348,7 @@ always @* begin
         if(prog_done_r && !obs_dcm_rst) begin
             cnt_clear       = 1'b0;
             if(cnt_max) begin
-                next_st         = ST_LOADD;
+                next_st         = use_defaults ? ST_WAIT : ST_LOADD;
             end
         end
     end
