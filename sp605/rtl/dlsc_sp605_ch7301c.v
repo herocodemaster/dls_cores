@@ -5,6 +5,7 @@ module dlsc_sp605_ch7301c #(
 ) (
     // Input
     input   wire                    px_clk,
+    input   wire                    px_clk_n,
     input   wire                    px_en,
     input   wire                    px_vsync,
     input   wire                    px_hsync,
@@ -36,7 +37,7 @@ ODDR2 #(
 ) ODDR2_clk (
     .Q                  ( r_clk ),          // 1-bit DDR output data
     .C0                 ( px_clk ),         // 1-bit clock input
-    .C1                 ( !px_clk ),        // 1-bit clock input
+    .C1                 ( px_clk_n ),       // 1-bit clock input
     .CE                 ( 1'b1 ),           // 1-bit clock enable input
     .D0                 ( 1'b1 ),           // 1-bit data input (associated with C0)
     .D1                 ( 1'b0 ),           // 1-bit data input (associated with C1)
@@ -122,7 +123,7 @@ for(j=0;j<15;j=j+1) begin:GEN_DATA
     ) ODDR2_data (
         .Q                  ( r_data[j] ),      // 1-bit DDR output data
         .C0                 ( px_clk ),         // 1-bit clock input
-        .C1                 ( !px_clk ),        // 1-bit clock input
+        .C1                 ( px_clk_n ),       // 1-bit clock input
         .CE                 ( 1'b1 ),           // 1-bit clock enable input
         .D0                 ( data_a[j] ),      // 1-bit data input (associated with C0)
         .D1                 ( data_b[j] ),      // 1-bit data input (associated with C1)
