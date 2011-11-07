@@ -105,6 +105,7 @@ VERILATOR_FLAGS := -Wall -Wwarn-style -Wno-UNUSED
 ICARUS_FLAGS    := -Wall -Wno-timescale
 ISIM_FLAGS      := --incremental
 ISIM_FUSE_FLAGS :=
+ISIM_FUSE_LIBS  :=
 ISIM_BIN_FLAGS  :=
 
 # SystemPerl

@@ -320,7 +320,7 @@ lint: $(V_DUT)
 .PHONY: vhier
 vhier: $(V_DUT)
 	@echo files required for $(notdir $<):
-	@cd $(DLSC_ROOT) && $(VHIER) --input-files $(V_FLAGS) $<
+	@cd $(DLSC_ROOT) && $(VHIER) --nomissing --input-files $(V_FLAGS) $<
 
 
 #
@@ -403,8 +403,8 @@ recurse: gen verilator systemperl verilog vparams.txt $(OBJDIR)
 	+@$(MAKE) --no-print-directory -C $(OBJDIR) -f $(THIS) CWD_TOP=$(CWD_TOP) $(MAKECMDGOALS)
 
 # targets that can be passed through
-.PHONY: build sim waves vcd gtkwave coverage
-build sim waves vcd gtkwave coverage: recurse
+.PHONY: build sim waves vcd gtkwave coverage gui
+build sim waves vcd gtkwave coverage gui: recurse
 
 
 # ^^^ ifneq (,$(filter _objdir%,$(notdir $(CURDIR))))
@@ -650,6 +650,9 @@ ISIM_WORK       := work
 ISIM_FLAGS      += -work $(ISIM_WORK)
 ISIM_FUSE_FLAGS += $(addprefix $(ISIM_WORK).,$(call dlsc-base,$(V_FILES)))
 
+ISIM_FUSE_LIBS  := $(sort $(ISIM_FUSE_LIBS))
+ISIM_FUSE_FLAGS += $(addprefix -L ,$(ISIM_FUSE_LIBS))
+
 ISIM_BIN_FLAGS  += -tclbatch $(DLSC_COMMON)/sim/dlsc_isim_cmd.tcl -log $(LOG_FILE)
 
 # compile verilog
@@ -681,6 +684,10 @@ $(VCD_FILE) : $(TESTBENCH).bin
 #	@mkfifo $(VCD_FILE)
 #	@vcd2lxt2 $(VCD_FILE) $@ &
 #	@$(OBJDIR)/$< $(ISIM_BIN_FLAGS)
+
+.PHONY: gui
+gui: $(TESTBENCH).bin
+	@$(OBJDIR)/$< -gui -view wave.wcfg -log $(LOG_FILE) -testplusarg NODUMP=1
 
 .PHONY: build
 build: $(TESTBENCH).bin

@@ -3,13 +3,12 @@ ifndef XILINX
     $(error XILINX must be set)
 endif
 
-V_DIRS          += $(XILINX)/verilog/src $(XILINX)/verilog/src/unisims
-
+V_DIRS          += $(XILINX)/verilog/src
 V_FILES         += glbl.v
 
 V_DEFINES       += XILINX=1
 
-ISIM_FUSE_FLAGS += -L unisims
+ISIM_FUSE_LIBS  += unisims
 
 ifdef USING_VERILOG
     # Icarus has trouble with some Xilinx models
@@ -18,6 +17,7 @@ ifdef USING_VERILOG
         USING_ISIM      := 1
     else
         $(warning Using Icarus with Xilinx simulation models is not recommended)
+        V_DIRS          += $(XILINX)/verilog/src/unisims
     endif
 endif
 
