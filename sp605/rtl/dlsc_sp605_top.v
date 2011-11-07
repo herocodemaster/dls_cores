@@ -84,6 +84,11 @@ wire    [3:0]       apb_strb;
 
 // ** Clocks **
 
+wire                    master_rst      = btn[0] && btn[3];
+
+wire                    mig_rst         = master_rst;
+wire                    mig_ready;
+
 wire                    clk200_buf;
 
 IBUFGDS #(
@@ -104,15 +109,12 @@ IBUFDS pcie_clk_buf (
     .IB ( pcie_clk_n )
 );
 
-wire                    mig_rst         = btn[0] && btn[3];
-wire                    mig_ready;
-
 (* KEEP = "TRUE" *) wire clk;
 (* KEEP = "TRUE" *) wire rst;
 
 dlsc_sp605_clocks dlsc_sp605_clocks (
     .clk200_in      ( clk200_buf ),
-    .rst_in         ( !mig_ready ),
+    .rst_in         ( master_rst ),
     .clk            ( clk ),
     .rst            ( rst ),
     .px_clk         (  ),
@@ -153,7 +155,7 @@ dlsc_dcm_clkgen #(
     .apb_rdata      ( apb_rdata_clkgen ),
     .apb_int_out    ( int_clkgen ),
     .clk_in         ( clk200_buf ),
-    .rst_in         ( !mig_ready ),
+    .rst_in         ( master_rst ),
     .clk            ( px_clk ),
     .clk_n          ( px_clk_n ),
     .clk_div        (  ),
