@@ -687,7 +687,7 @@ $(VCD_FILE) : $(TESTBENCH).bin
 
 .PHONY: gui
 gui: $(TESTBENCH).bin
-	@$(OBJDIR)/$< -gui -view wave.wcfg -log $(LOG_FILE) -testplusarg NODUMP=1
+	@$(OBJDIR)/$< -gui -view $(CWD)/$(TESTBENCH).wcfg -log $(LOG_FILE) -testplusarg NODUMP=1 &
 
 .PHONY: build
 build: $(TESTBENCH).bin
