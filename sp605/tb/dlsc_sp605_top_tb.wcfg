@@ -1,0 +1,1315 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<wave_config>
+   <wave_state>
+   </wave_state>
+   <db_ref_list>
+      <db_ref path="./isim.wdb" id="1" type="auto">
+         <top_modules>
+            <top_module name="board" />
+            <top_module name="dlsc_sp605_top_tb" />
+            <top_module name="glbl" />
+         </top_modules>
+      </db_ref>
+   </db_ref_list>
+   <WVObjectSize size="24" />
+   <wvobject fp_name="group1004" type="group">
+      <obj_property name="label">dvi</obj_property>
+      <obj_property name="DisplayName">label</obj_property>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dvi_xclk_p" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">dvi_xclk_p</obj_property>
+         <obj_property name="ObjectShortName">dvi_xclk_p</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dvi_xclk_n" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">dvi_xclk_n</obj_property>
+         <obj_property name="ObjectShortName">dvi_xclk_n</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dvi_reset_b" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">dvi_reset_b</obj_property>
+         <obj_property name="ObjectShortName">dvi_reset_b</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dvi_d" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">dvi_d[11:0]</obj_property>
+         <obj_property name="ObjectShortName">dvi_d[11:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dvi_de" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">dvi_de</obj_property>
+         <obj_property name="ObjectShortName">dvi_de</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dvi_h" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">dvi_h</obj_property>
+         <obj_property name="ObjectShortName">dvi_h</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dvi_v" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">dvi_v</obj_property>
+         <obj_property name="ObjectShortName">dvi_v</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dvi_gpio" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">dvi_gpio</obj_property>
+         <obj_property name="ObjectShortName">dvi_gpio</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dvi_scl" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">dvi_scl</obj_property>
+         <obj_property name="ObjectShortName">dvi_scl</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dvi_sda" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">dvi_sda</obj_property>
+         <obj_property name="ObjectShortName">dvi_sda</obj_property>
+      </wvobject>
+   </wvobject>
+   <wvobject fp_name="group221" type="group">
+      <obj_property name="label">mig</obj_property>
+      <obj_property name="DisplayName">label</obj_property>
+      <wvobject fp_name="/dlsc_sp605_top_tb/mcb3_dram_dq" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">mcb3_dram_dq[15:0]</obj_property>
+         <obj_property name="ObjectShortName">mcb3_dram_dq[15:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/mcb3_dram_a" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">mcb3_dram_a[12:0]</obj_property>
+         <obj_property name="ObjectShortName">mcb3_dram_a[12:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/mcb3_dram_ba" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">mcb3_dram_ba[2:0]</obj_property>
+         <obj_property name="ObjectShortName">mcb3_dram_ba[2:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/mcb3_dram_ras_n" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">mcb3_dram_ras_n</obj_property>
+         <obj_property name="ObjectShortName">mcb3_dram_ras_n</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/mcb3_dram_cas_n" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">mcb3_dram_cas_n</obj_property>
+         <obj_property name="ObjectShortName">mcb3_dram_cas_n</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/mcb3_dram_we_n" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">mcb3_dram_we_n</obj_property>
+         <obj_property name="ObjectShortName">mcb3_dram_we_n</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/mcb3_dram_odt" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">mcb3_dram_odt</obj_property>
+         <obj_property name="ObjectShortName">mcb3_dram_odt</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/mcb3_dram_reset_n" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">mcb3_dram_reset_n</obj_property>
+         <obj_property name="ObjectShortName">mcb3_dram_reset_n</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/mcb3_dram_cke" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">mcb3_dram_cke</obj_property>
+         <obj_property name="ObjectShortName">mcb3_dram_cke</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/mcb3_dram_dm" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">mcb3_dram_dm</obj_property>
+         <obj_property name="ObjectShortName">mcb3_dram_dm</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/mcb3_dram_udqs" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">mcb3_dram_udqs</obj_property>
+         <obj_property name="ObjectShortName">mcb3_dram_udqs</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/mcb3_dram_udqs_n" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">mcb3_dram_udqs_n</obj_property>
+         <obj_property name="ObjectShortName">mcb3_dram_udqs_n</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/mcb3_rzq" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">mcb3_rzq</obj_property>
+         <obj_property name="ObjectShortName">mcb3_rzq</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/mcb3_zio" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">mcb3_zio</obj_property>
+         <obj_property name="ObjectShortName">mcb3_zio</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/mcb3_dram_udm" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">mcb3_dram_udm</obj_property>
+         <obj_property name="ObjectShortName">mcb3_dram_udm</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/mcb3_dram_dqs" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">mcb3_dram_dqs</obj_property>
+         <obj_property name="ObjectShortName">mcb3_dram_dqs</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/mcb3_dram_dqs_n" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">mcb3_dram_dqs_n</obj_property>
+         <obj_property name="ObjectShortName">mcb3_dram_dqs_n</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/mcb3_dram_ck" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">mcb3_dram_ck</obj_property>
+         <obj_property name="ObjectShortName">mcb3_dram_ck</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/mcb3_dram_ck_n" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">mcb3_dram_ck_n</obj_property>
+         <obj_property name="ObjectShortName">mcb3_dram_ck_n</obj_property>
+      </wvobject>
+   </wvobject>
+   <wvobject fp_name="group220" type="group">
+      <obj_property name="label">pcie</obj_property>
+      <obj_property name="DisplayName">label</obj_property>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/apb_clk" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">apb_clk</obj_property>
+         <obj_property name="ObjectShortName">apb_clk</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/apb_rst" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">apb_rst</obj_property>
+         <obj_property name="ObjectShortName">apb_rst</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/apb_addr" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">apb_addr[31:0]</obj_property>
+         <obj_property name="ObjectShortName">apb_addr[31:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/apb_sel" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">apb_sel</obj_property>
+         <obj_property name="ObjectShortName">apb_sel</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/apb_enable" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">apb_enable</obj_property>
+         <obj_property name="ObjectShortName">apb_enable</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/apb_write" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">apb_write</obj_property>
+         <obj_property name="ObjectShortName">apb_write</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/apb_wdata" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">apb_wdata[31:0]</obj_property>
+         <obj_property name="ObjectShortName">apb_wdata[31:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/apb_strb" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">apb_strb[3:0]</obj_property>
+         <obj_property name="ObjectShortName">apb_strb[3:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/apb_ready" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">apb_ready</obj_property>
+         <obj_property name="ObjectShortName">apb_ready</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/apb_rdata" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">apb_rdata[31:0]</obj_property>
+         <obj_property name="ObjectShortName">apb_rdata[31:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/apb_slverr" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">apb_slverr</obj_property>
+         <obj_property name="ObjectShortName">apb_slverr</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/apb_int_in" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">apb_int_in[5:0]</obj_property>
+         <obj_property name="ObjectShortName">apb_int_in[5:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/apb_int_out" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">apb_int_out</obj_property>
+         <obj_property name="ObjectShortName">apb_int_out</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/ib_clk" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">ib_clk</obj_property>
+         <obj_property name="ObjectShortName">ib_clk</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/ib_rst" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">ib_rst</obj_property>
+         <obj_property name="ObjectShortName">ib_rst</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/ib_ar_ready" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">ib_ar_ready</obj_property>
+         <obj_property name="ObjectShortName">ib_ar_ready</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/ib_ar_valid" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">ib_ar_valid</obj_property>
+         <obj_property name="ObjectShortName">ib_ar_valid</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/ib_ar_addr" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">ib_ar_addr[31:0]</obj_property>
+         <obj_property name="ObjectShortName">ib_ar_addr[31:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/ib_ar_len" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">ib_ar_len[3:0]</obj_property>
+         <obj_property name="ObjectShortName">ib_ar_len[3:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/ib_r_ready" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">ib_r_ready</obj_property>
+         <obj_property name="ObjectShortName">ib_r_ready</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/ib_r_valid" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">ib_r_valid</obj_property>
+         <obj_property name="ObjectShortName">ib_r_valid</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/ib_r_last" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">ib_r_last</obj_property>
+         <obj_property name="ObjectShortName">ib_r_last</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/ib_r_data" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">ib_r_data[31:0]</obj_property>
+         <obj_property name="ObjectShortName">ib_r_data[31:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/ib_r_resp" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">ib_r_resp[1:0]</obj_property>
+         <obj_property name="ObjectShortName">ib_r_resp[1:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/ib_aw_ready" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">ib_aw_ready</obj_property>
+         <obj_property name="ObjectShortName">ib_aw_ready</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/ib_aw_valid" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">ib_aw_valid</obj_property>
+         <obj_property name="ObjectShortName">ib_aw_valid</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/ib_aw_addr" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">ib_aw_addr[31:0]</obj_property>
+         <obj_property name="ObjectShortName">ib_aw_addr[31:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/ib_aw_len" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">ib_aw_len[3:0]</obj_property>
+         <obj_property name="ObjectShortName">ib_aw_len[3:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/ib_w_ready" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">ib_w_ready</obj_property>
+         <obj_property name="ObjectShortName">ib_w_ready</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/ib_w_valid" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">ib_w_valid</obj_property>
+         <obj_property name="ObjectShortName">ib_w_valid</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/ib_w_last" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">ib_w_last</obj_property>
+         <obj_property name="ObjectShortName">ib_w_last</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/ib_w_data" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">ib_w_data[31:0]</obj_property>
+         <obj_property name="ObjectShortName">ib_w_data[31:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/ib_w_strb" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">ib_w_strb[3:0]</obj_property>
+         <obj_property name="ObjectShortName">ib_w_strb[3:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/ib_b_ready" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">ib_b_ready</obj_property>
+         <obj_property name="ObjectShortName">ib_b_ready</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/ib_b_valid" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">ib_b_valid</obj_property>
+         <obj_property name="ObjectShortName">ib_b_valid</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/ib_b_resp" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">ib_b_resp[1:0]</obj_property>
+         <obj_property name="ObjectShortName">ib_b_resp[1:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/ob_clk" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">ob_clk</obj_property>
+         <obj_property name="ObjectShortName">ob_clk</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/ob_rst" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">ob_rst</obj_property>
+         <obj_property name="ObjectShortName">ob_rst</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/ob_ar_ready" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">ob_ar_ready</obj_property>
+         <obj_property name="ObjectShortName">ob_ar_ready</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/ob_ar_valid" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">ob_ar_valid</obj_property>
+         <obj_property name="ObjectShortName">ob_ar_valid</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/ob_ar_addr" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">ob_ar_addr[63:0]</obj_property>
+         <obj_property name="ObjectShortName">ob_ar_addr[63:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/ob_ar_len" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">ob_ar_len[7:0]</obj_property>
+         <obj_property name="ObjectShortName">ob_ar_len[7:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/ob_r_ready" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">ob_r_ready</obj_property>
+         <obj_property name="ObjectShortName">ob_r_ready</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/ob_r_valid" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">ob_r_valid</obj_property>
+         <obj_property name="ObjectShortName">ob_r_valid</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/ob_r_last" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">ob_r_last</obj_property>
+         <obj_property name="ObjectShortName">ob_r_last</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/ob_r_data" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">ob_r_data[31:0]</obj_property>
+         <obj_property name="ObjectShortName">ob_r_data[31:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/ob_r_resp" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">ob_r_resp[1:0]</obj_property>
+         <obj_property name="ObjectShortName">ob_r_resp[1:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/ob_aw_ready" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">ob_aw_ready</obj_property>
+         <obj_property name="ObjectShortName">ob_aw_ready</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/ob_aw_valid" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">ob_aw_valid</obj_property>
+         <obj_property name="ObjectShortName">ob_aw_valid</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/ob_aw_addr" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">ob_aw_addr[63:0]</obj_property>
+         <obj_property name="ObjectShortName">ob_aw_addr[63:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/ob_aw_len" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">ob_aw_len[7:0]</obj_property>
+         <obj_property name="ObjectShortName">ob_aw_len[7:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/ob_w_ready" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">ob_w_ready</obj_property>
+         <obj_property name="ObjectShortName">ob_w_ready</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/ob_w_valid" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">ob_w_valid</obj_property>
+         <obj_property name="ObjectShortName">ob_w_valid</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/ob_w_last" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">ob_w_last</obj_property>
+         <obj_property name="ObjectShortName">ob_w_last</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/ob_w_strb" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">ob_w_strb[3:0]</obj_property>
+         <obj_property name="ObjectShortName">ob_w_strb[3:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/ob_w_data" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">ob_w_data[31:0]</obj_property>
+         <obj_property name="ObjectShortName">ob_w_data[31:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/ob_b_ready" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">ob_b_ready</obj_property>
+         <obj_property name="ObjectShortName">ob_b_ready</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/ob_b_valid" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">ob_b_valid</obj_property>
+         <obj_property name="ObjectShortName">ob_b_valid</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/ob_b_resp" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">ob_b_resp[1:0]</obj_property>
+         <obj_property name="ObjectShortName">ob_b_resp[1:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/received_hot_reset" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">received_hot_reset</obj_property>
+         <obj_property name="ObjectShortName">received_hot_reset</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/user_clk_out" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">user_clk_out</obj_property>
+         <obj_property name="ObjectShortName">user_clk_out</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/user_reset_out" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">user_reset_out</obj_property>
+         <obj_property name="ObjectShortName">user_reset_out</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/user_lnk_up" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">user_lnk_up</obj_property>
+         <obj_property name="ObjectShortName">user_lnk_up</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/fc_sel" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">fc_sel[2:0]</obj_property>
+         <obj_property name="ObjectShortName">fc_sel[2:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/fc_ph" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">fc_ph[7:0]</obj_property>
+         <obj_property name="ObjectShortName">fc_ph[7:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/fc_pd" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">fc_pd[11:0]</obj_property>
+         <obj_property name="ObjectShortName">fc_pd[11:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/fc_nph" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">fc_nph[7:0]</obj_property>
+         <obj_property name="ObjectShortName">fc_nph[7:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/fc_npd" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">fc_npd[11:0]</obj_property>
+         <obj_property name="ObjectShortName">fc_npd[11:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/fc_cplh" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">fc_cplh[7:0]</obj_property>
+         <obj_property name="ObjectShortName">fc_cplh[7:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/fc_cpld" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">fc_cpld[11:0]</obj_property>
+         <obj_property name="ObjectShortName">fc_cpld[11:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/s_axis_tx_tready" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">s_axis_tx_tready</obj_property>
+         <obj_property name="ObjectShortName">s_axis_tx_tready</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/s_axis_tx_tvalid" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">s_axis_tx_tvalid</obj_property>
+         <obj_property name="ObjectShortName">s_axis_tx_tvalid</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/s_axis_tx_tlast" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">s_axis_tx_tlast</obj_property>
+         <obj_property name="ObjectShortName">s_axis_tx_tlast</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/s_axis_tx_tdata" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">s_axis_tx_tdata[31:0]</obj_property>
+         <obj_property name="ObjectShortName">s_axis_tx_tdata[31:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/s_axis_tx_tuser" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">s_axis_tx_tuser[3:0]</obj_property>
+         <obj_property name="ObjectShortName">s_axis_tx_tuser[3:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/tx_buf_av" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">tx_buf_av[5:0]</obj_property>
+         <obj_property name="ObjectShortName">tx_buf_av[5:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/tx_err_drop" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">tx_err_drop</obj_property>
+         <obj_property name="ObjectShortName">tx_err_drop</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/tx_cfg_req" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">tx_cfg_req</obj_property>
+         <obj_property name="ObjectShortName">tx_cfg_req</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/tx_cfg_gnt" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">tx_cfg_gnt</obj_property>
+         <obj_property name="ObjectShortName">tx_cfg_gnt</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/rx_np_ok" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">rx_np_ok</obj_property>
+         <obj_property name="ObjectShortName">rx_np_ok</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/m_axis_rx_tready" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">m_axis_rx_tready</obj_property>
+         <obj_property name="ObjectShortName">m_axis_rx_tready</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/m_axis_rx_tvalid" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">m_axis_rx_tvalid</obj_property>
+         <obj_property name="ObjectShortName">m_axis_rx_tvalid</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/m_axis_rx_tlast" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">m_axis_rx_tlast</obj_property>
+         <obj_property name="ObjectShortName">m_axis_rx_tlast</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/m_axis_rx_tdata" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">m_axis_rx_tdata[31:0]</obj_property>
+         <obj_property name="ObjectShortName">m_axis_rx_tdata[31:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/m_axis_rx_tuser" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">m_axis_rx_tuser[9:0]</obj_property>
+         <obj_property name="ObjectShortName">m_axis_rx_tuser[9:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/cfg_rd_en" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">cfg_rd_en</obj_property>
+         <obj_property name="ObjectShortName">cfg_rd_en</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/cfg_dwaddr" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">cfg_dwaddr[9:0]</obj_property>
+         <obj_property name="ObjectShortName">cfg_dwaddr[9:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/cfg_rd_wr_done" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">cfg_rd_wr_done</obj_property>
+         <obj_property name="ObjectShortName">cfg_rd_wr_done</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/cfg_do" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">cfg_do[31:0]</obj_property>
+         <obj_property name="ObjectShortName">cfg_do[31:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/cfg_bus_number" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">cfg_bus_number[7:0]</obj_property>
+         <obj_property name="ObjectShortName">cfg_bus_number[7:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/cfg_device_number" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">cfg_device_number[4:0]</obj_property>
+         <obj_property name="ObjectShortName">cfg_device_number[4:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/cfg_function_number" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">cfg_function_number[2:0]</obj_property>
+         <obj_property name="ObjectShortName">cfg_function_number[2:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/cfg_status" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">cfg_status[15:0]</obj_property>
+         <obj_property name="ObjectShortName">cfg_status[15:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/cfg_command" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">cfg_command[15:0]</obj_property>
+         <obj_property name="ObjectShortName">cfg_command[15:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/cfg_dstatus" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">cfg_dstatus[15:0]</obj_property>
+         <obj_property name="ObjectShortName">cfg_dstatus[15:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/cfg_dcommand" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">cfg_dcommand[15:0]</obj_property>
+         <obj_property name="ObjectShortName">cfg_dcommand[15:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/cfg_lstatus" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">cfg_lstatus[15:0]</obj_property>
+         <obj_property name="ObjectShortName">cfg_lstatus[15:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/cfg_lcommand" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">cfg_lcommand[15:0]</obj_property>
+         <obj_property name="ObjectShortName">cfg_lcommand[15:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/cfg_pcie_link_state" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">cfg_pcie_link_state[2:0]</obj_property>
+         <obj_property name="ObjectShortName">cfg_pcie_link_state[2:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/cfg_to_turnoff" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">cfg_to_turnoff</obj_property>
+         <obj_property name="ObjectShortName">cfg_to_turnoff</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/cfg_turnoff_ok" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">cfg_turnoff_ok</obj_property>
+         <obj_property name="ObjectShortName">cfg_turnoff_ok</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/cfg_pm_wake" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">cfg_pm_wake</obj_property>
+         <obj_property name="ObjectShortName">cfg_pm_wake</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/cfg_trn_pending" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">cfg_trn_pending</obj_property>
+         <obj_property name="ObjectShortName">cfg_trn_pending</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/cfg_dsn" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">cfg_dsn[63:0]</obj_property>
+         <obj_property name="ObjectShortName">cfg_dsn[63:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/cfg_interrupt_msienable" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">cfg_interrupt_msienable</obj_property>
+         <obj_property name="ObjectShortName">cfg_interrupt_msienable</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/cfg_interrupt_mmenable" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">cfg_interrupt_mmenable[2:0]</obj_property>
+         <obj_property name="ObjectShortName">cfg_interrupt_mmenable[2:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/cfg_interrupt_rdy" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">cfg_interrupt_rdy</obj_property>
+         <obj_property name="ObjectShortName">cfg_interrupt_rdy</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/cfg_interrupt" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">cfg_interrupt</obj_property>
+         <obj_property name="ObjectShortName">cfg_interrupt</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/cfg_interrupt_assert" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">cfg_interrupt_assert</obj_property>
+         <obj_property name="ObjectShortName">cfg_interrupt_assert</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/cfg_interrupt_di" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">cfg_interrupt_di[7:0]</obj_property>
+         <obj_property name="ObjectShortName">cfg_interrupt_di[7:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/cfg_err_cpl_rdy" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">cfg_err_cpl_rdy</obj_property>
+         <obj_property name="ObjectShortName">cfg_err_cpl_rdy</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/cfg_err_tlp_cpl_header" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">cfg_err_tlp_cpl_header[47:0]</obj_property>
+         <obj_property name="ObjectShortName">cfg_err_tlp_cpl_header[47:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/cfg_err_posted" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">cfg_err_posted</obj_property>
+         <obj_property name="ObjectShortName">cfg_err_posted</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/cfg_err_locked" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">cfg_err_locked</obj_property>
+         <obj_property name="ObjectShortName">cfg_err_locked</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/cfg_err_cor" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">cfg_err_cor</obj_property>
+         <obj_property name="ObjectShortName">cfg_err_cor</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/cfg_err_cpl_abort" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">cfg_err_cpl_abort</obj_property>
+         <obj_property name="ObjectShortName">cfg_err_cpl_abort</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/cfg_err_cpl_timeout" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">cfg_err_cpl_timeout</obj_property>
+         <obj_property name="ObjectShortName">cfg_err_cpl_timeout</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/cfg_err_ecrc" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">cfg_err_ecrc</obj_property>
+         <obj_property name="ObjectShortName">cfg_err_ecrc</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/cfg_err_ur" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">cfg_err_ur</obj_property>
+         <obj_property name="ObjectShortName">cfg_err_ur</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/apb_ob_rd_disable" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">apb_ob_rd_disable</obj_property>
+         <obj_property name="ObjectShortName">apb_ob_rd_disable</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/apb_ob_wr_disable" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">apb_ob_wr_disable</obj_property>
+         <obj_property name="ObjectShortName">apb_ob_wr_disable</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/apb_ob_rd_busy" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">apb_ob_rd_busy</obj_property>
+         <obj_property name="ObjectShortName">apb_ob_rd_busy</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/apb_ob_wr_busy" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">apb_ob_wr_busy</obj_property>
+         <obj_property name="ObjectShortName">apb_ob_wr_busy</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/apb_ib_rd_disable" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">apb_ib_rd_disable</obj_property>
+         <obj_property name="ObjectShortName">apb_ib_rd_disable</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/apb_ib_wr_disable" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">apb_ib_wr_disable</obj_property>
+         <obj_property name="ObjectShortName">apb_ib_wr_disable</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/apb_ib_rd_busy" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">apb_ib_rd_busy</obj_property>
+         <obj_property name="ObjectShortName">apb_ib_rd_busy</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/apb_ib_wr_busy" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">apb_ib_wr_busy</obj_property>
+         <obj_property name="ObjectShortName">apb_ib_wr_busy</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/apb_ob_addr" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">apb_ob_addr[31:0]</obj_property>
+         <obj_property name="ObjectShortName">apb_ob_addr[31:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/apb_ob_sel" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">apb_ob_sel</obj_property>
+         <obj_property name="ObjectShortName">apb_ob_sel</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/apb_ob_enable" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">apb_ob_enable</obj_property>
+         <obj_property name="ObjectShortName">apb_ob_enable</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/apb_ob_write" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">apb_ob_write</obj_property>
+         <obj_property name="ObjectShortName">apb_ob_write</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/apb_ob_wdata" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">apb_ob_wdata[31:0]</obj_property>
+         <obj_property name="ObjectShortName">apb_ob_wdata[31:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/apb_ob_strb" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">apb_ob_strb[3:0]</obj_property>
+         <obj_property name="ObjectShortName">apb_ob_strb[3:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/apb_ob_ready" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">apb_ob_ready</obj_property>
+         <obj_property name="ObjectShortName">apb_ob_ready</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/apb_ob_rdata" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">apb_ob_rdata[31:0]</obj_property>
+         <obj_property name="ObjectShortName">apb_ob_rdata[31:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/ib_rx_ready" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">ib_rx_ready</obj_property>
+         <obj_property name="ObjectShortName">ib_rx_ready</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/ib_rx_valid" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">ib_rx_valid</obj_property>
+         <obj_property name="ObjectShortName">ib_rx_valid</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/ib_rx_data" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">ib_rx_data[31:0]</obj_property>
+         <obj_property name="ObjectShortName">ib_rx_data[31:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/ib_rx_last" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">ib_rx_last</obj_property>
+         <obj_property name="ObjectShortName">ib_rx_last</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/ib_rx_err" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">ib_rx_err</obj_property>
+         <obj_property name="ObjectShortName">ib_rx_err</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/ib_rx_bar" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">ib_rx_bar[6:0]</obj_property>
+         <obj_property name="ObjectShortName">ib_rx_bar[6:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/ib_tx_ready" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">ib_tx_ready</obj_property>
+         <obj_property name="ObjectShortName">ib_tx_ready</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/ib_tx_valid" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">ib_tx_valid</obj_property>
+         <obj_property name="ObjectShortName">ib_tx_valid</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/ib_tx_data" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">ib_tx_data[31:0]</obj_property>
+         <obj_property name="ObjectShortName">ib_tx_data[31:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/ib_tx_last" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">ib_tx_last</obj_property>
+         <obj_property name="ObjectShortName">ib_tx_last</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/ib_tx_error" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">ib_tx_error</obj_property>
+         <obj_property name="ObjectShortName">ib_tx_error</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/ib_err_ready" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">ib_err_ready</obj_property>
+         <obj_property name="ObjectShortName">ib_err_ready</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/ib_err_valid" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">ib_err_valid</obj_property>
+         <obj_property name="ObjectShortName">ib_err_valid</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/ib_err_unsupported" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">ib_err_unsupported</obj_property>
+         <obj_property name="ObjectShortName">ib_err_unsupported</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/ib_r_data_swap" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">ib_r_data_swap[31:0]</obj_property>
+         <obj_property name="ObjectShortName">ib_r_data_swap[31:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/ib_w_data_swap" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">ib_w_data_swap[31:0]</obj_property>
+         <obj_property name="ObjectShortName">ib_w_data_swap[31:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/ib_w_strb_swap" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">ib_w_strb_swap[3:0]</obj_property>
+         <obj_property name="ObjectShortName">ib_w_strb_swap[3:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/ob_rx_ready" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">ob_rx_ready</obj_property>
+         <obj_property name="ObjectShortName">ob_rx_ready</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/ob_rx_valid" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">ob_rx_valid</obj_property>
+         <obj_property name="ObjectShortName">ob_rx_valid</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/ob_rx_data" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">ob_rx_data[31:0]</obj_property>
+         <obj_property name="ObjectShortName">ob_rx_data[31:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/ob_rx_last" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">ob_rx_last</obj_property>
+         <obj_property name="ObjectShortName">ob_rx_last</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/ob_rx_err" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">ob_rx_err</obj_property>
+         <obj_property name="ObjectShortName">ob_rx_err</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/ob_tx_ready" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">ob_tx_ready</obj_property>
+         <obj_property name="ObjectShortName">ob_tx_ready</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/ob_tx_valid" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">ob_tx_valid</obj_property>
+         <obj_property name="ObjectShortName">ob_tx_valid</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/ob_tx_data" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">ob_tx_data[31:0]</obj_property>
+         <obj_property name="ObjectShortName">ob_tx_data[31:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/ob_tx_last" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">ob_tx_last</obj_property>
+         <obj_property name="ObjectShortName">ob_tx_last</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/ob_tx_error" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">ob_tx_error</obj_property>
+         <obj_property name="ObjectShortName">ob_tx_error</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/ob_err_ready" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">ob_err_ready</obj_property>
+         <obj_property name="ObjectShortName">ob_err_ready</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/ob_err_valid" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">ob_err_valid</obj_property>
+         <obj_property name="ObjectShortName">ob_err_valid</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/ob_err_unexpected" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">ob_err_unexpected</obj_property>
+         <obj_property name="ObjectShortName">ob_err_unexpected</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/ob_err_timeout" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">ob_err_timeout</obj_property>
+         <obj_property name="ObjectShortName">ob_err_timeout</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/ob_r_data_swap" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">ob_r_data_swap[31:0]</obj_property>
+         <obj_property name="ObjectShortName">ob_r_data_swap[31:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/ob_w_data_swap" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">ob_w_data_swap[31:0]</obj_property>
+         <obj_property name="ObjectShortName">ob_w_data_swap[31:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/ob_w_strb_swap" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">ob_w_strb_swap[3:0]</obj_property>
+         <obj_property name="ObjectShortName">ob_w_strb_swap[3:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/rx_err_ready" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">rx_err_ready</obj_property>
+         <obj_property name="ObjectShortName">rx_err_ready</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/rx_err_valid" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">rx_err_valid</obj_property>
+         <obj_property name="ObjectShortName">rx_err_valid</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/rx_err_header" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">rx_err_header[47:0]</obj_property>
+         <obj_property name="ObjectShortName">rx_err_header[47:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/rx_err_posted" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">rx_err_posted</obj_property>
+         <obj_property name="ObjectShortName">rx_err_posted</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/rx_err_locked" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">rx_err_locked</obj_property>
+         <obj_property name="ObjectShortName">rx_err_locked</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/rx_err_unsupported" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">rx_err_unsupported</obj_property>
+         <obj_property name="ObjectShortName">rx_err_unsupported</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/rx_err_unexpected" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">rx_err_unexpected</obj_property>
+         <obj_property name="ObjectShortName">rx_err_unexpected</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_sp605_core/dlsc_pcie_s6_inst/rx_err_malformed" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">rx_err_malformed</obj_property>
+         <obj_property name="ObjectShortName">rx_err_malformed</obj_property>
+      </wvobject>
+   </wvobject>
+   <wvobject fp_name="group222" type="group">
+      <obj_property name="label">dcm</obj_property>
+      <obj_property name="DisplayName">label</obj_property>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_dcm_clkgen_px_clk/apb_clk" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">apb_clk</obj_property>
+         <obj_property name="ObjectShortName">apb_clk</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_dcm_clkgen_px_clk/apb_rst" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">apb_rst</obj_property>
+         <obj_property name="ObjectShortName">apb_rst</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_dcm_clkgen_px_clk/apb_addr" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">apb_addr[31:0]</obj_property>
+         <obj_property name="ObjectShortName">apb_addr[31:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_dcm_clkgen_px_clk/apb_sel" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">apb_sel</obj_property>
+         <obj_property name="ObjectShortName">apb_sel</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_dcm_clkgen_px_clk/apb_enable" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">apb_enable</obj_property>
+         <obj_property name="ObjectShortName">apb_enable</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_dcm_clkgen_px_clk/apb_write" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">apb_write</obj_property>
+         <obj_property name="ObjectShortName">apb_write</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_dcm_clkgen_px_clk/apb_wdata" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">apb_wdata[31:0]</obj_property>
+         <obj_property name="ObjectShortName">apb_wdata[31:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_dcm_clkgen_px_clk/apb_strb" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">apb_strb[3:0]</obj_property>
+         <obj_property name="ObjectShortName">apb_strb[3:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_dcm_clkgen_px_clk/clk_in" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">clk_in</obj_property>
+         <obj_property name="ObjectShortName">clk_in</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_dcm_clkgen_px_clk/rst_in" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">rst_in</obj_property>
+         <obj_property name="ObjectShortName">rst_in</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_dcm_clkgen_px_clk/clk" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">clk</obj_property>
+         <obj_property name="ObjectShortName">clk</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_dcm_clkgen_px_clk/clk_n" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">clk_n</obj_property>
+         <obj_property name="ObjectShortName">clk_n</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_dcm_clkgen_px_clk/clk_div" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">clk_div</obj_property>
+         <obj_property name="ObjectShortName">clk_div</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_dcm_clkgen_px_clk/rst" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">rst</obj_property>
+         <obj_property name="ObjectShortName">rst</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_dcm_clkgen_px_clk/csr_addr" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">csr_addr[2:0]</obj_property>
+         <obj_property name="ObjectShortName">csr_addr[2:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_dcm_clkgen_px_clk/csr_wdata" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">csr_wdata[31:0]</obj_property>
+         <obj_property name="ObjectShortName">csr_wdata[31:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_dcm_clkgen_px_clk/csr_rd" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">csr_rd[31:0]</obj_property>
+         <obj_property name="ObjectShortName">csr_rd[31:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_dcm_clkgen_px_clk/csr_wr" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">csr_wr[31:0]</obj_property>
+         <obj_property name="ObjectShortName">csr_wr[31:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_dcm_clkgen_px_clk/obs_rst_in" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">obs_rst_in</obj_property>
+         <obj_property name="ObjectShortName">obs_rst_in</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_dcm_clkgen_px_clk/obs_out_rst" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">obs_out_rst</obj_property>
+         <obj_property name="ObjectShortName">obs_out_rst</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_dcm_clkgen_px_clk/obs_dcm_rst" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">obs_dcm_rst</obj_property>
+         <obj_property name="ObjectShortName">obs_dcm_rst</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_dcm_clkgen_px_clk/obs_dcm_locked" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">obs_dcm_locked</obj_property>
+         <obj_property name="ObjectShortName">obs_dcm_locked</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_dcm_clkgen_px_clk/obs_dcm_stopped" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">obs_dcm_stopped</obj_property>
+         <obj_property name="ObjectShortName">obs_dcm_stopped</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_dcm_clkgen_px_clk/obs_dcm_ready" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">obs_dcm_ready</obj_property>
+         <obj_property name="ObjectShortName">obs_dcm_ready</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_dcm_clkgen_px_clk/csr_control" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">csr_control[31:0]</obj_property>
+         <obj_property name="ObjectShortName">csr_control[31:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_dcm_clkgen_px_clk/csr_status" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">csr_status[31:0]</obj_property>
+         <obj_property name="ObjectShortName">csr_status[31:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_dcm_clkgen_px_clk/set_enabled" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">set_enabled</obj_property>
+         <obj_property name="ObjectShortName">set_enabled</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_dcm_clkgen_px_clk/set_disabled" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">set_disabled</obj_property>
+         <obj_property name="ObjectShortName">set_disabled</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_dcm_clkgen_px_clk/clk_pre" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">clk_pre</obj_property>
+         <obj_property name="ObjectShortName">clk_pre</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_dcm_clkgen_px_clk/clk_n_pre" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">clk_n_pre</obj_property>
+         <obj_property name="ObjectShortName">clk_n_pre</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_dcm_clkgen_px_clk/clk_div_pre" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">clk_div_pre</obj_property>
+         <obj_property name="ObjectShortName">clk_div_pre</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_dcm_clkgen_px_clk/dcm_rst" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">dcm_rst</obj_property>
+         <obj_property name="ObjectShortName">dcm_rst</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_dcm_clkgen_px_clk/dcm_locked" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">dcm_locked</obj_property>
+         <obj_property name="ObjectShortName">dcm_locked</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_dcm_clkgen_px_clk/dcm_status" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">dcm_status[2:1]</obj_property>
+         <obj_property name="ObjectShortName">dcm_status[2:1]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_dcm_clkgen_px_clk/dcm_stopped" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">dcm_stopped</obj_property>
+         <obj_property name="ObjectShortName">dcm_stopped</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_dcm_clkgen_px_clk/prog_done" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">prog_done</obj_property>
+         <obj_property name="ObjectShortName">prog_done</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_dcm_clkgen_px_clk/out_rst" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">out_rst</obj_property>
+         <obj_property name="ObjectShortName">out_rst</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_dcm_clkgen_px_clk/cnt_max" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">cnt_max</obj_property>
+         <obj_property name="ObjectShortName">cnt_max</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_dcm_clkgen_px_clk/loadd" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">loadd[9:0]</obj_property>
+         <obj_property name="ObjectShortName">loadd[9:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_dcm_clkgen_px_clk/loadm" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">loadm[9:0]</obj_property>
+         <obj_property name="ObjectShortName">loadm[9:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_dcm_clkgen_px_clk/next_apb_dcm_rst" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">next_apb_dcm_rst</obj_property>
+         <obj_property name="ObjectShortName">next_apb_dcm_rst</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_dcm_clkgen_px_clk/next_apb_out_rst" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">next_apb_out_rst</obj_property>
+         <obj_property name="ObjectShortName">next_apb_out_rst</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_dcm_clkgen_px_clk/apb_ready" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">apb_ready</obj_property>
+         <obj_property name="ObjectShortName">apb_ready</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_dcm_clkgen_px_clk/apb_rdata" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">apb_rdata[31:0]</obj_property>
+         <obj_property name="ObjectShortName">apb_rdata[31:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_dcm_clkgen_px_clk/apb_int_out" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">apb_int_out</obj_property>
+         <obj_property name="ObjectShortName">apb_int_out</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_dcm_clkgen_px_clk/obs_out_rst_prev" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">obs_out_rst_prev</obj_property>
+         <obj_property name="ObjectShortName">obs_out_rst_prev</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_dcm_clkgen_px_clk/prog_done_r" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">prog_done_r</obj_property>
+         <obj_property name="ObjectShortName">prog_done_r</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_dcm_clkgen_px_clk/st" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">st[3:0]</obj_property>
+         <obj_property name="ObjectShortName">st[3:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_dcm_clkgen_px_clk/ctrl_enable" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">ctrl_enable</obj_property>
+         <obj_property name="ObjectShortName">ctrl_enable</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_dcm_clkgen_px_clk/use_defaults" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">use_defaults</obj_property>
+         <obj_property name="ObjectShortName">use_defaults</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_dcm_clkgen_px_clk/ignore_stopped" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">ignore_stopped</obj_property>
+         <obj_property name="ObjectShortName">ignore_stopped</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_dcm_clkgen_px_clk/status_ready" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">status_ready</obj_property>
+         <obj_property name="ObjectShortName">status_ready</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_dcm_clkgen_px_clk/int_flags" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">int_flags[1:0]</obj_property>
+         <obj_property name="ObjectShortName">int_flags[1:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_dcm_clkgen_px_clk/int_select" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">int_select[1:0]</obj_property>
+         <obj_property name="ObjectShortName">int_select[1:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_dcm_clkgen_px_clk/mult" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">mult[7:0]</obj_property>
+         <obj_property name="ObjectShortName">mult[7:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_dcm_clkgen_px_clk/div" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">div[7:0]</obj_property>
+         <obj_property name="ObjectShortName">div[7:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_dcm_clkgen_px_clk/prog_en" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">prog_en</obj_property>
+         <obj_property name="ObjectShortName">prog_en</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_dcm_clkgen_px_clk/prog_data" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">prog_data</obj_property>
+         <obj_property name="ObjectShortName">prog_data</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_dcm_clkgen_px_clk/apb_dcm_rst" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">apb_dcm_rst</obj_property>
+         <obj_property name="ObjectShortName">apb_dcm_rst</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_dcm_clkgen_px_clk/apb_out_rst" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">apb_out_rst</obj_property>
+         <obj_property name="ObjectShortName">apb_out_rst</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_dcm_clkgen_px_clk/next_st" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">next_st[3:0]</obj_property>
+         <obj_property name="ObjectShortName">next_st[3:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_dcm_clkgen_px_clk/cnt" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">cnt[3:0]</obj_property>
+         <obj_property name="ObjectShortName">cnt[3:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_dcm_clkgen_px_clk/cnt_clear" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">cnt_clear</obj_property>
+         <obj_property name="ObjectShortName">cnt_clear</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_dcm_clkgen_px_clk/next_prog_en" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">next_prog_en</obj_property>
+         <obj_property name="ObjectShortName">next_prog_en</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_dcm_clkgen_px_clk/next_prog_data" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">next_prog_data</obj_property>
+         <obj_property name="ObjectShortName">next_prog_data</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_dcm_clkgen_px_clk/ctrl_enable_prev" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">ctrl_enable_prev</obj_property>
+         <obj_property name="ObjectShortName">ctrl_enable_prev</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_dcm_clkgen_px_clk/m" type="other" db_ref_id="1">
+         <obj_property name="ElementShortName">m</obj_property>
+         <obj_property name="ObjectShortName">m</obj_property>
+      </wvobject>
+      <wvobject fp_name="/dlsc_sp605_top_tb/dut/dlsc_dcm_clkgen_px_clk/d" type="other" db_ref_id="1">
+         <obj_property name="ElementShortName">d</obj_property>
+         <obj_property name="ObjectShortName">d</obj_property>
+      </wvobject>
+   </wvobject>
+   <wvobject fp_name="group314" type="group">
+      <obj_property name="label">TSK_PARSE_FRAME</obj_property>
+      <obj_property name="DisplayName">label</obj_property>
+      <wvobject fp_name="/board/RP/com_usrapp/TSK_PARSE_FRAME/log_file" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">log_file</obj_property>
+         <obj_property name="ObjectShortName">log_file</obj_property>
+      </wvobject>
+      <wvobject fp_name="/board/RP/com_usrapp/TSK_PARSE_FRAME/fmt" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">fmt[1:0]</obj_property>
+         <obj_property name="ObjectShortName">fmt[1:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/board/RP/com_usrapp/TSK_PARSE_FRAME/f_type" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">f_type[4:0]</obj_property>
+         <obj_property name="ObjectShortName">f_type[4:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/board/RP/com_usrapp/TSK_PARSE_FRAME/traffic_class" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">traffic_class[2:0]</obj_property>
+         <obj_property name="ObjectShortName">traffic_class[2:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/board/RP/com_usrapp/TSK_PARSE_FRAME/td" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">td</obj_property>
+         <obj_property name="ObjectShortName">td</obj_property>
+      </wvobject>
+      <wvobject fp_name="/board/RP/com_usrapp/TSK_PARSE_FRAME/ep" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">ep</obj_property>
+         <obj_property name="ObjectShortName">ep</obj_property>
+      </wvobject>
+      <wvobject fp_name="/board/RP/com_usrapp/TSK_PARSE_FRAME/attr" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">attr[1:0]</obj_property>
+         <obj_property name="ObjectShortName">attr[1:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/board/RP/com_usrapp/TSK_PARSE_FRAME/length" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">length[9:0]</obj_property>
+         <obj_property name="ObjectShortName">length[9:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/board/RP/com_usrapp/TSK_PARSE_FRAME/payload" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">payload</obj_property>
+         <obj_property name="ObjectShortName">payload</obj_property>
+      </wvobject>
+      <wvobject fp_name="/board/RP/com_usrapp/TSK_PARSE_FRAME/requester_id" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">requester_id[15:0]</obj_property>
+         <obj_property name="ObjectShortName">requester_id[15:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/board/RP/com_usrapp/TSK_PARSE_FRAME/completer_id" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">completer_id[15:0]</obj_property>
+         <obj_property name="ObjectShortName">completer_id[15:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/board/RP/com_usrapp/TSK_PARSE_FRAME/tag" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">tag[7:0]</obj_property>
+         <obj_property name="ObjectShortName">tag[7:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/board/RP/com_usrapp/TSK_PARSE_FRAME/byte_enables" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">byte_enables[7:0]</obj_property>
+         <obj_property name="ObjectShortName">byte_enables[7:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/board/RP/com_usrapp/TSK_PARSE_FRAME/message_code" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">message_code[7:0]</obj_property>
+         <obj_property name="ObjectShortName">message_code[7:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/board/RP/com_usrapp/TSK_PARSE_FRAME/address_low" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">address_low[31:0]</obj_property>
+         <obj_property name="ObjectShortName">address_low[31:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/board/RP/com_usrapp/TSK_PARSE_FRAME/address_high" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">address_high[31:0]</obj_property>
+         <obj_property name="ObjectShortName">address_high[31:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/board/RP/com_usrapp/TSK_PARSE_FRAME/register_address" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">register_address[9:0]</obj_property>
+         <obj_property name="ObjectShortName">register_address[9:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/board/RP/com_usrapp/TSK_PARSE_FRAME/completion_status" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">completion_status[2:0]</obj_property>
+         <obj_property name="ObjectShortName">completion_status[2:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/board/RP/com_usrapp/TSK_PARSE_FRAME/_log_file_ptr" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">_log_file_ptr[31:0]</obj_property>
+         <obj_property name="ObjectShortName">_log_file_ptr[31:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/board/RP/com_usrapp/TSK_PARSE_FRAME/_frame_store_idx" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">_frame_store_idx[31:0]</obj_property>
+         <obj_property name="ObjectShortName">_frame_store_idx[31:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/board/RP/com_usrapp/rx_file_ptr" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">rx_file_ptr[31:0]</obj_property>
+         <obj_property name="ObjectShortName">rx_file_ptr[31:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/board/RP/com_usrapp/frame_store_rx_idx" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">frame_store_rx_idx[31:0]</obj_property>
+         <obj_property name="ObjectShortName">frame_store_rx_idx[31:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/board/RP/com_usrapp/tx_file_ptr" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">tx_file_ptr[31:0]</obj_property>
+         <obj_property name="ObjectShortName">tx_file_ptr[31:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/board/RP/com_usrapp/frame_store_tx_idx" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">frame_store_tx_idx[31:0]</obj_property>
+         <obj_property name="ObjectShortName">frame_store_tx_idx[31:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/board/RP/com_usrapp/log_file_ptr" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">log_file_ptr[31:0]</obj_property>
+         <obj_property name="ObjectShortName">log_file_ptr[31:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/board/RP/com_usrapp/_frame_store_idx" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">_frame_store_idx[31:0]</obj_property>
+         <obj_property name="ObjectShortName">_frame_store_idx[31:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/board/RP/com_usrapp/error_file_ptr" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">error_file_ptr[31:0]</obj_property>
+         <obj_property name="ObjectShortName">error_file_ptr[31:0]</obj_property>
+      </wvobject>
+   </wvobject>
+   <wvobject fp_name="/dlsc_sp605_top_tb/clk200_p" type="logic" db_ref_id="1">
+      <obj_property name="ElementShortName">clk200_p</obj_property>
+      <obj_property name="ObjectShortName">clk200_p</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dlsc_sp605_top_tb/clk200_n" type="logic" db_ref_id="1">
+      <obj_property name="ElementShortName">clk200_n</obj_property>
+      <obj_property name="ObjectShortName">clk200_n</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dlsc_sp605_top_tb/led" type="array" db_ref_id="1">
+      <obj_property name="ElementShortName">led[3:0]</obj_property>
+      <obj_property name="ObjectShortName">led[3:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dlsc_sp605_top_tb/pcie_clk_p" type="logic" db_ref_id="1">
+      <obj_property name="ElementShortName">pcie_clk_p</obj_property>
+      <obj_property name="ObjectShortName">pcie_clk_p</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dlsc_sp605_top_tb/pcie_clk_n" type="logic" db_ref_id="1">
+      <obj_property name="ElementShortName">pcie_clk_n</obj_property>
+      <obj_property name="ObjectShortName">pcie_clk_n</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dlsc_sp605_top_tb/pci_exp_txp" type="logic" db_ref_id="1">
+      <obj_property name="ElementShortName">pci_exp_txp</obj_property>
+      <obj_property name="ObjectShortName">pci_exp_txp</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dlsc_sp605_top_tb/pci_exp_txn" type="logic" db_ref_id="1">
+      <obj_property name="ElementShortName">pci_exp_txn</obj_property>
+      <obj_property name="ObjectShortName">pci_exp_txn</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dlsc_sp605_top_tb/pci_exp_rxp" type="logic" db_ref_id="1">
+      <obj_property name="ElementShortName">pci_exp_rxp</obj_property>
+      <obj_property name="ObjectShortName">pci_exp_rxp</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dlsc_sp605_top_tb/pci_exp_rxn" type="logic" db_ref_id="1">
+      <obj_property name="ElementShortName">pci_exp_rxn</obj_property>
+      <obj_property name="ObjectShortName">pci_exp_rxn</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dlsc_sp605_top_tb/mcb_zio" type="logic" db_ref_id="1">
+      <obj_property name="ElementShortName">mcb_zio</obj_property>
+      <obj_property name="ObjectShortName">mcb_zio</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dlsc_sp605_top_tb/mcb_rzq" type="logic" db_ref_id="1">
+      <obj_property name="ElementShortName">mcb_rzq</obj_property>
+      <obj_property name="ObjectShortName">mcb_rzq</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dlsc_sp605_top_tb/_dlsc_err_cnt" type="array" db_ref_id="1">
+      <obj_property name="ElementShortName">_dlsc_err_cnt[31:0]</obj_property>
+      <obj_property name="ObjectShortName">_dlsc_err_cnt[31:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dlsc_sp605_top_tb/_dlsc_chk_cnt" type="array" db_ref_id="1">
+      <obj_property name="ElementShortName">_dlsc_chk_cnt[31:0]</obj_property>
+      <obj_property name="ObjectShortName">_dlsc_chk_cnt[31:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dlsc_sp605_top_tb/_dlsc_warn_cnt" type="array" db_ref_id="1">
+      <obj_property name="ElementShortName">_dlsc_warn_cnt[31:0]</obj_property>
+      <obj_property name="ObjectShortName">_dlsc_warn_cnt[31:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dlsc_sp605_top_tb/_dlsc_dump_disable" type="array" db_ref_id="1">
+      <obj_property name="ElementShortName">_dlsc_dump_disable[31:0]</obj_property>
+      <obj_property name="ObjectShortName">_dlsc_dump_disable[31:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dlsc_sp605_top_tb/btn" type="array" db_ref_id="1">
+      <obj_property name="ElementShortName">btn[3:0]</obj_property>
+      <obj_property name="ObjectShortName">btn[3:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dlsc_sp605_top_tb/pcie_reset_n" type="logic" db_ref_id="1">
+      <obj_property name="ElementShortName">pcie_reset_n</obj_property>
+      <obj_property name="ObjectShortName">pcie_reset_n</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dlsc_sp605_top_tb/clk200_src" type="logic" db_ref_id="1">
+      <obj_property name="ElementShortName">clk200_src</obj_property>
+      <obj_property name="ObjectShortName">clk200_src</obj_property>
+   </wvobject>
+   <wvobject fp_name="/dlsc_sp605_top_tb/pcie_clk_src" type="logic" db_ref_id="1">
+      <obj_property name="ElementShortName">pcie_clk_src</obj_property>
+      <obj_property name="ObjectShortName">pcie_clk_src</obj_property>
+   </wvobject>
+</wave_config>

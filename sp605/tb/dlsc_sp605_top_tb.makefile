@@ -7,8 +7,8 @@ V_DIRS          += $(HOME)/projects/work/xilinx/dlsc_sp605/sim
 
 V_DUT           += dlsc_sp605_top.v
 
-V_TESTBENCH     += board.v
-V_FILES         += tests.v
+V_TESTBENCH     += dlsc_sp605_top_tb.v
+V_FILES         += board.v
 
 V_PARAMS_DEF    += 
 
