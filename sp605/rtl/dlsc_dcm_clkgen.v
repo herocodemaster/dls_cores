@@ -112,7 +112,7 @@ wire            set_disabled    = ( obs_out_rst && !obs_out_rst_prev) || (ctrl_e
 always @(posedge apb_clk) begin
     if(apb_rst) begin
         ctrl_enable     <= ENABLE;
-        use_defaults    <= ENABLE;
+        use_defaults    <= 1'b0;
         ignore_stopped  <= 1'b0;
         status_ready    <= 1'b0;
     end else begin
@@ -125,8 +125,10 @@ always @(posedge apb_clk) begin
             status_ready    <= 1'b1;
         end
         if(set_disabled) begin
-            ctrl_enable     <= 1'b0;
             status_ready    <= 1'b0;
+        end
+        if(set_disabled && !ENABLE) begin
+            ctrl_enable     <= 1'b0;
         end
     end
 end
