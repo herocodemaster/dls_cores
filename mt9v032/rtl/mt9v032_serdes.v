@@ -3,7 +3,6 @@ module mt9v032_serdes #(
     parameter SWAP      = 0                         // set SWAP if p/n top-level ports are swapped
 ) (
     // clocks and resets
-    input   wire                    rst,            // synchronous to clk
     input   wire                    rst_2x,         // synchronous to clk_2x
     input   wire                    rst_9x,         // synchronous to clk_9x
     input   wire                    clk,            // pixel clock
@@ -47,7 +46,6 @@ wire is_skew_ack;
 mt9v032_iserdes #(
     .SWAP   ( SWAP )
 ) mt9v032_iserdes_inst (
-    .rst            ( rst ),
     .rst_2x         ( rst_2x ),
     .clk            ( clk ),
     .clk_2x         ( clk_2x ),

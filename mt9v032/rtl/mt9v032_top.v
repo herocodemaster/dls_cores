@@ -67,14 +67,14 @@ wire                iod_rst;
 wire                iod_mask;
 wire                iod_cal;
 wire                iod_cal_master;
-wire                iod_rdy;
+wire                iod_ready;
 
 iserdes_control #(
     .WIDTH  ( WIDTH )
 ) iserdes_control_inst (
     .clk_div        ( clk_2x ),
     .rst            ( rst_2x ),
-    .rdy            ( iod_rdy ),
+    .ready          ( iod_ready ),
     .iod_busy       ( iod_busy ),
     .iod_rst        ( iod_rst ),
     .iod_mask       ( iod_mask ),
@@ -91,7 +91,6 @@ generate
         mt9v032_serdes #(
             .SWAP   ( SWAP & (1<<j) )
         ) mt9v032_serdes_inst (
-            .rst            ( rst ),
             .rst_2x         ( rst_2x ),
             .rst_9x         ( rst_9x ),
             .clk            ( clk ),
@@ -135,7 +134,7 @@ always @(posedge clk) begin
         rdy_cnt <= 0;
     end else begin
         rdy     <= 1'b0;
-        if(&train_done && iod_rdy) begin
+        if(&train_done && iod_ready) begin
             if(&rdy_cnt) begin
                 rdy     <= 1'b1;
             end else begin

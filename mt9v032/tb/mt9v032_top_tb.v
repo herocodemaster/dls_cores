@@ -95,6 +95,14 @@ initial begin
     @(negedge frame_valid[0]);
 
     `dlsc_info("got whole frame");
+    
+    @(posedge frame_valid[0]);
+
+    `dlsc_info("got 2nd frame_valid");
+
+    @(negedge frame_valid[0]);
+
+    `dlsc_info("got 2nd whole frame");
 
     `dlsc_okay("done");
 

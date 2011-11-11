@@ -1,22 +1,22 @@
 
-module mt9v032_oserdes (
+module dlsc_mt9v032_oserdes (
     // clocks and resets
-    input   wire                    rst_9x,         // synchronous to clk_9x
-    input   wire                    clk_9x,         // clk * 9
-    input   wire                    clk_36x,        // clk * 36
-    input   wire                    strobe_36to9,   // serdes_strobe for clk_36x -> clk_9x
+    input   wire                    os_rst,         // synchronous to os_clk
+    input   wire                    os_clk,         // px_clk * 9
+    input   wire                    os_clk_fast,    // px_clk * 36
+    input   wire                    os_strobe,      // serdes_strobe for os_clk_fast -> os_clk
 
     // single-ended clock output to image sensor
     output  wire                    clk_out,         // connect to top-level port
     
-    // clk skew control (on clk_9x domain)
+    // clk skew control (on os_clk domain)
     input   wire                    skew_en,
     input   wire                    skew_inc,
     output  reg                     skew_ack
 );
 
 
-// *** single-ended data output buffer ***
+// single-ended data output buffer
 
 wire out_pre;
 
@@ -28,7 +28,7 @@ wire out_pre;
 );
 
 
-// *** output serializer ***
+// output serializer
 
 reg [3:0] os_data;
 
@@ -42,14 +42,14 @@ OSERDES2 #(
     .TRAIN_PATTERN  ( 0 )               // Training Pattern (0-15)
 )
 OSERDES2_inst (
-    .CLK0       ( clk_36x ),            // 1-bit I/O clock input
+    .CLK0       ( os_clk_fast ),        // 1-bit I/O clock input
     .CLK1       ( 1'b0 ),               // 1-bit Secondary I/O clock input
-    .IOCE       ( strobe_36to9 ),       // 1-bit Data strobe input
-    .CLKDIV     ( clk_9x ),             // 1-bit Logic domain clock input
+    .IOCE       ( os_strobe ),          // 1-bit Data strobe input
+    .CLKDIV     ( os_clk ),             // 1-bit Logic domain clock input
     .OCE        ( 1'b1 ),               // 1-bit Clock enable input
     .TCE        ( 1'b1 ),               // 1-bit 3-state clock enable input
     
-    .RST        ( rst_9x ),             // 1-bit Asynchrnous reset input
+    .RST        ( os_rst ),             // 1-bit Asynchrnous reset input
     .TRAIN      ( 1'b0 ),               // 1-bit Training pattern enable input
     
     .OQ         ( out_pre ),            // 1-bit Data output to pad or IODELAY2
@@ -79,11 +79,12 @@ OSERDES2_inst (
 );
 
 
-// clk pattern generation
+// clock pattern generation
+
 reg [35:0] clk_pattern;
 
-always @(posedge clk_9x) begin
-    if(rst_9x) begin
+always @(posedge os_clk) begin
+    if(os_rst) begin
         clk_pattern <= { {18{1'b1}}, {18{1'b0}} };
         skew_ack    <= 1'b0;
     end else begin
@@ -107,20 +108,12 @@ always @(posedge clk_9x) begin
     end
 end
 
-// mux clk pattern to oserdes
-
-wire [3:0] pattern_mux [8:0];
-genvar j;
-generate
-    for(j=0;j<9;j=j+1) begin:GEN_PREMUX_ASSIGNS
-        assign pattern_mux[j] = clk_pattern[ (j*4)+3 : j*4 ];
-    end
-endgenerate
+// mux clock pattern to oserdes
 
 reg [3:0] pi;
 
-always @(posedge clk_9x) begin
-    if(rst_9x) begin
+always @(posedge os_clk) begin
+    if(os_rst) begin
         pi          <= 0;
         os_data     <= 0;
     end else begin
@@ -128,7 +121,7 @@ always @(posedge clk_9x) begin
         if(pi == 4'd8)  pi <= 0;
         else            pi <= pi + 1;
 
-        os_data     <= pattern_mux[pi];
+        os_data     <= clk_pattern[ (pi*4) +: 4 ];
     end
 end
 

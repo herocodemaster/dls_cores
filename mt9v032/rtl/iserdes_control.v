@@ -5,7 +5,7 @@ module iserdes_control #(
     input   wire                    clk_div,
     input   wire                    rst,
     
-    output  reg                     rdy,
+    output  reg                     ready,
     
     input   wire    [WIDTH-1:0]     iod_busy,
     
@@ -45,13 +45,13 @@ always @(posedge clk_div) begin
 
         // TODO: IODELAY2 simulation model doesn't like this extra reset; unclear
         // how real hardware behaves.. for now, try without initial reset.
-        //iod_rst         <= 1'b1;
-        iod_rst         <= 1'b0;
+        iod_rst         <= 1'b1;
+        //iod_rst         <= 1'b0;
 
         iod_mask        <= 1'b1;
         iod_cal         <= 1'b0;
         iod_cal_master  <= 1'b0;
-        rdy             <= 1'b0;
+        ready           <= 1'b0;
         
     end else begin
     
@@ -133,7 +133,7 @@ always @(posedge clk_div) begin
             iod_cnt_rst     <= 1'b0;
             iod_mask        <= 1'b1;
             if(iod_cnt[4]) begin
-                rdy             <= 1'b1; // only ready once the first recalibration completes
+                ready           <= 1'b1; // only ready once the first recalibration completes
                 iod_state       <= 3;
             end
         end
