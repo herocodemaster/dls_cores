@@ -75,6 +75,7 @@ SP_CTOR_IMP(__MODULE__) : clk("clk",10,SC_NS) /*AUTOINIT*/ {
         /*AUTOINST*/
 
     SP_CELL(axi_slave,dlsc_axi4lb_tlm_slave_32b);
+        SP_PIN(axi_slave,rst,rst_axi);
         /*AUTOINST*/
     
     memory      = new dlsc_tlm_memory<uint32_t>("memory",MEM_SIZE,0,sc_core::sc_time(1.0,SC_NS),sc_core::sc_time(10,SC_NS));
@@ -87,6 +88,7 @@ SP_CTOR_IMP(__MODULE__) : clk("clk",10,SC_NS) /*AUTOINIT*/ {
     channel->out_socket.bind(memory->socket);
 
     rst         = 1;
+    rst_axi     = 1;
 
     fifo_cnt    = 0;
 
@@ -190,9 +192,11 @@ void __MODULE__::clk_method() {
 
 void __MODULE__::stim_thread() {
     rst         = 1;
+    rst_axi     = 1;
     wait(100,SC_NS);
     wait(clk.posedge_event());
     rst         = 0;
+    rst_axi     = 0;
 
     for(int i=0;i<100;++i) {
         cmd_type cmd;
