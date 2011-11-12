@@ -172,7 +172,7 @@ endgenerate
 
 // drive commands
 
-assign          cs_ready        = !axi_ar_valid && !axi_halt && free_okay && !f_full && !f_almost_full;
+assign          cs_ready        = !axi_ar_valid && !axi_halt && !axi_error && free_okay && !f_full && !f_almost_full;
 
 always @(posedge clk) begin
     if(rst) begin
@@ -200,7 +200,7 @@ always @(posedge clk) begin
     if(rst) begin
         cmd_done        <= 1'b0;
     end else begin
-        cmd_done        <= f_pop && f_last;
+        cmd_done        <= out_ready && out_valid && out_last;
     end
 end
 
