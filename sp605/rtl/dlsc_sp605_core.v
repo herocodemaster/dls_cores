@@ -9,7 +9,8 @@ module dlsc_sp605_core #(
     parameter BYTE_SWAP         = 0,        // leave at 0 for x86 hosts
     parameter LOCAL_DMA_DESC    = 1,        // fetch DMA commands from MIG (otherwise fetch over PCIe)
     parameter BUFFER            = 0,        // enable buffering in AXI routers
-    parameter SRAM_SIZE         = (64*1024) // size of internal SRAM (in bytes)
+    parameter SRAM_SIZE         = (64*1024),// size of internal SRAM (in bytes)
+    parameter CAMERAS           = 1         // just 1 for now
 ) (
     // ** System **
     input   wire                    clk,
@@ -26,10 +27,23 @@ module dlsc_sp605_core #(
     output  wire    [31:0]          apb_wdata,
     output  wire    [3:0]           apb_strb,
     
+    // ** Clockgen **
+    // APB
     input   wire                    int_clkgen,
     output  reg                     apb_sel_clkgen,
     input   wire                    apb_ready_clkgen,
     input   wire    [31:0]          apb_rdata_clkgen,
+
+    // ** MT9V032 **
+    // APB
+    input   wire                    int_mt9v032,
+    output  reg                     apb_sel_mt9v032,
+    input   wire                    apb_ready_mt9v032,
+    input   wire    [31:0]          apb_rdata_mt9v032,
+    // Pixels
+    output  wire    [CAMERAS-1:0]   cam_ready,
+    input   wire    [CAMERAS-1:0]   cam_valid,
+    input   wire    [(CAMERAS*10)-1:0] cam_data,
 
     // ** VGA **
     output  wire                    px_en,
@@ -297,7 +311,7 @@ module dlsc_sp605_core #(
 
 localparam ADDR             = MIG_ADDR;
 localparam LEN              = 4;
-localparam INTERRUPTS       = 6;
+localparam INTERRUPTS       = 8;
 localparam OB_ADDR          = 64;
 localparam OB_LEN           = 8;
 
@@ -1198,6 +1212,86 @@ assign  c3_s3_axi_arprot                    = 3'b000;   // unprivileged, secure
 assign  c3_s3_axi_arqos                     = 4'b0000;  // no QoS
 
 
+// ** Camera 0 writer **
+
+wire                    int_pxwr0;
+
+reg                     apb_sel_pxwr0;
+wire                    apb_ready_pxwr0;
+wire    [31:0]          apb_rdata_pxwr0;
+
+dlsc_pxdma_writer #(
+    .APB_ADDR       ( APB_ADDR ),
+    .AXI_ADDR       ( ADDR ),
+    .AXI_LEN        ( LEN ),
+    .MAX_H          ( 1024 ),
+    .MAX_V          ( 1024 ),
+    .BYTES_PER_PIXEL ( 1 ),
+    .READERS        ( 1 ),
+    .PX_ASYNC       ( 0 )
+) dlsc_pxdma_writer_pxwr0 (
+    .clk ( clk ),
+    .rst ( rst ),
+    .apb_addr ( apb_addr ),
+    .apb_sel ( apb_sel_pxwr0 ),
+    .apb_enable ( apb_enable ),
+    .apb_write ( apb_write ),
+    .apb_wdata ( apb_wdata ),
+    .apb_strb ( apb_strb ),
+    .apb_ready ( apb_ready_pxwr0 ),
+    .apb_rdata ( apb_rdata_pxwr0 ),
+    .int_out ( int_pxwr0 ),
+    .enabled (  ),
+    .row_written (  ),
+    .row_read ( 1'b0 ),
+    .axi_aw_ready ( c3_s2_axi_awready ),
+    .axi_aw_valid ( c3_s2_axi_awvalid ),
+    .axi_aw_addr ( c3_s2_axi_awaddr ),
+    .axi_aw_len ( c3_s2_axi_awlen[LEN-1:0] ),
+    .axi_w_ready ( c3_s2_axi_wready ),
+    .axi_w_valid ( c3_s2_axi_wvalid ),
+    .axi_w_last ( c3_s2_axi_wlast ),
+    .axi_w_data ( c3_s2_axi_wdata ),
+    .axi_w_strb ( c3_s2_axi_wstrb ),
+    .axi_b_ready ( c3_s2_axi_bready ),
+    .axi_b_valid ( c3_s2_axi_bvalid ),
+    .axi_b_resp ( c3_s2_axi_bresp ),
+    .px_clk ( clk ),
+    .px_rst ( rst ),
+    .px_ready ( cam_ready[0] ),
+    .px_valid ( cam_valid[0] ),
+    .px_data ( cam_data[9:2] )
+);
+
+assign  c3_s2_axi_awid                      = 0;
+assign  c3_s2_axi_awlen[MIG_LEN-1:LEN]      = 0;
+assign  c3_s2_axi_awsize                    = 3'b010;   // 32-bits per beat
+assign  c3_s2_axi_awburst                   = 2'b01;    // INCR
+assign  c3_s2_axi_awlock                    = 1'b0;
+assign  c3_s2_axi_awcache                   = 4'b0011;  // modifiable, bufferable
+assign  c3_s2_axi_awprot                    = 3'b000;   // unprivileged, secure
+assign  c3_s2_axi_awqos                     = 4'b0000;  // no QoS
+
+
+// ** Tie-off unused MIG ports **
+    
+assign c3_s3_axi_awid = 0;
+assign c3_s3_axi_awaddr = 0;
+assign c3_s3_axi_awlen = 0;
+assign c3_s3_axi_awsize = 0;
+assign c3_s3_axi_awburst = 0;
+assign c3_s3_axi_awlock = 0;
+assign c3_s3_axi_awcache = 0;
+assign c3_s3_axi_awprot = 0;
+assign c3_s3_axi_awqos = 0;
+assign c3_s3_axi_awvalid = 0;
+assign c3_s3_axi_wdata = 0;
+assign c3_s3_axi_wstrb = 0;
+assign c3_s3_axi_wlast = 0;
+assign c3_s3_axi_wvalid = 0;
+assign c3_s3_axi_bready = 0;
+
+
 // ** I2C **
 
 wire                    int_i2c;
@@ -1229,48 +1323,17 @@ i2c_master_top_apb #(
 );
 
 
-// ** Tie-off unused MIG ports **
-    
-assign c3_s2_axi_awid = 0;
-assign c3_s2_axi_awaddr = 0;
-assign c3_s2_axi_awlen = 0;
-assign c3_s2_axi_awsize = 0;
-assign c3_s2_axi_awburst = 0;
-assign c3_s2_axi_awlock = 0;
-assign c3_s2_axi_awcache = 0;
-assign c3_s2_axi_awprot = 0;
-assign c3_s2_axi_awqos = 0;
-assign c3_s2_axi_awvalid = 0;
-assign c3_s2_axi_wdata = 0;
-assign c3_s2_axi_wstrb = 0;
-assign c3_s2_axi_wlast = 0;
-assign c3_s2_axi_wvalid = 0;
-assign c3_s2_axi_bready = 0;
-    
-assign c3_s3_axi_awid = 0;
-assign c3_s3_axi_awaddr = 0;
-assign c3_s3_axi_awlen = 0;
-assign c3_s3_axi_awsize = 0;
-assign c3_s3_axi_awburst = 0;
-assign c3_s3_axi_awlock = 0;
-assign c3_s3_axi_awcache = 0;
-assign c3_s3_axi_awprot = 0;
-assign c3_s3_axi_awqos = 0;
-assign c3_s3_axi_awvalid = 0;
-assign c3_s3_axi_wdata = 0;
-assign c3_s3_axi_wstrb = 0;
-assign c3_s3_axi_wlast = 0;
-assign c3_s3_axi_wvalid = 0;
-assign c3_s3_axi_bready = 0;
-
-
 // ** APB decoding **
 
 reg    apb_sel_null;
 wire   apb_ready_null   = apb_sel_null && apb_enable;
 
-assign apb_ready        = apb_ready_pcie    | apb_ready_dmard   | apb_ready_dmawr   | apb_ready_vga     | apb_ready_i2c     | apb_ready_clkgen  | apb_ready_null;
-assign apb_rdata        = apb_rdata_pcie    | apb_rdata_dmard   | apb_rdata_dmawr   | apb_rdata_vga     | apb_rdata_i2c     | apb_rdata_clkgen;
+assign apb_ready        = apb_ready_pcie    | apb_ready_dmard   | apb_ready_dmawr   | apb_ready_vga     |
+                          apb_ready_i2c     | apb_ready_clkgen  | apb_ready_mt9v032 | apb_ready_null;
+
+assign apb_rdata        = apb_rdata_pcie    | apb_rdata_dmard   | apb_rdata_dmawr   | apb_rdata_vga     |
+                          apb_rdata_i2c     | apb_rdata_clkgen  | apb_rdata_mt9v032;
+
 assign apb_slverr       = apb_slverr_pcie;
 
 always @* begin
@@ -1280,6 +1343,8 @@ always @* begin
     apb_sel_vga     = 1'b0;
     apb_sel_i2c     = 1'b0;
     apb_sel_clkgen  = 1'b0;
+    apb_sel_mt9v032 = 1'b0;
+    apb_sel_pxwr0   = 1'b0;
     apb_sel_null    = 1'b0;
 
     if(apb_sel) begin
@@ -1291,12 +1356,14 @@ always @* begin
             4: apb_sel_vga      = 1'b1;
             5: apb_sel_i2c      = 1'b1;
             6: apb_sel_clkgen   = 1'b1;
+            7: apb_sel_mt9v032  = 1'b1;
+            8: apb_sel_pxwr0    = 1'b1;
             default: apb_sel_null = 1'b1;
         endcase
     end
 end
 
-assign apb_int_in   = { int_clkgen, int_i2c, int_vga, int_dmawr, int_dmard, int_pcie };
+assign apb_int_in   = { int_pxwr0, int_mt9v032, int_clkgen, int_i2c, int_vga, int_dmawr, int_dmard, int_pcie };
 
 
 endmodule

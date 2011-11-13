@@ -9,6 +9,29 @@ module dlsc_sp605_top (
     input   wire    [3:0]           btn,
     output  wire    [3:0]           led,
 
+    // ** RS232 **
+
+    output  wire                    ser_rts,
+    input   wire                    ser_cts,
+    output  wire                    ser_tx,
+    input   wire                    ser_rx,
+
+    // ** FMC-LPC **
+
+    output  wire    [2:1]           fmc_led,
+    inout   wire    [3:1]           ja_ap,
+    inout   wire    [3:1]           ja_an,
+    inout   wire    [3:1]           ja_bp,
+    inout   wire    [3:1]           ja_bn,
+    inout   wire    [7:1]           jb_ap,
+    inout   wire    [7:1]           jb_an,
+    inout   wire    [7:1]           jb_bp,
+    inout   wire    [7:1]           jb_bn,
+    inout   wire    [7:1]           jc_ap,
+    inout   wire    [7:1]           jc_an,
+    inout   wire    [7:1]           jc_bp,
+    inout   wire    [7:1]           jc_bn,
+
     // ** VGA **
 
     output  wire                    dvi_xclk_p,
@@ -68,6 +91,7 @@ localparam OB_READ_CPLD     = 467;
 localparam BYTE_SWAP        = 0;
 localparam LOCAL_DMA_DESC   = 0;    // DMA descriptors in host memory
 localparam BUFFER           = 1;    // enable extra buffering in AXI routers
+localparam CAMERAS          = 1;
 
 
 // ** APB **
@@ -161,6 +185,54 @@ dlsc_dcm_clkgen #(
     .clk_div        (  ),
     .rst            ( px_rst )
 );
+
+
+// ** MT9V032 **
+
+wire                    int_mt9v032;
+
+wire                    apb_sel_mt9v032;
+wire                    apb_ready_mt9v032;
+wire    [31:0]          apb_rdata_mt9v032;
+
+wire    [CAMERAS-1:0]   cam_ready;
+wire    [CAMERAS-1:0]   cam_valid;
+wire    [(CAMERAS*10)-1:0] cam_data;
+
+dlsc_mt9v032 #(
+    .CAMERAS        ( CAMERAS ),
+    .SWAP           ( 1'b1 ),
+    .APB_ADDR       ( APB_ADDR ),
+    .HDISP          ( 752 ),
+    .VDISP          ( 480 ),
+    .FIFO_ADDR      ( 4 )
+) dlsc_mt9v032 (
+    .clk_in         ( clk200_buf ),
+    .rst_in         ( master_rst ),
+    .apb_clk        ( apb_clk ),
+    .apb_rst        ( apb_rst ),
+    .apb_addr       ( apb_addr ),
+    .apb_sel        ( apb_sel_mt9v032 ),
+    .apb_enable     ( apb_enable ),
+    .apb_write      ( apb_write ),
+    .apb_wdata      ( apb_wdata ),
+    .apb_strb       ( apb_strb ),
+    .apb_ready      ( apb_ready_mt9v032 ),
+    .apb_rdata      ( apb_rdata_mt9v032 ),
+    .apb_int_out    ( int_mt9v032 ),
+    .px_clk         ( clk ),
+    .px_rst         ( rst ),
+    .px_ready       ( cam_ready ),
+    .px_valid       ( cam_valid ),
+    .px_data        ( cam_data ),
+    .in_p           ( jb_ap[7] ),
+    .in_n           ( jb_an[7] ),
+    .clk_out        ( jb_bn[7] )    
+);
+
+// bridge serial to AVR on camera board
+assign ser_rts  = 1'b0;
+assign ser_tx   = jb_bp[7];
 
 
 // ** MIG **
@@ -714,7 +786,8 @@ dlsc_sp605_core #(
     .OB_READ_CPLD       ( OB_READ_CPLD ),
     .BYTE_SWAP          ( BYTE_SWAP ),
     .LOCAL_DMA_DESC     ( LOCAL_DMA_DESC ),
-    .BUFFER             ( BUFFER )
+    .BUFFER             ( BUFFER ),
+    .CAMERAS            ( CAMERAS )
 ) dlsc_sp605_core (
     .clk ( clk ),
     .rst ( rst ),
@@ -731,6 +804,13 @@ dlsc_sp605_core #(
     .apb_sel_clkgen ( apb_sel_clkgen ),
     .apb_ready_clkgen ( apb_ready_clkgen ),
     .apb_rdata_clkgen ( apb_rdata_clkgen ),
+    .int_mt9v032 ( int_mt9v032 ),
+    .apb_sel_mt9v032 ( apb_sel_mt9v032 ),
+    .apb_ready_mt9v032 ( apb_ready_mt9v032 ),
+    .apb_rdata_mt9v032 ( apb_rdata_mt9v032 ),
+    .cam_ready ( cam_ready ),
+    .cam_valid ( cam_valid ),
+    .cam_data ( cam_data ),
     .px_en ( px_en ),
     .px_vsync ( px_vsync ),
     .px_hsync ( px_hsync ),

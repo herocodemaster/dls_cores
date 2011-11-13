@@ -20,6 +20,92 @@ NET "led<1>"    LOC = "AB4" |IOSTANDARD = LVCMOS25;    # DS4
 NET "led<2>"    LOC = "D21" |IOSTANDARD = LVCMOS25;    # DS5
 NET "led<3>"    LOC = "W15" |IOSTANDARD = LVCMOS25;    # DS6
 
+# ** RS232 **
+NET "ser_rts"                     LOC = "F18";   ## rts out
+NET "ser_cts"                     LOC = "F19";   ## cts in
+NET "ser_tx"                      LOC = "B21";   ## data out
+NET "ser_rx"                      LOC = "H17";   ## data in
+
+# ** FMC-LPC **
+#NET "fmc_pcie_tx_n"                 LOC = "A16";   ## C3  on J2
+#NET "fmc_pcie_tx_p"                 LOC = "B16";   ## C2  on J2
+#NET "fmc_pcie_rx_p"                 LOC = "C15";   ## C7  on J2
+#NET "fmc_pcie_rx_n"                 LOC = "D15";   ## C6  on J2
+#NET "fmc_pcie_clk_n"             LOC = "F12";   ## D5  on J2
+#NET "fmc_pcie_clk_p"             LOC = "E12";   ## D4  on J2
+NET "jb_bp<7>"                LOC = "G11";   ## H5  on J2
+NET "jb_bn<7>"                LOC = "H12";   ## H4  on J2
+NET "jb_ap<7>"                LOC = "F16";   ## G3  on J2
+NET "jb_an<7>"                LOC = "E16";   ## G2  on J2
+NET "jc_an<7>"                 LOC = "F10";   ## G7  on J2
+NET "jc_ap<7>"                 LOC = "G9";    ## G6  on J2
+NET "jc_bp<7>"                 LOC = "F15";   ## D9  on J2
+NET "jc_bn<7>"                 LOC = "F14";   ## D8  on J2
+NET "jb_bn<6>"                    LOC = "F9";    ## H8  on J2
+NET "jb_bp<6>"                    LOC = "G8";    ## H7  on J2
+NET "jb_ap<6>"                    LOC = "A18";   ## G10 on J2
+NET "jb_an<6>"                    LOC = "B18";   ## G9  on J2
+NET "jc_bp<6>"                    LOC = "A19";   ## H11 on J2
+NET "jc_bn<6>"                    LOC = "C19";   ## H10 on J2
+NET "jc_an<6>"                    LOC = "A4";    ## D12 on J2
+NET "jc_ap<6>"                    LOC = "C4";    ## D11 on J2
+#NET "fmc_unused"                    LOC = "D5";    ## C11 on J2
+#NET "fmc_pcie_rst_n"                    LOC = "D4";    ## C10 on J2
+NET "jc_ap<5>"                    LOC = "A2";    ## H14 on J2
+NET "jc_an<5>"                    LOC = "B2";    ## H13 on J2
+NET "jc_bn<5>"                    LOC = "A20";   ## G13 on J2
+NET "jc_bp<5>"                    LOC = "B20";   ## G12 on J2
+NET "ja_bp<3>"                    LOC = "F8";    ## D15 on J2
+NET "ja_bn<3>"                    LOC = "F7";    ## D14 on J2
+NET "ja_an<3>"                    LOC = "H11";   ## C15 on J2
+NET "ja_ap<3>"                    LOC = "H10";   ## C14 on J2
+NET "jb_bp<5>"                    LOC = "G15";   ## H17 on J2
+NET "jb_bn<5>"                    LOC = "H14";   ## H16 on J2
+NET "jb_an<5>"                    LOC = "G13";   ## G16 on J2
+NET "jb_ap<5>"                    LOC = "H13";   ## G15 on J2
+NET "ja_an<2>"                    LOC = "F17";   ## D18 on J2
+NET "ja_ap<2>"                    LOC = "G16";   ## D17 on J2
+NET "ja_bp<2>"                    LOC = "A17";   ## C19 on J2
+NET "ja_bn<2>"                    LOC = "C17";   ## C18 on J2
+NET "jc_ap<4>"                    LOC = "D19";   ## H20 on J2
+NET "jc_an<4>"                    LOC = "D18";   ## H19 on J2
+NET "jc_bn<4>"                    LOC = "A5";    ## G19 on J2
+NET "jc_bp<4>"                    LOC = "C5";    ## G18 on J2
+NET "ja_an<1>"                 LOC = "AB11";  ## D21 on J2
+NET "ja_ap<1>"                 LOC = "Y11";   ## D20 on J2
+NET "ja_bp<1>"                 LOC = "U12";   ## C23 on J2
+NET "ja_bn<1>"                 LOC = "T12";   ## C22 on J2
+NET "jb_an<4>"                    LOC = "T11";   ## H23 on J2
+NET "jb_ap<4>"                    LOC = "R11";   ## H22 on J2
+NET "jb_bn<4>"                    LOC = "R8";    ## G22 on J2
+NET "jb_bp<4>"                    LOC = "R9";    ## G21 on J2
+NET "jb_bn<3>"                    LOC = "W11";   ## H26 on J2
+NET "jb_bp<3>"                    LOC = "V11";   ## H25 on J2
+NET "jc_ap<3>"                    LOC = "W8";    ## G25 on J2
+NET "jc_an<3>"                    LOC = "V7";    ## G24 on J2
+NET "jc_bn<3>"                    LOC = "V9";    ## D24 on J2
+NET "jc_bp<3>"                    LOC = "U9";    ## D23 on J2
+NET "jc_ap<2>"                    LOC = "AB14";  ## H29 on J2
+NET "jc_an<2>"                    LOC = "AA14";  ## H28 on J2
+NET "jc_bn<2>"                    LOC = "Y14";   ## G28 on J2
+NET "jc_bp<2>"                    LOC = "W14";   ## G27 on J2
+NET "jb_an<3>"                    LOC = "U13";   ## D27 on J2
+NET "jb_ap<3>"                    LOC = "U14";   ## D26 on J2
+NET "fmc_led<1>"                    LOC = "AB10";  ## C27 on J2
+NET "fmc_led<2>"                    LOC = "AA10";  ## C26 on J2
+NET "jc_ap<1>"                    LOC = "AB16";  ## H32 on J2
+NET "jc_an<1>"                    LOC = "AA16";  ## H31 on J2
+NET "jc_bn<1>"                    LOC = "U15";   ## G31 on J2
+NET "jc_bp<1>"                    LOC = "T15";   ## G30 on J2
+NET "jb_bp<2>"                    LOC = "AB15";  ## H35 on J2
+NET "jb_bn<2>"                    LOC = "Y15";   ## H34 on J2
+NET "jb_an<2>"                    LOC = "V15";   ## G34 on J2
+NET "jb_ap<2>"                    LOC = "U16";   ## G33 on J2
+NET "jb_ap<1>"                    LOC = "Y18";   ## H38 on J2
+NET "jb_an<1>"                    LOC = "W17";   ## H37 on J2
+NET "jb_bn<1>"                    LOC = "AB17";  ## G37 on J2
+NET "jb_bp<1>"                    LOC = "Y17";   ## G36 on J2
+
 # ** VGA **
 
 NET "dlsc_sp605_core/dlsc_vga_inst/dlsc_vga_output_inst/px_en" TIG; # feeds async reset on dvi pads; not timing critical
