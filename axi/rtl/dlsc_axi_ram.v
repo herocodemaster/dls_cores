@@ -76,11 +76,11 @@ module dlsc_axi_ram #(
 
 `include "dlsc_clog2.vh"
 
-parameter RAM_DEPTH = ((SIZE+STRB-1)/STRB);
-parameter RAM_ADDR  = `dlsc_clog2(RAM_DEPTH);
+localparam RAM_DEPTH    = ((SIZE+STRB-1)/STRB);
+localparam RAM_ADDR     = `dlsc_clog2(RAM_DEPTH);
 
-parameter LSB       = `dlsc_clog2(STRB);
-parameter INC_MSB   = ((RAM_ADDR+LSB)>12) ? (12-LSB) : (RAM_ADDR);  // only increment within a 4K region
+localparam LSB          = `dlsc_clog2(STRB);
+localparam INC_MSB      = ((RAM_ADDR+LSB)>12) ? (12-LSB) : (RAM_ADDR);  // only increment within a 4K region
 
 // ** RAM **
 
