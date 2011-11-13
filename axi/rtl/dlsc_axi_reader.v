@@ -111,11 +111,12 @@ wire            f_pop           = axi_r_ready && axi_r_valid && axi_r_last;
 wire            f_last;
 
 wire            f_empty;
-assign          axi_busy        = !f_empty || out_valid;
+assign          axi_busy        = !f_empty;
 
 dlsc_fifo #(
     .DEPTH          ( MOT ),
-    .DATA           ( 1 )
+    .DATA           ( 1 ),
+    .FAST_FLAGS     ( 1 )       // needed for accurate axi_busy
 ) dlsc_fifo_last (
     .clk            ( clk ),
     .rst            ( rst ),

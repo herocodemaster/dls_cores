@@ -185,7 +185,8 @@ assign          axi_busy        = !f_empty;
 
 dlsc_fifo #(
     .DEPTH          ( MOT ),
-    .DATA           ( 1 )
+    .DATA           ( 1 ),
+    .FAST_FLAGS     ( 1 )       // needed for accurate axi_busy
 ) dlsc_fifo_last (
     .clk            ( clk ),
     .rst            ( rst ),
