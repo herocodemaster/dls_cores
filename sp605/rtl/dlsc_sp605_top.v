@@ -113,15 +113,23 @@ wire                    master_rst      = btn[0] && btn[3];
 wire                    mig_rst         = master_rst;
 wire                    mig_ready;
 
-wire                    clk200_buf;
+wire                    clk200_buf_pre;
 
 IBUFGDS #(
     .DIFF_TERM  ( "TRUE" ),
     .IOSTANDARD ( "LVDS_25" )
 ) IBUFGDS_clk_200 (
-    .O          ( clk200_buf ),
+    .O          ( clk200_buf_pre ),
     .I          ( clk200_p ),
     .IB         ( clk200_n )
+);
+
+// need to route clk200 through a regular BUFG, so it can reach all PLLs
+wire                    clk200_buf;
+
+BUFG BUFG_clk_200 (
+    .I  ( clk200_buf_pre ), // 1-bit Clock buffer input
+    .O  ( clk200_buf )      // 1-bit Clock buffer output
 );
 
 wire                    pcie_clk;
@@ -225,14 +233,14 @@ dlsc_mt9v032 #(
     .px_ready       ( cam_ready ),
     .px_valid       ( cam_valid ),
     .px_data        ( cam_data ),
-    .in_p           ( jb_ap[7] ),
-    .in_n           ( jb_an[7] ),
-    .clk_out        ( jb_bn[7] )    
+    .in_p           ( jb_ap[1] ),
+    .in_n           ( jb_an[1] ),
+    .clk_out        ( jb_bn[1] )    
 );
 
 // bridge serial to AVR on camera board
 assign ser_rts  = 1'b0;
-assign ser_tx   = jb_bp[7];
+assign ser_tx   = jb_bp[1];
 
 
 // ** MIG **
@@ -1046,6 +1054,9 @@ assign led[0] = mig_ready;
 assign led[1] = !rst;
 assign led[2] = !user_reset_out;
 assign led[3] = sda_oe || !dvi_reset_b || cfg_trn_pending;
+
+assign fmc_led[1] = !rst;
+assign fmc_led[2] = cam_valid;
 
 endmodule
 

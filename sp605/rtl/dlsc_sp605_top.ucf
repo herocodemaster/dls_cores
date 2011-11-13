@@ -11,6 +11,19 @@ TIMESPEC "TS_clk200_p" = PERIOD "clk200_p" 5000 ps;
 TIMESPEC TS_clk0_to_px_clk_tig = FROM "dlsc_sp605_clocks_clk0_pre" TO "dlsc_dcm_clkgen_px_clk_clk_pre" TIG;
 TIMESPEC TS_px_clk_to_clk0_tig = FROM "dlsc_dcm_clkgen_px_clk_clk_pre" TO "dlsc_sp605_clocks_clk0_pre" TIG;
 
+TIMESPEC TS_is_clk_to_os_clk_tig = FROM "dlsc_mt9v032_dlsc_mt9v032_clocks_clk_pre" TO "dlsc_mt9v032_dlsc_mt9v032_clocks_os_clk_pre" TIG;
+TIMESPEC TS_os_clk_to_is_clk_tig = FROM "dlsc_mt9v032_dlsc_mt9v032_clocks_os_clk_pre" TO "dlsc_mt9v032_dlsc_mt9v032_clocks_clk_pre" TIG;
+
+INST "dlsc_sp605_pcie/pll_base_i"                           LOC = "PLL_ADV_X0Y3";   # bank 0
+INST "dlsc_sp605_clocks/PLL_BASE_inst"                      LOC = "PLL_ADV_X0Y2";
+
+INST "dlsc_sp605_mig/memc3_infrastructure_inst/u_pll_adv"   LOC = "PLL_ADV_X0Y1";   # bank 3
+INST "dlsc_sp605_mig/memc3_infrastructure_inst/BUFPLL_MCB1" LOC = "BUFPLL_MCB_X0Y5";
+
+INST "dlsc_mt9v032/dlsc_mt9v032_clocks/PLL_BASE_inst"       LOC = "PLL_ADV_X0Y0";   # bank 2
+INST "dlsc_mt9v032/dlsc_mt9v032_clocks/BUFPLL_is"           LOC = "BUFPLL_X1Y0";
+INST "dlsc_mt9v032/dlsc_mt9v032_clocks/BUFPLL_os"           LOC = "BUFPLL_X1Y1";
+
 NET "btn<0>"                  LOC = "F3";    ## 2   on SW4 pushbutton (active-high)
 NET "btn<1>"                  LOC = "G6";    ## 2   on SW7 pushbutton (active-high)
 NET "btn<2>"                  LOC = "F5";    ## 2   on SW5 pushbutton (active-high)
@@ -19,6 +32,9 @@ NET "led<0>"    LOC = "D17" |IOSTANDARD = LVCMOS25;    # DS3
 NET "led<1>"    LOC = "AB4" |IOSTANDARD = LVCMOS25;    # DS4
 NET "led<2>"    LOC = "D21" |IOSTANDARD = LVCMOS25;    # DS5
 NET "led<3>"    LOC = "W15" |IOSTANDARD = LVCMOS25;    # DS6
+
+NET "btn<*>" TIG;
+NET "led<*>" TIG;
 
 # ** RS232 **
 NET "ser_rts"                     LOC = "F18";   ## rts out
@@ -106,10 +122,10 @@ NET "jb_an<1>"                    LOC = "W17";   ## H37 on J2
 NET "jb_bn<1>"                    LOC = "AB17";  ## G37 on J2
 NET "jb_bp<1>"                    LOC = "Y17";   ## G36 on J2
 
+NET "fmc_led<*>" TIG;
+
 # ** VGA **
-
 NET "dlsc_sp605_core/dlsc_vga_inst/dlsc_vga_output_inst/px_en" TIG; # feeds async reset on dvi pads; not timing critical
-
 NET "dvi_scl" LOC = "W13" |IOSTANDARD = LVCMOS25 |PULLUP;
 NET "dvi_sda" LOC = "AA4" |IOSTANDARD = LVCMOS25 |PULLUP;
 
