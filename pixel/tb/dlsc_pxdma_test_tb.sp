@@ -18,6 +18,8 @@
 #define BPP         PARAM_BYTES_PER_PIXEL
 #define READERS     PARAM_READERS
 
+#define READERS_MASK ((1u<<PARAM_READERS)-1)
+
 #define MAX_PX      ((1u<<(PARAM_BYTES_PER_PIXEL*8))-1)
 
 #define MEM_SIZE    (1ull<<PARAM_AXI_ADDR)
@@ -286,7 +288,7 @@ void __MODULE__::out ## INDEX ## _method() { \
     } else { \
         if(out ## INDEX ## _ready && out ## INDEX ## _valid) { \
             if(out_queue[INDEX].empty()) { \
-                dlsc_error("unexpected data (INDEX)"); \
+                dlsc_error("unexpected data (" << INDEX << ")"); \
             } else { \
                 dlsc_assert_equals( out ## INDEX ## _data , out_queue[INDEX].front() ); \
                 out_queue[INDEX].pop_front(); \
@@ -307,10 +309,12 @@ const uint32_t REG_INT_FLAGS = 2;
 const uint32_t REG_INT_SELECT = 3;
 const uint32_t REG_BUF0_ADDR = 4;
 const uint32_t REG_BUF1_ADDR = 5;
-const uint32_t REG_BPR = 6;
-const uint32_t REG_STEP = 7;
-const uint32_t REG_HDISP = 8;
-const uint32_t REG_VDISP = 9;
+const uint32_t REG_ACK_STATUS = 6;
+const uint32_t REG_ACK_SELECT = 7;
+const uint32_t REG_BPR = 8;
+const uint32_t REG_STEP = 9;
+const uint32_t REG_HDISP = 10;
+const uint32_t REG_VDISP = 11;
 
 void __MODULE__::stim_thread() {
 
@@ -323,11 +327,11 @@ void __MODULE__::stim_thread() {
     uint32_t step;
     uint32_t buf_size;
     bool     double_buffer;
+    uint32_t reader_sel;
     uint32_t buf0_addr;
     uint32_t buf1_addr;
 
     uint32_t data;
-    std::deque<uint32_t> pixels;
 
     unsigned int i,j,k,x,y,frames;
     
@@ -347,13 +351,14 @@ void __MODULE__::stim_thread() {
         bpr         = hdisp*BPP;
         step        = dlsc_rand_bool(50.0) ? bpr : dlsc_rand_u32(bpr,bpr*2);
         buf_size    = step * vdisp;
+        reader_sel  = dlsc_rand_u32(1,READERS_MASK);
         double_buffer = dlsc_rand_bool(50.0);
         if(double_buffer) {
             buf0_addr   = dlsc_rand_u32(0,(MEM_SIZE/2)-buf_size-1);
             buf1_addr   = dlsc_rand_u32((MEM_SIZE/2),MEM_SIZE-buf_size-1);
         } else {
             buf0_addr   = dlsc_rand_u32(0,MEM_SIZE-buf_size-1);
-            buf1_addr   = 0;
+            buf1_addr   = dlsc_rand_bool(50.0) ? 0 : buf0_addr;
         }
 
         in_pct      = dlsc_rand_u32(10,100) * 1.0;
@@ -363,18 +368,24 @@ void __MODULE__::stim_thread() {
 
         // write configuration
         for(j=0;j<=READERS;j++) {
+            if( j>=1 && !(reader_sel & (1<<(j-1))) ) continue;
             reg_write(j,REG_BUF0_ADDR,buf0_addr);
             reg_write(j,REG_BUF1_ADDR,buf1_addr);
             reg_write(j,REG_BPR,bpr);
             reg_write(j,REG_STEP,step);
             reg_write(j,REG_HDISP,hdisp);
             reg_write(j,REG_VDISP,vdisp);
+            if(j>=1) reg_write(j,REG_ACK_SELECT,0x1);
         }
+        
+        dlsc_info("readers enabled: 0x" << std::hex << reader_sel);
+        reg_write(0,REG_ACK_SELECT,reader_sel);
 
         // enable
         data        = 0x1;
         if(double_buffer) data |= 0x2;
         for(j=0;j<=READERS;j++) {
+            if( j>=1 && !(reader_sel & (1<<(j-1))) ) continue;
             reg_write(j,REG_CONTROL,data);
         }
 
@@ -386,6 +397,7 @@ void __MODULE__::stim_thread() {
                     data = dlsc_rand_u32(0,MAX_PX);
                     in_queue.push_back(data);
                     for(k=0;k<READERS;k++) {
+                        if(!(reader_sel & (1<<k))) continue;
                         out_queue[k].push_back(data);
                     }
                 }
@@ -395,6 +407,48 @@ void __MODULE__::stim_thread() {
         // wait for completion
         while( !(in_queue.empty() && out_queue[0].empty() && out_queue[1].empty() && out_queue[2].empty() && out_queue[3].empty()) ) {
             wait(1,SC_US);
+        }
+
+        // check configuration
+        for(j=0;j<=READERS;j++) {
+            if( j>=1 && !(reader_sel & (1<<(j-1))) ) {
+                data = reg_read(j,REG_CONTROL);
+                dlsc_assert_equals( 0, data );
+                data = reg_read(j,REG_STATUS);
+                dlsc_assert_equals( 0, data );
+                continue;
+            }
+
+            data = reg_read(j,REG_CONTROL);
+            dlsc_assert_equals( 0x1 | (double_buffer ? 0x2 : 0x0) , data );
+            data = reg_read(j,REG_BUF0_ADDR);
+            dlsc_assert_equals( buf0_addr, data );
+            data = reg_read(j,REG_BUF1_ADDR);
+            dlsc_assert_equals( buf1_addr, data );
+            data = reg_read(j,REG_BPR);
+            dlsc_assert_equals( bpr, data );
+            data = reg_read(j,REG_STEP);
+            dlsc_assert_equals( step, data );
+            data = reg_read(j,REG_HDISP);
+            dlsc_assert_equals( hdisp, data );
+            data = reg_read(j,REG_VDISP);
+            dlsc_assert_equals( vdisp, data );
+
+            if(j==0) {
+                data = reg_read(j,REG_ACK_STATUS);
+                dlsc_assert_equals( READERS_MASK, data );
+                data = reg_read(j,REG_ACK_SELECT);
+                dlsc_assert_equals( reader_sel, data );
+                data = reg_read(j,REG_STATUS);
+                dlsc_assert_equals( 0x1 | ((double_buffer && (frames%2) == 0) ? 0x2 : 0x0) , data );
+            } else {
+                data = reg_read(j,REG_ACK_STATUS);
+                dlsc_assert_equals( 0x0, data );
+                data = reg_read(j,REG_ACK_SELECT);
+                dlsc_assert_equals( 0x1, data );
+                data = reg_read(j,REG_STATUS);
+                dlsc_assert_equals( 0x1 | ((double_buffer && (frames%2) == 1) ? 0x2 : 0x0) , data );
+            }
         }
 
     }

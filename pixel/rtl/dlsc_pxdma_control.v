@@ -62,10 +62,12 @@ localparam  REG_CONTROL     = 4'h0,
             REG_INT_SELECT  = 4'h3,
             REG_BUF0_ADDR   = 4'h4,
             REG_BUF1_ADDR   = 4'h5,
-            REG_BPR         = 4'h6,
-            REG_STEP        = 4'h7,
-            REG_HDISP       = 4'h8,
-            REG_VDISP       = 4'h9;
+            REG_ACK_STATUS  = 4'h6,
+            REG_ACK_SELECT  = 4'h7,
+            REG_BPR         = 4'h8,
+            REG_STEP        = 4'h9,
+            REG_HDISP       = 4'hA,
+            REG_VDISP       = 4'hB;
 
 // 0x0: control (RW)
 //  [0]     : enable (cleared on error)
@@ -89,10 +91,12 @@ localparam  REG_CONTROL     = 4'h0,
 //
 // these config registers are only writeable when ctrl_enable is cleared:
 //
-// 0x6: bytes per row (pixels only; excluding padding; must equal hdisp*bytes_per_pixel)
-// 0x7: row step (total bytes per row, including padding)
-// 0x8: horizontal resolution
-// 0x9: vertical resolution
+// 0x6: ack status (RO)
+// 0x7: ack select (RW)
+// 0x8: bytes per row (pixels only; excluding padding; must equal hdisp*bytes_per_pixel)
+// 0x9: row step (total bytes per row, including padding)
+// 0xA: horizontal resolution
+// 0xB: vertical resolution
 
 
 // ** registers **
@@ -199,6 +203,9 @@ end
 // other config registers
 // (only writeable when !ctrl_enable)
 
+wire [ACKS-1:0] ack_status;
+reg  [ACKS-1:0] ack_select;
+
 reg  [BLEN-1:0] bytes_per_row;
 reg  [AXI_ADDR-1:0] row_step;
 reg  [XBITS-1:0] hdisp;
@@ -206,6 +213,9 @@ reg  [YBITS-1:0] vdisp;
 
 always @(posedge clk) begin
     if(!ctrl_enable) begin
+        if(csr_addr == REG_ACK_SELECT) begin
+            ack_select      <= (ack_select      & ~csr_wr[ACKS-1:0])        | (csr_wdata[ACKS-1:0]      & csr_wr[ACKS-1:0]);
+        end
         if(csr_addr == REG_BPR) begin
             bytes_per_row   <= (bytes_per_row   & ~csr_wr[BLEN-1:0])        | (csr_wdata[BLEN-1:0]      & csr_wr[BLEN-1:0]);
         end
@@ -234,6 +244,8 @@ always @(posedge clk) begin
             REG_INT_SELECT: apb_rdata               <= csr_int_select;
             REG_BUF0_ADDR:  apb_rdata[AXI_ADDR-1:0] <= buf0_addr;
             REG_BUF1_ADDR:  apb_rdata[AXI_ADDR-1:0] <= buf1_addr;
+            REG_ACK_STATUS: apb_rdata[ACKS-1:0]     <= ack_status;
+            REG_ACK_SELECT: apb_rdata[ACKS-1:0]     <= ack_select;
             REG_BPR:        apb_rdata[BLEN-1:0]     <= bytes_per_row;
             REG_STEP:       apb_rdata[AXI_ADDR-1:0] <= row_step;
             REG_HDISP:      apb_rdata[XBITS-1:0]    <= hdisp;
@@ -319,7 +331,7 @@ assign          pack_cmd_words  = hdisp;
 assign          pack_cmd_bpw    = BYTES_PER_PIXEL-1;
 /* verilator lint_on WIDTH */
 
-wire            ack_okay;
+wire            ack_okay        = &ack_status;
 
 reg [YBITS-1:0] cmd_row;
 reg             cmd_row_first;
@@ -340,7 +352,7 @@ always @(posedge clk) begin
     end else begin
         axi_cmd_valid   <= (axi_cmd_valid  && !axi_cmd_ready ) || cmd_update;
         pack_cmd_valid  <= (pack_cmd_valid && !pack_cmd_ready) || cmd_update;
-        row_done        <= {ACKS{axi_cmd_done}};
+        row_done        <= ack_select & {ACKS{axi_cmd_done}};
     end
 end
 
@@ -385,9 +397,6 @@ end
 
 // ** ack counter(s) **
 
-wire [ACKS-1:0] ack_valids;
-assign          ack_okay        = &ack_valids;
-
 genvar j;
 generate
 for(j=0;j<ACKS;j=j+1) begin:GEN_ACKS
@@ -397,7 +406,7 @@ for(j=0;j<ACKS;j=j+1) begin:GEN_ACKS
     reg [YBITS:0]   next_ack_cnt;
     
     reg             ack_valid_r;
-    assign          ack_valids[j]   = ack_valid_r;
+    assign          ack_status[j]   = ack_valid_r;
 
     always @* begin
         next_ack_cnt = ack_cnt;
@@ -410,8 +419,8 @@ for(j=0;j<ACKS;j=j+1) begin:GEN_ACKS
     end
 
     always @(posedge clk) begin
-        if(!enabled) begin
-            ack_valid_r <= 1'b0;
+        if(!enabled || !ack_select[j]) begin
+            ack_valid_r <= !ack_select[j];
             if(WRITER) begin
                 // writer begins full
                 if(double_buffer) begin
