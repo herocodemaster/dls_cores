@@ -46,7 +46,7 @@ module dlsc_pxdma_control #(
     input   wire                    axi_cmd_ready,
     output  reg                     axi_cmd_valid,
     output  reg     [AXI_ADDR-1:0]  axi_cmd_addr,
-    output  reg     [BLEN-1:0]      axi_cmd_bytes,
+    output  wire    [BLEN-1:0]      axi_cmd_bytes,
 
     // Data unpacker/packer
     input   wire                    pack_cmd_ready,

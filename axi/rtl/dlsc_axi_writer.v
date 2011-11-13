@@ -31,10 +31,10 @@ module dlsc_axi_writer #(
 
     // AXI write data
     input   wire                    axi_w_ready,
-    output  wire                    axi_w_valid,
-    output  wire                    axi_w_last,
-    output  wire    [31:0]          axi_w_data,
-    output  wire    [3:0]           axi_w_strb,
+    output  reg                     axi_w_valid,
+    output  reg                     axi_w_last,
+    output  reg     [31:0]          axi_w_data,
+    output  reg     [3:0]           axi_w_strb,
 
     // AXI write response
     output  wire                    axi_b_ready,
