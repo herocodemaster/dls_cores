@@ -63,7 +63,7 @@ module dlsc_pxdma_writer #(
     input   wire    [PX_DATA-1:0]   px_data
 );
 
-`include "dlsc_synthesis.vh"
+`include "dlsc_clog2.vh"
 
 localparam  BLEN        = `dlsc_clog2(BYTES_PER_PIXEL*MAX_H);
 localparam  XBITS       = `dlsc_clog2(MAX_H+1);
