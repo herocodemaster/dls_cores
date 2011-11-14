@@ -1329,10 +1329,11 @@ reg    apb_sel_null;
 wire   apb_ready_null   = apb_sel_null && apb_enable;
 
 assign apb_ready        = apb_ready_pcie    | apb_ready_dmard   | apb_ready_dmawr   | apb_ready_vga     |
-                          apb_ready_i2c     | apb_ready_clkgen  | apb_ready_mt9v032 | apb_ready_null;
+                          apb_ready_i2c     | apb_ready_clkgen  | apb_ready_mt9v032 | apb_ready_pxwr0   |
+                          apb_ready_null;
 
 assign apb_rdata        = apb_rdata_pcie    | apb_rdata_dmard   | apb_rdata_dmawr   | apb_rdata_vga     |
-                          apb_rdata_i2c     | apb_rdata_clkgen  | apb_rdata_mt9v032;
+                          apb_rdata_i2c     | apb_rdata_clkgen  | apb_rdata_mt9v032 | apb_rdata_pxwr0;
 
 assign apb_slverr       = apb_slverr_pcie;
 
