@@ -128,7 +128,25 @@ reg  [1:0]      skew_val;
 // control register
 reg             ctrl_enable;
 reg             pipeline_enable_pre;
-wire [31:0]     csr_control     = { 30'd0, pipeline_enable_pre, ctrl_enable };
+reg             disable_change_rst;
+reg             disable_change_cal;
+reg             disable_skew_rst;
+reg             disable_skew;
+reg             force_skew;
+reg             force_rst;
+reg             report_all_errors;
+
+
+wire [31:0]     csr_control     = { 23'd0,
+                                    report_all_errors,
+                                    force_rst,
+                                    force_skew,
+                                    disable_skew,
+                                    disable_skew_rst,
+                                    disable_change_cal,
+                                    disable_change_rst,
+                                    pipeline_enable_pre,
+                                    ctrl_enable };
 
 assign          rst_out         = rst_in || !ctrl_enable;
 
@@ -137,11 +155,25 @@ always @(posedge clk) begin
         ctrl_enable         <= 1'b0;
         pipeline_enable_pre <= 1'b0;
         pipeline_enable     <= 1'b0;
+        disable_change_rst  <= 1'b0;
+        disable_change_cal  <= 1'b0;
+        disable_skew_rst    <= 1'b0;
+        disable_skew        <= 1'b0;
+        force_skew          <= 1'b0;
+        force_rst           <= 1'b0;
+        report_all_errors   <= 1'b0;
     end else begin
 
         if(csr_addr == REG_CONTROL) begin
             if(csr_wr[0]) ctrl_enable           <= csr_wdata[0];
             if(csr_wr[1]) pipeline_enable_pre   <= csr_wdata[1];
+            if(csr_wr[2]) disable_change_rst    <= csr_wdata[2];
+            if(csr_wr[3]) disable_change_cal    <= csr_wdata[3];
+            if(csr_wr[4]) disable_skew_rst      <= csr_wdata[4];
+            if(csr_wr[5]) disable_skew          <= csr_wdata[5];
+            if(csr_wr[6]) force_skew            <= csr_wdata[6];
+            if(csr_wr[7]) force_rst             <= csr_wdata[7];
+            if(csr_wr[8]) report_all_errors     <= csr_wdata[8];
         end
 
         if(pipeline_enable_pre && !frame_valid) begin
@@ -157,6 +189,14 @@ always @(posedge clk) begin
         begin
             pipeline_enable_pre <= 1'b0;
             pipeline_enable     <= 1'b0;
+        end
+
+        if(set_skew_done) begin
+            force_skew          <= 1'b0;
+        end
+
+        if(iod_cal_master) begin
+            force_rst           <= 1'b0;
         end
 
     end
@@ -203,14 +243,14 @@ always @(posedge clk) begin
             if(set_output_ready)    int_flags[2]    <= 1'b1;
             if(set_skew_done)       int_flags[3]    <= 1'b1;
             
-            if(interface_ready) begin
+            if(interface_ready || report_all_errors) begin
                 if(frame_start)         int_flags[4]    <= 1'b1;
                 if(frame_end)           int_flags[5]    <= 1'b1;
                 if(bitslip_error)       int_flags[6]    <= 1'b1;
                 if(sync_error)          int_flags[7]    <= 1'b1;
             end
             
-            if(output_ready) begin
+            if(output_ready || report_all_errors) begin
                 if(res_error)           int_flags[8]    <= 1'b1;
             end
 
@@ -411,7 +451,7 @@ always @* begin
             // change IOD tap
             next_iod_en         = 1'b1;
             next_iod_inc        = pd_inc; // relies on iserdes wrapper holding this value after pd_valid
-            next_st             = ST_CAL;
+            next_st             = disable_change_cal ? ST_RST : ST_CAL; // skip cal if disabled
         end
     end
     if(st == ST_CAL) begin
@@ -424,7 +464,7 @@ always @* begin
     if(st == ST_RST) begin
         if(!iod_busy_i) begin
             // calibration done; reset slave
-            next_iod_rst_slave  = 1'b1;
+            next_iod_rst_slave  = !disable_change_rst; // don't reset if disabled
             next_st             = ST_IDLE;
         end
     end
@@ -440,14 +480,22 @@ always @* begin
         cnt_clear           = 1'b1;
         if(skew_ack) begin
             // skew change made; recalibrate everything
-            next_st             = ST_INIT_CAL;
+            next_st             = disable_skew_rst ? ST_IDLE : ST_INIT_CAL;
         end
     end
 
     // clock skew
-    if( (frame_end || !interface_ready_pre) && (iod_val_max || iod_val_min) && !bitslip_mask ) begin
-        next_skew_inc       = iod_val_max;
+    if( (frame_end || !interface_ready_pre) && !bitslip_mask && (
+        ((iod_val_max || iod_val_min) && !disable_skew) || force_skew) )
+    begin
+        next_skew_inc       = force_skew ? 1'b1 : iod_val_max;
         next_st             = ST_SKEW;
+    end
+
+    // force recalibration
+    if( force_rst && !(st == ST_INIT_CAL || st == ST_INIT_RST) ) begin
+        cnt_clear           = 1'b1;
+        next_st             = ST_INIT_CAL;
     end
 
 end
