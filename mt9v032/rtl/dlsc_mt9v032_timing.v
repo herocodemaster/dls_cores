@@ -134,14 +134,14 @@ always @(posedge clk) begin
                     // count horizontal pixels
                     obs_hdisp_cnt   <= obs_hdisp_cnt + 1;
                     // check hdisp
-                    if(obs_hdisp_cnt == hdisp && !line_valid_clear) begin
+                    if(obs_hdisp_cnt == hdisp) begin
                         // hdisp overflow
                         hdisp_okay      <= 1'b0;
                         res_okay        <= 1'b0;
                         res_error       <= 1'b1;
                     end
                 end
-                if(line_valid_clear) begin
+                if(line_valid_r && line_valid_clear) begin
                     // end of line
                     // transfer and reset hdisp
                     obs_hdisp       <= obs_hdisp_cnt;
@@ -190,7 +190,7 @@ always @(posedge clk) begin
             if( ( frame_valid_r && frame_valid_set) ||
                 (!frame_valid_r && frame_valid_clear) ||
                 ( line_valid_r  && line_valid_set) ||
-                (!line_valid_r  && line_valid_clear) )
+                (!line_valid_r  && line_valid_clear && !frame_valid_clear) )
             begin
                 sync_error      <= 1'b1;
                 vdisp_okay      <= 1'b0;
