@@ -260,7 +260,7 @@ wire            pd_max      = (pd_filter == 5'b01111); // +15
 wire            pd_min      = (pd_filter == 5'b10001); // -15
 
 always @(posedge clk) begin
-    if(iod_rst_slave) begin
+    if(iod_rst_slave || iod_en) begin
         pd_filter   <= 0;
         pd_valid    <= 1'b0;
         pd_inc      <= 1'b0;
