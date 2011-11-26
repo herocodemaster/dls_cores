@@ -200,33 +200,32 @@ reg  [31:0]     pcie_apb_rdata;
 generate
 
 if(APB_CLK_DOMAIN!=0 && APB_CONFIG_EN!=0) begin:GEN_APB_CONFIG_ASYNC
-    // TODO: fix APB config space access when pcie_rst is asserted
     dlsc_apb_domaincross #(
         .DATA           ( 32 ),
         .ADDR           ( 10 )
     ) dlsc_apb_domaincross_trans (
-        .m_clk          ( apb_clk ),
-        .m_rst          ( apb_pcie_rst ),
-        .m_apb_addr     ( apb_addr[11:2] ),
-        .m_apb_sel      ( apb_pcie_sel ),
-        .m_apb_enable   ( apb_enable ),
-        .m_apb_write    ( apb_write ),
-        .m_apb_wdata    ( 32'd0 ),
-        .m_apb_strb     ( 4'd0 ),
-        .m_apb_ready    ( apb_pcie_ready ),
-        .m_apb_rdata    ( apb_pcie_rdata ),
-        .m_apb_slverr   (  ),
-        .s_clk          ( pcie_clk ),
-        .s_rst          ( pcie_rst ),
-        .s_apb_addr     ( pcie_apb_addr ),
-        .s_apb_sel      ( pcie_apb_sel ),
-        .s_apb_enable   ( pcie_apb_enable ),
-        .s_apb_write    ( pcie_apb_write ),
-        .s_apb_wdata    (  ),
-        .s_apb_strb     (  ),
-        .s_apb_ready    ( pcie_apb_ready ),
-        .s_apb_rdata    ( pcie_apb_rdata ),
-        .s_apb_slverr   ( 1'b0 )
+        .in_clk         ( apb_clk ),
+        .in_rst         ( apb_pcie_rst ),
+        .in_addr        ( apb_addr[11:2] ),
+        .in_sel         ( apb_pcie_sel ),
+        .in_enable      ( apb_enable ),
+        .in_write       ( apb_write ),
+        .in_wdata       ( 32'd0 ),
+        .in_strb        ( 4'd0 ),
+        .in_ready       ( apb_pcie_ready ),
+        .in_rdata       ( apb_pcie_rdata ),
+        .in_slverr      (  ),
+        .out_clk        ( pcie_clk ),
+        .out_rst        ( pcie_rst ),
+        .out_addr       ( pcie_apb_addr ),
+        .out_sel        ( pcie_apb_sel ),
+        .out_enable     ( pcie_apb_enable ),
+        .out_write      ( pcie_apb_write ),
+        .out_wdata      (  ),
+        .out_strb       (  ),
+        .out_ready      ( pcie_apb_ready ),
+        .out_rdata      ( pcie_apb_rdata ),
+        .out_slverr     ( 1'b0 )
     );
 end else begin:GEN_APB_CONFIG_SYNC
     assign  pcie_apb_addr   = apb_addr[11:2];

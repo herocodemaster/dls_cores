@@ -13,6 +13,7 @@ SP_FILES        += dlsc_apb_tlm_slave_32b.sp
 V_PARAMS_DEF    += \
     DATA=32 \
     ADDR=32 \
+    RESET_SLVERR=1 \
     M_CLK=10.0 \
     S_CLK=11.3
 

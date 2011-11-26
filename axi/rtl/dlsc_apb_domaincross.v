@@ -28,144 +28,244 @@
 // Provides an asynchronous clock domain crossing for an APB bus.
 
 module dlsc_apb_domaincross #(
-    parameter DATA      = 32,
-    parameter ADDR      = 32,
+    parameter DATA          = 32,
+    parameter ADDR          = 32,
+    parameter RESET_SLVERR  = 1,    // generate slverr response if slave is in reset
     // derived; don't touch
-    parameter STRB      = (DATA/8)
+    parameter STRB          = (DATA/8)
 ) (
     // master domain
     // (connects to an APB master; is really an APB slave port)
-    input   wire                    m_clk,
-    input   wire                    m_rst,
+    input   wire                    in_clk,
+    input   wire                    in_rst,
     
-    input   wire    [ADDR-1:0]      m_apb_addr,
-    input   wire                    m_apb_sel,
-    input   wire                    m_apb_enable,
-    input   wire                    m_apb_write,
-    input   wire    [DATA-1:0]      m_apb_wdata,
-    input   wire    [STRB-1:0]      m_apb_strb,
+    input   wire    [ADDR-1:0]      in_addr,
+    input   wire                    in_sel,
+    input   wire                    in_enable,
+    input   wire                    in_write,
+    input   wire    [DATA-1:0]      in_wdata,
+    input   wire    [STRB-1:0]      in_strb,
 
-    output  wire                    m_apb_ready,
-    output  wire    [DATA-1:0]      m_apb_rdata,
-    output  wire                    m_apb_slverr,
+    output  reg                     in_ready,
+    output  wire    [DATA-1:0]      in_rdata,
+    output  wire                    in_slverr,
 
     // slave domain
     // (connects to an APB slave; is really an APB master port)
-    input   wire                    s_clk,
-    input   wire                    s_rst,
+    input   wire                    out_clk,
+    input   wire                    out_rst,
     
-    output  wire    [ADDR-1:0]      s_apb_addr,
-    output  wire                    s_apb_sel,
-    output  reg                     s_apb_enable,
-    output  wire                    s_apb_write,
-    output  wire    [DATA-1:0]      s_apb_wdata,
-    output  wire    [STRB-1:0]      s_apb_strb,
+    output  wire    [ADDR-1:0]      out_addr,
+    output  reg                     out_sel,
+    output  reg                     out_enable,
+    output  wire                    out_write,
+    output  wire    [DATA-1:0]      out_wdata,
+    output  wire    [STRB-1:0]      out_strb,
 
-    input   wire                    s_apb_ready,
-    input   wire    [DATA-1:0]      s_apb_rdata,
-    input   wire                    s_apb_slverr
+    input   wire                    out_ready,
+    input   wire    [DATA-1:0]      out_rdata,
+    input   wire                    out_slverr
+);
+
+`include "dlsc_synthesis.vh"
+
+localparam CMD = ADDR+DATA+STRB;
+
+`DLSC_KEEP_REG reg m_req;
+`DLSC_KEEP_REG reg s_ack;
+
+
+// ** master domain **
+
+localparam  ST_CMD      = 0,
+            ST_RSP      = 1,
+            ST_RST      = 2;
+
+reg  [1:0]      st;
+reg  [1:0]      next_st;
+
+wire            m_s_ack;    // ack from slave domain
+wire            m_s_rst;    // reset from slave domain
+
+always @* begin
+
+    next_st     = st;
+
+    if(st == ST_CMD && in_sel && !in_ready) begin
+        if(m_s_rst) begin
+            next_st     = ST_RST;
+        end else if(!m_s_ack) begin
+            next_st     = ST_RSP;
+        end
+    end
+
+    if(st == ST_RSP) begin
+        if(m_s_rst) begin
+            next_st     = ST_RST;
+        end else if(m_s_ack) begin
+            next_st     = ST_CMD;
+        end
+    end
+
+    if(st == ST_RST) begin
+        next_st     = ST_CMD;
+    end
+
+end
+
+reg             in_slverr_force;
+
+always @(posedge in_clk) begin
+    if(in_rst) begin
+        st              <= ST_CMD;
+        m_req           <= 1'b0;
+        in_slverr_force <= 1'b0;
+        in_ready        <= 1'b0;
+    end else begin
+        st              <= next_st;
+        m_req           <= (next_st == ST_RSP);
+        in_slverr_force <= (next_st == ST_RST) && RESET_SLVERR;
+        in_ready        <= (next_st == ST_RST) || (st == ST_RSP && m_s_ack);
+    end
+end
+
+wire            in_slverr_pre;
+assign          in_slverr       = in_slverr_pre || in_slverr_force;
+
+
+// ** sync **
+
+// handshake
+
+wire            s_m_req;
+
+dlsc_syncflop #(
+    .DATA       ( 1 ),
+    .RESET      ( 1'b0 )
+) dlsc_syncflop_req (
+    .in         ( m_req ),
+    .clk        ( out_clk ),
+    .rst        ( out_rst ),
+    .out        ( s_m_req )
+);
+
+dlsc_syncflop #(
+    .DEPTH      ( 3 ),      // one more than reset path
+    .DATA       ( 1 ),
+    .RESET      ( 1'b1 )
+) dlsc_syncflop_ack (
+    .in         ( s_ack ),
+    .clk        ( in_clk ),
+    .rst        ( in_rst || m_s_rst ),
+    .out        ( m_s_ack )
+);
+
+dlsc_syncflop #(
+    .DEPTH      ( 2 ),      // one less than ack path
+    .DATA       ( 1 ),
+    .RESET      ( 1'b1 )
+) dlsc_syncflop_rst (
+    .in         ( out_rst ),
+    .clk        ( in_clk ),
+    .rst        ( in_rst ),
+    .out        ( m_s_rst )
 );
 
 // master -> slave
 
-wire            m_c_ready;
-wire            m_c_valid;
-wire            s_c_ready;
-wire            s_c_valid;
+wire            m_cmd_en        = in_sel && !in_enable && !m_s_rst;
 
-dlsc_domaincross_rvh #(
-    .DATA       ( ADDR+1+DATA+STRB )
-) dlsc_domaincross_rvh_command (
-    .in_clk     ( m_clk ),
-    .in_rst     ( m_rst ),
-    .in_ready   ( m_c_ready ),
-    .in_valid   ( m_c_valid ),
-    .in_data    ( {
-        m_apb_addr,
-        m_apb_write,
-        m_apb_wdata,
-        m_apb_strb } ),
-    .out_clk    ( s_clk ),
-    .out_rst    ( s_rst ),
-    .out_ready  ( s_c_ready ),
-    .out_valid  ( s_c_valid ),
-    .out_data   ( {
-        s_apb_addr,
-        s_apb_write,
-        s_apb_wdata,
-        s_apb_strb } )
+wire            s_cmd_en        = s_m_req && !out_sel && !s_ack;
+
+wire [CMD:0]    in_cmd          = { in_addr,
+                                    in_write,
+                                    in_wdata,
+                                    in_strb };
+
+wire [CMD:0]    out_cmd;
+assign        { out_addr,
+                out_write,
+                out_wdata,
+                out_strb }      = out_cmd;
+
+dlsc_domaincross_slice dlsc_domaincross_slice_cmd [CMD:0] (
+    .in_clk     ( in_clk ),
+    .in_rst     ( 1'b0 ),
+    .in_en      ( m_cmd_en ),
+    .in_data    ( in_cmd ),
+    .out_clk    ( out_clk ),
+    .out_rst    ( 1'b0 ),
+    .out_en     ( s_cmd_en ),
+    .out_data   ( out_cmd )
 );
-
 
 // slave -> master
 
-wire            s_r_ready;
-wire            s_r_valid;
-wire            m_r_ready;
-wire            m_r_valid;
+wire            s_rsp_en        = (out_enable && out_ready);
 
-dlsc_domaincross_rvh #(
-    .DATA       ( DATA+1 ),
-    .RESET      ( {(DATA+1){1'b0}} ),
-    .RESET_ON_TRANSFER ( 1 )
-) dlsc_domaincross_rvh_response (
-    .in_clk     ( s_clk ),
-    .in_rst     ( s_rst ),
-    .in_ready   ( s_r_ready ),
-    .in_valid   ( s_r_valid ),
-    .in_data    ( {
-        s_apb_rdata,
-        s_apb_slverr } ),
-    .out_clk    ( m_clk ),
-    .out_rst    ( m_rst ),
-    .out_ready  ( m_r_ready ),
-    .out_valid  ( m_r_valid ),
-    .out_data   ( {
-        m_apb_rdata,
-        m_apb_slverr } )
+wire            m_rsp_rst       = (in_enable && in_ready) || in_rst;
+wire            m_rsp_en        = m_s_ack && !m_s_rst && (st == ST_RSP);
+
+wire [DATA:0]   out_rsp         = { out_rdata,
+                                    out_slverr };
+
+wire [DATA:0]   in_rsp;
+assign        { in_rdata,
+                in_slverr_pre } = in_rsp;
+
+dlsc_domaincross_slice dlsc_domaincross_slice_rsp [DATA:0] (
+    .in_clk     ( out_clk ),
+    .in_rst     ( 1'b0 ),
+    .in_en      ( s_rsp_en ),
+    .in_data    ( out_rsp ),
+    .out_clk    ( in_clk ),
+    .out_rst    ( m_rsp_rst ),
+    .out_en     ( m_rsp_en ),
+    .out_data   ( in_rsp )
 );
 
 
-// master side handshaking
+// ** slave domain **
 
-reg             m_launched;
-
-assign          m_c_valid       = m_apb_sel && !m_launched;
-assign          m_apb_ready     = m_r_valid;
-assign          m_r_ready       = 1'b1;
-
-always @(posedge m_clk) begin
-    if(m_rst) begin
-        m_launched      <= 1'b0;
+always @(posedge out_clk) begin
+    if(out_rst) begin
+        s_ack       <= 1'b1;
+        out_sel     <= 1'b0;
+        out_enable  <= 1'b0;
     end else begin
-        if(m_apb_ready) begin
-            m_launched      <= 1'b0;
+        if(!s_m_req) begin
+            s_ack       <= 1'b0;
         end
-        if(m_c_ready && m_c_valid) begin
-            m_launched      <= 1'b1;
+        if(s_cmd_en) begin
+            out_sel     <= 1'b1;
+        end
+        if(out_sel) begin
+            out_enable  <= 1'b1;
+        end
+        if(s_rsp_en) begin
+            out_sel     <= 1'b0;
+            out_enable  <= 1'b0;
+            s_ack       <= 1'b1;
         end
     end
 end
 
 
-// slave side handshaking
+// ** simulation checks **
 
-assign          s_apb_sel       = s_c_valid && s_r_ready;
-assign          s_c_ready       = s_apb_enable && s_apb_ready;
-assign          s_r_valid       = s_c_ready;
+`ifdef DLSC_SIMULATION
+`include "dlsc_sim_top.vh"
 
-always @(posedge s_clk) begin
-    if(s_rst) begin
-        s_apb_enable    <= 1'b0;
-    end else begin
-        if(s_apb_sel) begin
-            s_apb_enable    <= 1'b1;
-        end
-        if(s_c_ready) begin
-            s_apb_enable    <= 1'b0;
-        end
+always @(negedge out_rst) begin
+    // out_rst deasserted
+    // check that it was long enough for master domain to respond
+    if( !(m_s_rst && m_s_ack && !m_req) ) begin
+        `dlsc_error("out_rst pulse was too short");
     end
 end
+
+`include "dlsc_sim_bot.vh"
+`endif
 
 
 endmodule
