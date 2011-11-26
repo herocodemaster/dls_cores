@@ -28,9 +28,9 @@
 // 2-level synchronizer flipflop for asynchronous domain crossing.
 
 module dlsc_syncflop_slice (
+    in,
     clk,
     rst,
-    in,
     out
 );
 
@@ -38,44 +38,78 @@ module dlsc_syncflop_slice (
 
 `include "dlsc_synthesis.vh"
 
-parameter [0:0] RESET = 1'b0;
-parameter ASYNC = 0;        // asynchronous reset
+parameter       DEPTH = 2;          // >= 2
+parameter       ASYNC = 0;          // asynchronous reset
+parameter [0:0] RESET = 1'b0;       // reset value
 
+input   in;
 input   clk;
 input   rst;
-input   in;
 output  out;
 
+wire    in;
 wire    clk;
 wire    rst;
-wire    in;
-
-`DLSC_PIPE_REG reg       out;
+wire    out;
 
 `DLSC_SYNCFLOP reg [1:0] sreg;
 
 generate
-if(ASYNC==0) begin:GEN_SYNC_RESET
+
+if(ASYNC==0) begin:GEN_SYNC
 
     always @(posedge clk) begin
         if(rst) begin
-            {out,sreg} <= {3{RESET[0]}};
+            sreg    <= {2{RESET[0]}};
         end else begin
-            {out,sreg} <= {sreg,in};
+            sreg    <= {sreg[0],in};
         end
     end
 
-end else begin:GEN_ASYNC_RESET
+end else begin:GEN_ASYNC
 
     always @(posedge clk or posedge rst) begin
         if(rst) begin
-            {out,sreg} <= {3{RESET[0]}};
+            sreg    <= {2{RESET[0]}};
         end else begin
-            {out,sreg} <= {sreg,in};
+            sreg    <= {sreg[0],in};
         end
     end
 
 end
+
+if(DEPTH<=2) begin:GEN_DEPTH_2
+
+    assign  out     = sreg[1];
+
+end else begin:GEN_DEPTH_N
+
+    `DLSC_PIPE_REG reg [DEPTH-1:2] extra;
+
+    wire [DEPTH:2]  next_extra  = {extra,sreg[1]};
+
+    assign          out         = extra[DEPTH-1];
+
+    if(ASYNC==0) begin:GEN_SYNC
+        always @(posedge clk) begin
+            if(rst) begin
+                extra   <= {(DEPTH-2){RESET[0]}};
+            end else begin
+                extra   <= next_extra[DEPTH-1:2];
+            end
+        end
+    end else begin:GEN_ASYNC
+        always @(posedge clk or posedge rst) begin
+            if(rst) begin
+                extra   <= {(DEPTH-2){RESET[0]}};
+            end else begin
+                extra   <= next_extra[DEPTH-1:2];
+            end
+        end
+    end
+
+end
+
 endgenerate
 
 /* verilator lint_on SYNCASYNCNET */

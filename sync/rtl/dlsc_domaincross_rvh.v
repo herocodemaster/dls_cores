@@ -31,6 +31,7 @@
 
 module dlsc_domaincross_rvh #(
     parameter               DATA                = 32,
+    parameter               DEPTH               = 2,        // depth of synchronizers on handshake signals
 `ifndef ICARUS
     // Icarus crashes with explicit parameter size; Verilator fails without it.
     parameter [DATA-1:0]    RESET               = {DATA{1'b0}},
@@ -132,6 +133,7 @@ endgenerate
 
 dlsc_syncflop #(
     .DATA   ( 1 ),
+    .DEPTH  ( DEPTH ),
     .RESET  ( 1'b1 )
 ) dlsc_syncflop_inst_in (
     .in     ( out_ackx ),
@@ -142,6 +144,7 @@ dlsc_syncflop #(
 
 dlsc_syncflop #(
     .DATA   ( 1 ),
+    .DEPTH  ( DEPTH ),
     .RESET  ( 1'b0 )
 ) dlsc_syncflop_inst_out (
     .in     ( in_flagx ),

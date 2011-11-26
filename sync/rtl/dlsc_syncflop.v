@@ -29,6 +29,7 @@
 
 module dlsc_syncflop #(
     parameter            DATA  = 1,
+    parameter            DEPTH = 2, 
 `ifndef ICARUS
     // Icarus crashes with explicit parameter size; Verilator fails without it.
     parameter [DATA-1:0] RESET = {DATA{1'b0}}
@@ -37,11 +38,11 @@ module dlsc_syncflop #(
 `endif
 ) (
     // asynchronous input
-    input   wire                rst,
     input   wire    [DATA-1:0]  in,
 
     // synchronized output
     input   wire                clk,
+    input   wire                rst,
     output  wire    [DATA-1:0]  out
 );
 
@@ -49,6 +50,7 @@ generate
     genvar j;
     for(j=0;j<DATA;j=j+1) begin:GEN_SYNCFLOPS
         dlsc_syncflop_slice #(
+            .DEPTH  ( DEPTH ),
             .RESET  ( RESET[j] ),
             .ASYNC  ( 0 )
         ) dlsc_syncflop_slice_inst  (
