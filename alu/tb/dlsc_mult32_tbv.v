@@ -6,7 +6,8 @@ module `DLSC_TB;
 
 `define STRINGIFY(d) `"d`"
 localparam DEVICE       = `STRINGIFY(`PARAM_DEVICE);
-localparam REGISTER     = `PARAM_REGISTER;
+localparam REGISTER_IN  = `PARAM_REGISTER_IN;
+localparam REGISTER_OUT = `PARAM_REGISTER_OUT;
 
 reg                 clk     = 1'b0;
 
@@ -26,7 +27,8 @@ wire                done16;
 
 `DLSC_DUT #(
     .DEVICE ( DEVICE ),
-    .REGISTER ( REGISTER )
+    .REGISTER_IN (REGISTER_IN),
+    .REGISTER_OUT (REGISTER_OUT)
 ) dut (
     .clk ( clk ),
     .in0 ( in0 ),

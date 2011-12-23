@@ -39,8 +39,10 @@
 // current multiplication.
 
 module dlsc_mult32 #(
-    parameter DEVICE    = "GENERIC",
-    parameter REGISTER  = 0                 // register out[63:34] (otherwise connect directly to multiplier block)
+    parameter DEVICE        = "GENERIC",
+    parameter REGISTER      = 1,
+    parameter REGISTER_IN   = REGISTER,     // register in0/in1 (otherwise connect directly to multiplier block)
+    parameter REGISTER_OUT  = REGISTER      // register out[63:34] (otherwise connect directly to multiplier block)
 ) (
     input   wire                clk,
 
@@ -91,14 +93,26 @@ localparam C_ZERO   = 2'b00,
 reg  [2:0]  out_en  = 3'h0;
 reg         active  = 1'b0;
 
+wire        ce_in   = active || (!REGISTER_IN && start);
+wire        ce_ctrl = active;
+wire        ce_m    = active;
+wire        ce_p    = active;
+
 always @(posedge clk) begin
     if(start) begin
 
-        cnt         <= 0;
-
-        mult_a_sel  <= 1'b0;
-        mult_b_sel  <= 1'b0;
-        mult_c_sel  <= C_ZERO;
+        if(REGISTER_IN) begin
+            cnt         <= 0;
+            mult_a_sel  <= 1'b0;
+            mult_b_sel  <= 1'b0;
+            mult_c_sel  <= C_ZERO;
+        end else begin
+            // skip state 0
+            cnt         <= 1;
+            mult_a_sel  <= 1'b1;
+            mult_b_sel  <= 1'b0;
+            mult_c_sel  <= C_ZERO;
+        end
 
         out_en      <= 3'h0;
 
@@ -158,7 +172,7 @@ always @(posedge clk) begin
                 // 2nd through output
                 // 1st through output
                 done33      <= 1'b1;
-                if(REGISTER) begin
+                if(REGISTER_OUT) begin
                     out_en[2]   <= 1'b1;
                 end else begin
                     done        <= 1'b1;
@@ -170,7 +184,7 @@ always @(posedge clk) begin
                 // 3rd through output
                 // 2nd through output
                 // 1st through output
-                if(REGISTER) begin
+                if(REGISTER_OUT) begin
                     done        <= 1'b1;
                     active      <= 1'b0;
                 end
@@ -183,8 +197,19 @@ end
 
 
 // multipler inputs
-wire signed [17:0] mult_a = mult_a_sel ? in0_hi : in0_lo;
-wire signed [17:0] mult_b = mult_b_sel ? in1_hi : in1_lo;
+reg signed [17:0] mult_a;
+reg signed [17:0] mult_b;
+
+always @* begin
+    if(!REGISTER_IN && start) begin
+        // bypass input directly to multiplier
+        mult_a = { 1'b0, in0[16:0] };
+        mult_b = { 1'b0, in1[16:0] };
+    end else begin
+        mult_a = mult_a_sel ? in0_hi : in0_lo;
+        mult_b = mult_b_sel ? in1_hi : in1_lo;
+    end
+end
 
 // output
 wire signed [47:0] p;
@@ -196,7 +221,7 @@ always @(posedge clk) begin
     if(out_en[2]) out_r[63:34] <= p[29:0];
 end
 
-assign out = REGISTER ? out_r : { p[29:0], out_r[33:0] };
+assign out = REGISTER_OUT ? out_r : { p[29:0], out_r[33:0] };
 
 // multiplier
 generate
@@ -212,9 +237,10 @@ if(`DLSC_XILINX_DSP48) begin:GEN_XILINX_DSP48
         opmode[3:2] = 2'd1; // post-adder Y input from multiplier (partial-product 2)
         // post-adder Z input
         case(mult_c_sel)
+            C_ZERO:  opmode[6:4] = 3'd0; // 0
             C_PREG:  opmode[6:4] = 3'd2; // from P register
             C_PR17:  opmode[6:4] = 3'd6; // shifted P register (P >>> 17)
-            default: opmode[6:4] = 3'd0; // 0
+            default: opmode[6:4] = 3'hX;
         endcase
     end
 
@@ -240,14 +266,14 @@ if(`DLSC_XILINX_DSP48) begin:GEN_XILINX_DSP48
         .C              ( 48'd0 ),      // 48-bit cascade input
         .CARRYIN        ( 1'b0 ),       // Carry input signal
         .CARRYINSEL     ( 2'b00 ),      // 2-bit carry input select
-        .CEA            ( active ),     // A data clock enable input
-        .CEB            ( active ),     // B data clock enable input
-        .CEC            ( active ),     // C data clock enable input
-        .CECARRYIN      ( active ),     // CARRYIN clock enable input
-        .CECINSUB       ( active ),     // CINSUB clock enable input
-        .CECTRL         ( active ),     // Clock Enable input for CTRL regsiters
-        .CEM            ( active ),     // Clock Enable input for multiplier regsiters
-        .CEP            ( active ),     // Clock Enable input for P regsiters
+        .CEA            ( ce_in ),      // A data clock enable input
+        .CEB            ( ce_in ),      // B data clock enable input
+        .CEC            ( 1'b0 ),       // C data clock enable input
+        .CECARRYIN      ( 1'b0 ),       // CARRYIN clock enable input
+        .CECINSUB       ( ce_ctrl ),    // CINSUB clock enable input
+        .CECTRL         ( ce_ctrl ),    // Clock Enable input for CTRL regsiters
+        .CEM            ( ce_m ),       // Clock Enable input for multiplier regsiters
+        .CEP            ( ce_p ),       // Clock Enable input for P regsiters
         .CLK            ( clk ),        // Clock input
         .OPMODE         ( opmode ),     // 7-bit operation mode input
         .PCIN           ( 48'd0 ),      // 48-bit PCIN input 
@@ -274,9 +300,10 @@ end else if(`DLSC_XILINX_DSP48A) begin:GEN_XILINX_DSP48A
         opmode[7]   = 1'b0; // post-adder adds
         // post-adder Z input
         case(mult_c_sel)
+            C_ZERO:  opmode[3:2] = 2'd0; // 0
             C_PREG:  opmode[3:2] = 2'd2; // from P register
             C_PR17:  opmode[3:2] = 2'd3; // from C port (P >>> 17)
-            default: opmode[3:2] = 2'd0; // 0
+            default: opmode[3:2] = 2'hX;
         endcase
     end
 
@@ -304,14 +331,14 @@ end else if(`DLSC_XILINX_DSP48A) begin:GEN_XILINX_DSP48A
         .B              ( mult_b ),     // 18-bit B data input (can be connected to fabric or BCOUT of adjacent DSP48A)
         .C              ( mult_c ),     // 48-bit C data input
         .CARRYIN        ( 1'b0 ),       // 1-bit carry input signal
-        .CEA            ( active ),     // 1-bit active high clock enable input for A input registers
-        .CEB            ( active ),     // 1-bit active high clock enable input for B input registers
-        .CEC            ( active ),     // 1-bit active high clock enable input for C input registers
-        .CECARRYIN      ( active ),     // 1-bit active high clock enable input for CARRYIN registers
-        .CED            ( active ),     // 1-bit active high clock enable input for D input registers
-        .CEM            ( active ),     // 1-bit active high clock enable input for multiplier registers
-        .CEOPMODE       ( active ),     // 1-bit active high clock enable input for OPMODE registers
-        .CEP            ( active ),     // 1-bit active high clock enable input for P output registers
+        .CEA            ( ce_in ),      // 1-bit active high clock enable input for A input registers
+        .CEB            ( ce_in ),      // 1-bit active high clock enable input for B input registers
+        .CEC            ( 1'b0 ),       // 1-bit active high clock enable input for C input registers
+        .CECARRYIN      ( 1'b0 ),       // 1-bit active high clock enable input for CARRYIN registers
+        .CED            ( 1'b0 ),       // 1-bit active high clock enable input for D input registers
+        .CEM            ( ce_m ),       // 1-bit active high clock enable input for multiplier registers
+        .CEOPMODE       ( ce_ctrl ),    // 1-bit active high clock enable input for OPMODE registers
+        .CEP            ( ce_p ),       // 1-bit active high clock enable input for P output registers
         .CLK            ( clk ),        // Clock input
         .D              ( 18'd0 ),      // 18-bit B pre-adder data input
         .OPMODE         ( opmode ),     // 8-bit operation mode input
@@ -344,23 +371,31 @@ begin:GEN_GENERIC
     reg signed [47:0] mult_c;
     always @* begin
         case(cs_reg)
+            C_ZERO:  mult_c = 48'd0;
             C_PREG:  mult_c = p_reg;
             C_PR17:  mult_c = { {17{p_reg[47]}}, p_reg[47:17] };
-            default: mult_c = 48'd0;
+            default: mult_c = {48{1'bx}};
         endcase
     end
 
-    always @(posedge clk) if(active) begin
-        // input registers
-        cs_reg  <= mult_c_sel;
-        a1_reg  <= mult_a;
-        b1_reg  <= mult_b;
-
-        // multiplier
-        m_reg   <= a1_reg * b1_reg;
-
-        // post-addder
-        p_reg   <= { {12{m_reg[35]}}, m_reg } + mult_c;
+    always @(posedge clk) begin
+        if(ce_in) begin
+            // input registers
+            a1_reg  <= mult_a;
+            b1_reg  <= mult_b;
+        end
+        if(ce_ctrl) begin
+            // control registers
+            cs_reg  <= mult_c_sel;
+        end
+        if(ce_m) begin
+            // multiplier
+            m_reg   <= a1_reg * b1_reg;
+        end
+        if(ce_p) begin
+            // post-addder
+            p_reg   <= { {12{m_reg[35]}}, m_reg } + mult_c;
+        end
     end
 
     // output
