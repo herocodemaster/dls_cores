@@ -1,20 +1,21 @@
 
 include $(DLSC_MAKEFILE_TOP)
 
-DLSC_DEPENDS    += alu
+DLSC_DEPENDS    += alu xilinx
 
 V_DUT           += dlsc_mult32.v
 
-SP_TESTBENCH    += dlsc_mult32_tb.sp
+V_TESTBENCH     += dlsc_mult32_tbv.v
 
 V_PARAMS_DEF    += \
+    DEVICE=GENERIC \
     REGISTER=0
 
 sims0:
 	$(MAKE) -f $(THIS) V_PARAMS=""
-
-sims1:
 	$(MAKE) -f $(THIS) V_PARAMS="REGISTER=1"
+	$(MAKE) -f $(THIS) V_PARAMS="DEVICE=SPARTAN6"
+	$(MAKE) -f $(THIS) V_PARAMS="DEVICE=VIRTEX6"
 
 include $(DLSC_MAKEFILE_BOT)
 
