@@ -25,35 +25,45 @@
 //
 
 `ifndef DLSC_DEVICES_INCLUDED
+    `define DLSC_DEVICES_INCLUDED
+    // allow local DEVICE parameter to be overridden by global `define
+    `ifndef DLSC_DEVICE
+        `define DLSC_DEVICE DEVICE
+    `endif
+`endif
+    
+/* verilator lint_off WIDTH */
 
 `ifdef XILINX
-
     // DSP48A1 new for Spartan-6
     // (backward compatible with DSP48A, but not Virtex class DSP48s)
-    `define DLSC_XILINX_DSP48A1     (DEVICE == "SPARTAN6")
+    localparam DLSC_XILINX_DSP48A1  = ( `DLSC_DEVICE == "SPARTAN6");
 
     // DSP48A new for Spartan-3A DSP
     // (derived from DSP48, but not strictly compatible with it)
-    `define DLSC_XILINX_DSP48A      (DEVICE == "SPARTAN3ADSP" || \
-                                     `DLSC_XILINX_DSP48A1 )
+    localparam DLSC_XILINX_DSP48A   = ( `DLSC_DEVICE == "SPARTAN3ADSP" ||
+                                        DLSC_XILINX_DSP48A1 );
 
     // DSP48E1 new for Virtex-6
     // (backward compatible with DSP48E)
-    `define DLSC_XILINX_DSP48E1     (DEVICE == "VIRTEX6" || \
-                                     DEVICE == "ARTIX7"  || \
-                                     DEVICE == "KINTEX7" || \
-                                     DEVICE == "VIRTEX7" )
+    localparam DLSC_XILINX_DSP48E1  = ( `DLSC_DEVICE == "VIRTEX6" ||
+                                        `DLSC_DEVICE == "ARTIX7"  ||
+                                        `DLSC_DEVICE == "KINTEX7" ||
+                                        `DLSC_DEVICE == "VIRTEX7" );
 
     // DSP48E new for Virtex-5
     // (backward compatible with DSP48)
-    `define DLSC_XILINX_DSP48E      (DEVICE == "VIRTEX5" || \
-                                     `DLSC_XILINX_DSP48E1 )
+    localparam DLSC_XILINX_DSP48E   = ( `DLSC_DEVICE == "VIRTEX5" ||
+                                        DLSC_XILINX_DSP48E1 );
 
     // DSP48 new for Virtex-4
-    `define DLSC_XILINX_DSP48       (DEVICE == "VIRTEX4" || \
-                                     `DLSC_XILINX_DSP48E )
+    localparam DLSC_XILINX_DSP48    = ( `DLSC_DEVICE == "VIRTEX4" ||
+                                        DLSC_XILINX_DSP48E );
 
+    // LUT6 present in Spartan 6+ and Virtex 5+
+    localparam DLSC_XILINX_LUT6     = ( DLSC_XILINX_DSP48A1 ||
+                                        DLSC_XILINX_DSP48E );
 `endif // XILINX
 
-`endif // DLSC_DEVICES_INCLUDED
+/* verilator lint_on WIDTH */
 

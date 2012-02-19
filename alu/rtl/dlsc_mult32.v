@@ -227,7 +227,7 @@ assign out = REGISTER_OUT ? out_r : { p[29:0], out_r[33:0] };
 generate
 
 `ifdef XILINX
-if(`DLSC_XILINX_DSP48) begin:GEN_XILINX_DSP48
+if(DLSC_XILINX_DSP48) begin:GEN_XILINX_DSP48
 
     // Virtex-class DSP block
 
@@ -287,7 +287,7 @@ if(`DLSC_XILINX_DSP48) begin:GEN_XILINX_DSP48
         .SUBTRACT       ( 1'b0 )        // SUBTRACT input
     );
 
-end else if(`DLSC_XILINX_DSP48A) begin:GEN_XILINX_DSP48A
+end else if(DLSC_XILINX_DSP48A) begin:GEN_XILINX_DSP48A
 
     // Spartan-class DSP block
 
@@ -307,7 +307,7 @@ end else if(`DLSC_XILINX_DSP48A) begin:GEN_XILINX_DSP48A
         endcase
     end
 
-    wire [47:0] mult_c = { {17{p[47]}}, p[47:17] };
+    wire signed [47:0] mult_c = p >>> 17;
 
     DSP48A #(
         .A0REG          ( 0 ),          // Enable=1/disable=0 first stage A input pipeline register
@@ -373,7 +373,7 @@ begin:GEN_GENERIC
         case(cs_reg)
             C_ZERO:  mult_c = 48'd0;
             C_PREG:  mult_c = p_reg;
-            C_PR17:  mult_c = { {17{p_reg[47]}}, p_reg[47:17] };
+            C_PR17:  mult_c = p_reg >>> 17;
             default: mult_c = {48{1'bx}};
         endcase
     end
