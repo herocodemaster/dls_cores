@@ -32,6 +32,8 @@ module dlsc_fifo_ram #(
     parameter ADDR          = 4,    // depth of FIFO is 2**ADDR
     parameter ALMOST_FULL   = 0,    // assert almost_full when <= ALMOST_FULL free spaces remain (0 makes it equivalent to full)
     parameter ALMOST_EMPTY  = 0,    // assert almost_empty when <= ALMOST_EMPTY valid entries remain (0 makes it equivalent to empty)
+    parameter COUNT         = 0,    // enable rd_count port
+    parameter FREE          = 0,    // enable wr_free port
     parameter FAST_FLAGS    = 0,    // disallow pessimistic flags
     parameter FULL_IN_RESET = 0,    // force full flags to be set when in reset
     parameter BRAM          = (DATA*(2**ADDR)>=4096) // use block RAM (instead of distributed RAM)
@@ -150,10 +152,18 @@ end
 
 // ** flags **
 
+wire [ADDR:0]   cnt;
+wire [ADDR:0]   free;
+
+assign          rd_count        = COUNT ? cnt  : {(ADDR+1){1'bx}};
+assign          wr_free         = FREE  ? free : {(ADDR+1){1'bx}};
+
 dlsc_fifo_counter #(
     .ADDR           ( ADDR ),
     .ALMOST_FULL    ( ALMOST_FULL ),
     .ALMOST_EMPTY   ( ALMOST_EMPTY ),
+    .COUNT          ( 1 ),              // we need rd_count to generate rd_en
+    .FREE           ( FREE ),
     .FAST_FLAGS     ( FAST_FLAGS ),
     .FULL_IN_RESET  ( FULL_IN_RESET )
 ) dlsc_fifo_counter_inst (
@@ -162,15 +172,15 @@ dlsc_fifo_counter #(
     .wr_push        ( wr_push ),
     .wr_full        ( wr_full ),
     .wr_almost_full ( wr_almost_full ),
-    .wr_free        ( wr_free ),
+    .wr_free        ( free ),
     .rd_pop         ( rd_pop ),
     .rd_empty       ( rd_empty ),
     .rd_almost_empty( rd_almost_empty ),
-    .rd_count       ( rd_count )
+    .rd_count       ( cnt )
 );
 
 // read on pop, or after first entry is written
-assign          rd_en           = rd_pop || (rd_empty && rd_count == 1);
+assign          rd_en           = rd_pop || (rd_empty && cnt == 1);
 
 endmodule
 

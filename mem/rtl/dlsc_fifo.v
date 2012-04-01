@@ -176,6 +176,8 @@ end else begin:GEN_FIFO_RAM
         .ADDR           ( ADDR ),
         .ALMOST_FULL    ( ALMOST_FULL ),
         .ALMOST_EMPTY   ( ALMOST_EMPTY ),
+        .COUNT          ( COUNT ),
+        .FREE           ( FREE ),
         .FAST_FLAGS     ( FAST_FLAGS ),
         .FULL_IN_RESET  ( FULL_IN_RESET ),
         .BRAM           ( BRAM )

@@ -56,7 +56,9 @@ localparam DEPTHI       = (DEPTH==0) ? (2**ADDR) : DEPTH;
 
 parameter ALMOST_FULL   = 0;                    // assert almost_full when <= ALMOST_FULL free spaces remain
 parameter ALMOST_EMPTY  = 0;                    // assert almost_empty when <= ALMOST_EMPTY valid entries remain
-parameter FAST_FLAGS    = 0;                    // disallow pessimistic flags
+parameter COUNT         = 0;                    // enable rd_count port
+parameter FREE          = 0;                    // enable wr_free port
+parameter FAST_FLAGS    = 1;                    // disallow pessimistic flags
 parameter FULL_IN_RESET = 0;                    // force full flags to be set when in reset
 
 
@@ -68,13 +70,13 @@ input   wire                rst;
 
 // input
 input   wire                wr_push;
-output  wire                wr_full;
+output  reg                 wr_full;
 output  wire                wr_almost_full;
 output  wire    [ADDR:0]    wr_free;
 
 // output
 input   wire                rd_pop;
-output  wire                rd_empty;
+output  reg                 rd_empty;
 output  wire                rd_almost_empty;
 output  wire    [ADDR:0]    rd_count;
 
@@ -82,6 +84,7 @@ output  wire    [ADDR:0]    rd_count;
 // ** Flags **
 
 reg  [ADDR:0]   cnt;        // 1 extra bit, since we want to store [0,DEPTHI] (not just DEPTHI-1)
+reg  [ADDR:0]   free;
 reg             almost_empty;
 reg             almost_full;
 reg             rst_done;
@@ -89,7 +92,8 @@ reg             rst_done;
 assign          rd_almost_empty = (ALMOST_EMPTY==0) ? rd_empty : almost_empty;
 assign          wr_almost_full  = (ALMOST_FULL ==0) ? wr_full  : almost_full;
 
-assign          rd_count        = cnt;
+assign          rd_count        = COUNT ? cnt  : {(ADDR+1){1'bx}};
+assign          wr_free         = FREE  ? free : {(ADDR+1){1'bx}};
 
 wire            inc             =  wr_push && !rd_pop;
 wire            dec             = !wr_push &&  rd_pop;
@@ -99,7 +103,7 @@ always @(posedge clk) begin
     if(rst) begin
         // counts
         cnt             <= 0;
-        wr_free         <= DEPTHI;
+        free            <= DEPTHI;
         // empty flags
         rd_empty        <= 1'b1;
         almost_empty    <= 1'b1;
@@ -112,7 +116,7 @@ always @(posedge clk) begin
         // pushed; count increments
         if(inc) begin
             cnt             <= cnt + 1;
-            wr_free         <= wr_free - 1;
+            free            <= free - 1;
             wr_full         <= (cnt == (DEPTHI-1)); // cnt will be DEPTHI (full)
             if(cnt == (       ALMOST_EMPTY  )) almost_empty <= 1'b0;
             if(cnt == (DEPTHI-ALMOST_FULL -1)) almost_full  <= 1'b1;
@@ -121,7 +125,7 @@ always @(posedge clk) begin
         // popped; count decrements
         if(dec) begin
             cnt             <= cnt - 1;
-            wr_free         <= wr_free + 1;
+            free            <= free + 1;
             wr_full         <= 1'b0;                // can't be full on pop
             if(cnt == (       ALMOST_EMPTY+1)) almost_empty <= 1'b1;
             if(cnt == (DEPTHI-ALMOST_FULL   )) almost_full  <= 1'b0;
