@@ -552,7 +552,7 @@ vpath %.o $(O_DIRS)
 
 $(TESTBENCH).bin : $(O_FILES)
 	@echo linking $(notdir $@)
-	@$(CC) $(LDFLAGS) $^ $(LDLIBS) -o $@
+	@$(CXX) $(LDFLAGS) $^ $(LDLIBS) -o $@
 	@strip $@
 	@echo '$@ : $^' > $@.d
 

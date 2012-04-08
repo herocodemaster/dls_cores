@@ -128,7 +128,7 @@ H_DIRS          := $(CWD)
 H_SYS_DIRS      :=
 O_FILES         :=
 O_DIRS          :=
-CPPFLAGS        := -O1 -Wall -Wno-uninitialized
+CPPFLAGS        := -O1 -Wall -Wno-uninitialized -fpermissive
 LDFLAGS         := -Wall
 LDLIBS          := -lm -lstdc++
 
