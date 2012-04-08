@@ -14,6 +14,8 @@ ifdef USING_VERILOG
     ifndef USING_ICARUS
         USING_ISIM      := 1
         ISIM_FUSE_LIBS  += unisims unisims_ver
+        # only needed for post-place&route simulations
+        #ISIM_FUSE_LIBS  += simprims simprims_ver
     else
         $(warning Using Icarus with Xilinx simulation models is not recommended)
         V_DIRS          += $(XILINX)/verilog/src/unisims
