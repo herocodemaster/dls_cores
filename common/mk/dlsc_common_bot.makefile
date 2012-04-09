@@ -136,21 +136,33 @@ else
 # Include dependencies
 #
 
-dlsc-find-dep = $(realpath $(firstword $(wildcard $(DLSC_ROOT)/*/$(1).inc.makefile)))
+# find all makefiles in every DLSC_PATH that look like $1.inc.makefile
+# note: depends on bash shell syntax (SHELL := /bin/bash)
+dlsc-find-dep = $(realpath $(shell IFS=':' read -ra P <<< "$(DLSC_PATH)"; for i in "$${P[@]}"; do find $$i -name "$(1).inc.makefile"; done ))
 
+# includes a single makefile and then recursively includes any new dependencies
+define DLSC_DEPENDS_INCLUDE_template
+    CWD := $$(call dlsc-dir,$(1))
+    DLSC_DEPENDS := 
+    include $(1)
+    $$(foreach d,$$(DLSC_DEPENDS),$$(eval $$(call DLSC_DEPENDS_template,$$(d),$(1))))
+endef
+
+# locate and include a specified dependency (if not already included)
+# if multiple versions of the dependency are found, they will all be included
 define DLSC_DEPENDS_template
     ifndef $(1)_included
         $(1)_included := 1
         CMF := $(call dlsc-find-dep,$(1))
-        CWD := $$(call dlsc-dir,$$(CMF))
-        DLSC_DEPENDS := 
-        include $$(CMF)
-        $$(foreach d,$$(DLSC_DEPENDS),$$(eval $$(call DLSC_DEPENDS_template,$$(d))))
+        ifeq (,$$(CMF))
+            $$(error cannot locate dependency '$(1)' required by $(2))
+        endif
+        $$(foreach d,$$(CMF),$$(eval $$(call DLSC_DEPENDS_INCLUDE_template,$$(d))))
     endif
 endef
 
 # top-level dependencies
-$(foreach d,$(DLSC_DEPENDS),$(eval $(call DLSC_DEPENDS_template,$(d))))
+$(foreach d,$(DLSC_DEPENDS),$(eval $(call DLSC_DEPENDS_template,$(d),$(THIS))))
 
 # reset CWD
 # (points to where we were originally invoked - e.g. the testbench directory)

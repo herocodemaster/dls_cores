@@ -50,6 +50,8 @@ gen:
 # Utilities
 #
 
+SHELL       := /bin/bash
+
 dlsc-dir    = $(patsubst %/,%,$(dir $(1)))
 dlsc-base   = $(basename $(notdir $(1)))
 dlsc-md5sum = $(firstword $(shell echo "$(1)" | md5sum))
@@ -62,6 +64,9 @@ dlsc-md5sum = $(firstword $(shell echo "$(1)" | md5sum))
 DLSC_ROOT   := $(dir $(realpath $(lastword $(MAKEFILE_LIST))))
 DLSC_ROOT   := $(DLSC_ROOT)/../../common
 DLSC_ROOT   := $(call dlsc-dir,$(realpath $(DLSC_ROOT)))
+
+# set a default path to look for includes on
+DLSC_PATH   ?= $(DLSC_ROOT)
 
 DLSC_COMMON := $(DLSC_ROOT)/common
 
