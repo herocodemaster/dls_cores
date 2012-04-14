@@ -25,8 +25,8 @@
 //
 
 // Module Description:
-// Synchronizer and glitch-filter. Output only changes once DEPTH consecutive
-// input samples agree on value.
+// Synchronizer and glitch-filter. Output only changes once input is stable
+// for DEPTH consecutive enabled clock cycles.
 
 module dlsc_glitchfilter #(
     parameter   DEPTH = 4,
@@ -40,6 +40,10 @@ module dlsc_glitchfilter #(
 
     output  reg             out
 );
+
+`include "dlsc_clog2.vh"
+
+localparam CNTB = `dlsc_clog2(DEPTH);
 
 // synchronizer
 
@@ -57,19 +61,35 @@ dlsc_syncflop #(
 
 // glitch filter
 
-reg  [DEPTH-1:0] sr;
-wire [DEPTH  :0] sr_next = {sr,in_synced};
+reg             in_prev     = RESET;
+wire            in_change   = (in_prev != in_synced);
+
+reg             in_stable_r = 1'b0;
+wire            in_stable   = in_stable_r && !in_change;
+
+reg  [CNTB-1:0] cnt         = 0;
+
+always @(posedge clk) begin
+    if(rst || in_change) begin
+        cnt         <= 0;
+        in_stable_r <= 1'b0;
+    end else if(clk_en && !in_stable_r) begin
+        cnt         <= cnt + 1;
+        /* verilator lint_off WIDTH */
+        in_stable_r <= (cnt == (DEPTH-1));
+        /* veirlator lint_on WIDTH */
+    end
+end
 
 always @(posedge clk) begin
     if(rst) begin
-        sr      <= {DEPTH{RESET}};
-        out     <= RESET;
-    end else if(clk_en) begin
-        sr      <= sr_next[DEPTH-1:0];
-
-        // output only changes once all stages agree
-        if( sr == {DEPTH{1'b0}} ) out <= 1'b0;
-        if( sr == {DEPTH{1'b1}} ) out <= 1'b1;
+        in_prev     <= RESET;
+        out         <= RESET;
+    end else begin
+        in_prev     <= in_synced;
+        if(in_stable) begin
+            out         <= in_prev;
+        end
     end
 end
 
