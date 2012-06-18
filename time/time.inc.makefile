@@ -1,5 +1,5 @@
 
-DLSC_DEPENDS    += sync csr
+DLSC_DEPENDS    += sync csr mem
 V_DIRS          += $(CWD)/rtl
 
 SC_DIRS         += $(CWD)/sim
