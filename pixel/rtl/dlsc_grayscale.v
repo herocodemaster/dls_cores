@@ -37,6 +37,8 @@ module dlsc_grayscale #(
     parameter CSR_ADDR      = 32,
     parameter CORE_INSTANCE = 32'h00000000  // 32-bit identifier to place in REG_CORE_INSTANCE field
 ) (
+    // ** Pixel Domain **
+
     // system
     input   wire                    clk,
     input   wire                    rst,
@@ -53,7 +55,11 @@ module dlsc_grayscale #(
     output  wire    [CHANNELS-1:0]          out_valid,
     output  wire    [(CHANNELS*BITS)-1:0]   out_data,
     
-    // ** Register Bus **
+    // ** CSR Domain **
+
+    // system
+    input   wire                    csr_clk,
+    input   wire                    csr_rst,
 
     // command
     input   wire                    csr_cmd_valid,
@@ -81,6 +87,7 @@ genvar j;
 // 0x03: COMMON: Core instance (RO)
 // 0x04: Control (RW)
 //  [0]     : enable
+// Can only be changed when disabled:
 // 0x05: R coefficient (RW)
 // 0x06: G coefficient (RW)
 // 0x07: B coefficient (RW)
@@ -103,29 +110,38 @@ reg  [CBITS-1:0] mult_r;
 reg  [CBITS-1:0] mult_g;
 reg  [CBITS-1:0] mult_b;
 
+wire        csr_px_rst;
+
 // Write
 
-always @(posedge clk) begin
-    if(rst) begin
+always @(posedge csr_clk) begin
+    if(csr_rst) begin
         enabled     <= 1'b0;
         mult_r      <= 2 << (CBITS-3);  // 0.250 (0.21-0.30)
         mult_g      <= 5 << (CBITS-3);  // 0.625 (0.58-0.72)
         mult_b      <= 1 << (CBITS-3);  // 0.125 (0.07-0.11)
-    end else if(csr_cmd_valid && csr_cmd_write) begin
-        if(csr_addr == REG_CONTROL) enabled <= csr_cmd_data[0];
-        if(csr_addr == REG_MULT_R)  mult_r  <= csr_cmd_data[CBITS-1:0];
-        if(csr_addr == REG_MULT_G)  mult_g  <= csr_cmd_data[CBITS-1:0];
-        if(csr_addr == REG_MULT_B)  mult_b  <= csr_cmd_data[CBITS-1:0];
+    end else begin
+        if(csr_cmd_valid && csr_cmd_write) begin
+            if(csr_addr == REG_CONTROL) enabled <= csr_cmd_data[0];
+            if(!enabled) begin
+                if(csr_addr == REG_MULT_R)  mult_r  <= csr_cmd_data[CBITS-1:0];
+                if(csr_addr == REG_MULT_G)  mult_g  <= csr_cmd_data[CBITS-1:0];
+                if(csr_addr == REG_MULT_B)  mult_b  <= csr_cmd_data[CBITS-1:0];
+            end
+        end
+        if(csr_px_rst) begin
+            enabled     <= 1'b0;
+        end
     end
 end
 
 // Read mux
 
-always @(posedge clk) begin
+always @(posedge csr_clk) begin
     csr_rsp_valid       <= 1'b0;
     csr_rsp_error       <= 1'b0;
     csr_rsp_data        <= 0;
-    if(!rst && csr_cmd_valid) begin
+    if(!csr_rst && csr_cmd_valid) begin
         csr_rsp_valid       <= 1'b1;
         if(!csr_cmd_write) begin
             case(csr_addr)
@@ -146,7 +162,29 @@ end
 
 // ** Channels **
 
-wire        rst_i   = rst || !enabled;
+wire px_enabled;
+
+dlsc_syncflop #(
+    .DATA       ( 1 ),
+    .RESET      ( 1'b0 )
+) dlsc_syncflop_px (
+    .in         ( enabled ),
+    .clk        ( clk ),
+    .rst        ( rst ),
+    .out        ( px_enabled )
+);
+
+dlsc_syncflop #(
+    .DATA       ( 1 ),
+    .RESET      ( 1'b1 )
+) dlsc_syncflop_csr (
+    .in         ( rst ),
+    .clk        ( csr_clk ),
+    .rst        ( csr_rst ),
+    .out        ( csr_px_rst )
+);
+
+wire        rst_i   = rst || !px_enabled;
 
 generate
 for(j=0;j<CHANNELS;j=j+1) begin:GEN_CHANNELS

@@ -21,6 +21,7 @@ struct in_type {
 SC_MODULE (__MODULE__) {
 private:
     sc_clock clk;
+    sc_clock csr_clk;
 
     void clk_method();
     void stim_thread();
@@ -57,7 +58,8 @@ public:
 #include "dlsc_main.cpp"
 
 SP_CTOR_IMP(__MODULE__) :
-    clk("clk",10,SC_NS)
+    clk("clk",8,SC_NS),
+    csr_clk("csr_clk",20,SC_NS)
     /*AUTOINIT*/
 {
     SP_AUTO_CTOR;
@@ -67,12 +69,15 @@ SP_CTOR_IMP(__MODULE__) :
         /*AUTOINST*/
     
     SP_CELL(csr_master,dlsc_csr_tlm_master_32b);
+        SP_PIN(csr_master,clk,csr_clk);
+        SP_PIN(csr_master,rst,csr_rst);
         /*AUTOINST*/
     
     csr_initiator   = new dlsc_tlm_initiator_nb<uint32_t>("csr_initiator",1);
     csr_initiator->socket.bind(csr_master->socket);
 
     rst         = 1;
+    csr_rst     = 1;
 
     SC_METHOD(clk_method);
         sensitive << clk.posedge_event();
@@ -179,15 +184,18 @@ void __MODULE__::clk_method() {
 
 void __MODULE__::stim_thread() {
     rst     = 1;
+    csr_rst = 1;
     wait(1,SC_US);
 
     uint32_t data;
     
-    wait(clk.posedge_event());
-
     for(int iterations=0;iterations<20;iterations++) {
+        wait(clk.posedge_event());
         rst     = 0;
         wait(clk.posedge_event());
+        wait(csr_clk.posedge_event());
+        csr_rst = 0;
+        wait(csr_clk.posedge_event());
 
         // randomize rates
         for(int i=0;i<PARAM_CHANNELS;i++) {
@@ -261,6 +269,11 @@ void __MODULE__::stim_thread() {
             wait(clk.posedge_event());
             rst = 1;
             wait(clk.posedge_event());
+        }
+        if(dlsc_rand_bool(50.0)) {
+            wait(csr_clk.posedge_event());
+            csr_rst = 1;
+            wait(csr_clk.posedge_event());
         }
         
         // wait
