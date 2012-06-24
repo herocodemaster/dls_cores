@@ -151,6 +151,12 @@ unsigned int dlsc_log2(uint64_t i) {
     return l;
 }
 
+unsigned int dlsc_clog2(uint64_t i) {
+    // same behavior as Verilog clog2
+    if(i<=1) return 0;
+    return (dlsc_log2(i-1)+1);
+}
+
 bool dlsc_rand_bool(double true_pct) {
     assert(true_pct >= 0.0 && true_pct <= 100.0);
     bool r = ((rand()%1000) < (true_pct * 10));

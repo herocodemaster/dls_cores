@@ -6,6 +6,7 @@
 
 bool dlsc_is_power_of_2(const uint64_t i);
 unsigned int dlsc_log2(uint64_t i);
+unsigned int dlsc_clog2(uint64_t i);
 
 bool dlsc_rand_bool(double true_pct = 50.0);
 int dlsc_rand(int min=0,int max=INT_MAX);
