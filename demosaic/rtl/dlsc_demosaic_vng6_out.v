@@ -9,17 +9,19 @@ module dlsc_demosaic_vng6_out #(
     input   wire    [3:0]       st,
 
     input   wire                px_push,
-    input   wire    [DATA-1:0]  px_in,
     input   wire                px_masked,
+    input   wire                px_last,
+    input   wire    [DATA-1:0]  px_in,
 
     // from _diff
     input   wire    [DATA  :0]  diff_norm,
 
     // output
+    output  reg                 out_valid,
+    output  reg                 out_last,
     output  reg     [DATA-1:0]  out_red,
     output  reg     [DATA-1:0]  out_green,
-    output  reg     [DATA-1:0]  out_blue,
-    output  reg                 out_valid
+    output  reg     [DATA-1:0]  out_blue
 );
 
 // ** control
@@ -74,17 +76,18 @@ dlsc_demosaic_vng6_rom #(
 
 wire [DATA-1:0] px_a;
 wire            px_a_masked;
+wire            px_a_last;
 
 dlsc_demosaic_vng6_shiftreg #(
-    .DATA       ( DATA+1 ),
+    .DATA       ( DATA+2 ),
     .INDEX      ( {4'd8, 4'd7, 4'd7, 4'd8, 4'd8, 4'd8, 4'd8, 4'd7, 4'd7, 4'd8, 4'd8, 4'd8} )
 ) dlsc_demosaic_vng6_shiftreg_inst_px_a (
     .clk        ( clk ),
     .clk_en     ( clk_en ),
     .st         ( st ),
     .push       ( px_push && center_en ),
-    .in         ( {px_masked,px_in} ),
-    .out        ( {px_a_masked,px_a} )
+    .in         ( {px_last,  px_masked,  px_in} ),
+    .out        ( {px_a_last,px_a_masked,px_a } )
 );
 
 // count entries in buffer, so we know once it has been primed
@@ -143,9 +146,11 @@ end
 // valid
 always @(posedge clk) begin
     out_valid   <= 1'b0; // always clear after 1 cycle
-    if(clk_en && blue_en) begin
+    out_last    <= 1'b0;
+    if(clk_en && blue_en && primed && !px_a_masked) begin
         // set valid when blue is driven
-        out_valid   <= primed && !px_a_masked;
+        out_valid   <= 1'b1;
+        out_last    <= px_a_last;
     end
 end
 
