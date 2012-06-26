@@ -38,6 +38,7 @@ module dlsc_demosaic_vng6_control #(
     // configuration
     // (should be constant out of reset)
     input   wire    [XB-1:0]        cfg_width,      // width of raw image (0 based)
+    input   wire                    cfg_first_r,    // first row has red pixels (otherwise blue)
     input   wire                    cfg_first_g,    // first pixel is green
     
     // pixels in from primary sequencer
@@ -53,6 +54,7 @@ module dlsc_demosaic_vng6_control #(
     output  wire                    vng_px_push,
     output  wire                    vng_px_masked,
     output  wire                    vng_px_last,
+    output  wire                    vng_px_row_red,
     output  wire    [BITS-1:0]      vng_px_in,
 
     // feedback from VNG pipeline output
@@ -81,17 +83,20 @@ localparam  STX_CAP0    = 3'd0,     // capture/drive x = 0
 
 reg  [0:0]  st;             // overall state
 reg  [2:0]  stx;            // column rep state
+reg         sty;            // row state
 reg  [3:0]  stv;            // VNG state
 reg         in_ready_pre;
 
 reg  [0:0]  next_st;
 reg  [2:0]  next_stx;
+reg         next_sty;
 reg  [3:0]  next_stv;
 reg         next_in_ready;
 
 always @* begin
     next_st         = st;
     next_stx        = stx;
+    next_sty        = sty;
     next_stv        = stv;
     next_in_ready   = in_ready_pre;
     
@@ -112,6 +117,10 @@ always @* begin
             STX_REP3:   next_stx = (st == ST_FLUSH || !cfg_width_odd) ? STX_PAD : STX_CAP0;
             STX_PAD:    next_stx = (st == ST_FLUSH                  ) ? STX_PAD : STX_CAP0;
         endcase
+        if(next_stx == STX_CAP0) begin
+            // toggle Y at end of row
+            next_sty        = !sty;
+        end
         if(in_ready && in_valid && in_frame_last) begin
             next_st         = ST_FLUSH;
         end
@@ -125,11 +134,13 @@ always @(posedge clk) begin
     if(rst || out_last) begin
         st              <= ST_RUN;
         stx             <= STX_CAP0;
+        sty             <= 1'b0;
         stv             <= cfg_first_g ? 4'd6 : 4'd0;
         in_ready_pre    <= 1'b1;
     end else if(update) begin
         st              <= next_st;
         stx             <= next_stx;
+        sty             <= next_sty;
         stv             <= next_stv;
         in_ready_pre    <= next_in_ready;
     end
@@ -158,6 +169,7 @@ reg  [3:0]      c0_st;
 reg             c0_px_push;
 reg             c0_px_masked;
 reg             c0_px_last;
+reg             c0_px_row_red;
 reg  [BITS-1:0] c0_px_in;
 
 always @* begin
@@ -165,6 +177,7 @@ always @* begin
     c0_st           = stv;
     c0_px_push      = (stv != 4'd5 && stv != 4'd11);
     c0_px_masked    = !(stx == STX_REP0 || stx == STX_REP1 || stx == STX_NORM);
+    c0_px_row_red   = sty ^ cfg_first_r;
     if(stx == STX_REP0 || stx == STX_REP1 || stx == STX_REP2 || stx == STX_REP3) begin
         c0_px_last      = 1'b0; 
         c0_px_in        = colbuf_data;
@@ -183,6 +196,7 @@ end
 reg             c1_px_push;
 reg             c1_px_masked;
 reg             c1_px_last;
+reg             c1_px_row_red;
 reg  [BITS-1:0] c1_px_in;
 
 always @(posedge clk) begin
@@ -193,6 +207,7 @@ always @(posedge clk) begin
         c1_px_push      <= c0_px_push;
         c1_px_masked    <= c0_px_masked;
         c1_px_last      <= c0_px_last;
+        c1_px_row_red   <= c0_px_row_red;
         c1_px_in        <= c0_px_in;
     end
 end
@@ -202,6 +217,7 @@ end
 
 reg             c2_px_masked;
 reg             c2_px_last;
+reg             c2_px_row_red;
 reg  [BITS-1:0] c2_px_in;
 
 always @(posedge clk) begin
@@ -211,16 +227,18 @@ always @(posedge clk) begin
         c2_px_push      <= c1_px_push;
         c2_px_masked    <= c1_px_masked;
         c2_px_last      <= c1_px_last;
+        c2_px_row_red   <= c1_px_row_red;
         c2_px_in        <= c1_px_in;
     end
 end
 
-assign vng_st       = c1_st;        // state needs an extra cycle to prop through ROMs
-assign vng_clk_en   = c2_clk_en;
-assign vng_px_push  = c2_px_push;
-assign vng_px_masked= c2_px_masked;
-assign vng_px_last  = c2_px_last;
-assign vng_px_in    = c2_px_in;
+assign vng_st           = c1_st;        // state needs an extra cycle to prop through ROMs
+assign vng_clk_en       = c2_clk_en;
+assign vng_px_push      = c2_px_push;
+assign vng_px_masked    = c2_px_masked;
+assign vng_px_last      = c2_px_last;
+assign vng_px_row_red   = c2_px_row_red;
+assign vng_px_in        = c2_px_in;
 
 endmodule
 

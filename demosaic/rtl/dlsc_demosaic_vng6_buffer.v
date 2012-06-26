@@ -68,12 +68,11 @@ localparam  STY_NEG2    =   3'd0,
 reg  [2:0]      sty;
 reg  [2:0]      str;
 
-wire            sty_neg     = (sty == STY_NEG2 || sty == STY_NEG1);
 wire            sty_last    = (sty == STY_POS2);
 wire            str_last    = (str == 3'd4);
 
-reg  [2:0]      row_base;
 reg  [2:0]      row;
+
 reg  [XB-1:0]   x;
 reg  [YB-1:0]   y;
 
@@ -82,24 +81,71 @@ wire            y_last      = (y == cfg_height);
 
 reg  [2:0]      next_sty;
 reg  [2:0]      next_str;
-reg  [2:0]      next_row_base;
 reg  [2:0]      next_row;
+
 reg  [XB-1:0]   next_x;
 reg  [YB-1:0]   next_y;
 
-reg             x_inc;
-reg             x_rst;
+
+reg  [XB-1:0]   x_base;
+
+reg             x_base_update;
+reg  [XB-1:0]   next_x_base;
 
 always @* begin
+    x_base_update   = 1'b0;
+    next_x_base     = x_base;
+
+    case(sty)
+        // can't advance for 1st two states
+        STY_NEG2: x_base_update = 1'b0;
+        STY_NEG1: x_base_update = 1'b0;
+        default:  x_base_update = (str == 3'd0);
+    endcase
+
+    if(x_base_update) begin
+        next_x_base     = x_base + 1;
+        if(x_base == cfg_width) begin
+            next_x_base     = 0;
+        end
+    end
+end
+
+
+reg  [2:0]      row_base;
+
+reg             row_base_update;
+reg  [2:0]      next_row_base;
+
+always @* begin
+    row_base_update = 1'b0;
+    next_row_base   = row_base;
+
+    if(x_last) begin
+        case(sty)
+            // can't advance for 1st two states
+            STY_NEG2: row_base_update = 1'b0;
+            STY_NEG1: row_base_update = 1'b0;
+            default:  row_base_update = (str == 3'd0);
+            // need to increment 3 times on last row in order to flush buffer
+            // (makes up for not advancing in the 1st two states)
+            STY_POS2: row_base_update = (str == 3'd0 || str == 3'd1 || str == 3'd2);
+        endcase
+    end
+
+    if(row_base_update) begin
+        next_row_base   = row_base + 1;
+    end
+end
+
+
+always @* begin
+
     next_sty        = sty;
     next_str        = str + 1;
-
-    x_inc           = 1'b0;
-    x_rst           = 1'b0;
     
     next_y          = y;
 
-    next_row_base   = row_base;
     next_row        = row + 1;
     case(sty)
         STY_NEG2: next_row = (str == 3'd1) ? (row - 1) : (row + 1); // 0, 1, 0, 1, 2
@@ -110,19 +156,14 @@ always @* begin
     endcase
 
     if(str_last) begin
-        next_str        = 3'd0;
-
-        // ** increment X **
-        x_inc           = 1'b1;
+        // ** advance X **
+        next_str        = 0;
+        next_x          = x + 1;
 
         if(x_last) begin
-            // ** increment Y **
-            x_rst           = 1'b1;
+            // ** advance Y **
+            next_x          = 0;
             next_y          = y + 1;
-
-            if(!sty_neg) begin
-                next_row_base   = row_base + 1;
-            end
         
             case(sty)
                 STY_NEG2: next_sty = STY_NEG1;
@@ -133,15 +174,14 @@ always @* begin
             endcase
 
             if(sty_last) begin
-                // ** end frame **
+                // ** advance frame **
+                next_sty        = STY_NEG2;
                 next_y          = 2;
             end
         end
-        
-        next_row        = (next_sty == STY_NEG1) ? (next_row_base + 1) : (next_row_base);
-    end
 
-    next_x          = x_rst ? 0 : (x_inc ? (x + 1) : x);
+        next_row        = (next_sty == STY_NEG1) ? (row_base + 1) : (row_base);
+    end
 end
 
 wire            rd_en;
@@ -152,6 +192,7 @@ always @(posedge clk) begin
         str         <= 0;
         row_base    <= 0;
         row         <= 0;
+        x_base      <= 0;
         x           <= 0;
         y           <= 2;   // start at 2, so we detect end of frame 2 rows before it actually occurs (so we can repeat those rows correctly)
     end else if(rd_en) begin
@@ -159,6 +200,7 @@ always @(posedge clk) begin
         str         <= next_str;
         row_base    <= next_row_base;
         row         <= next_row;
+        x_base      <= next_x_base;
         x           <= next_x;
         y           <= next_y;
     end
@@ -171,6 +213,8 @@ reg  [2:0]      wr_row;
 reg  [XB-1:0]   wr_x;
 wire [ADDR:0]   wr_addr         = {wr_row,wr_x};
 
+wire [ADDR:0]   rd_addr_base    = {row_base,x_base};
+
 wire [ADDR:0]   rd_addr         = {row,x};
 
 wire            rd_okay         = (wr_addr != rd_addr) && ((row-1) != wr_row);
@@ -178,23 +222,6 @@ wire            rd_okay         = (wr_addr != rd_addr) && ((row-1) != wr_row);
 assign          rd_en           = rd_okay && (!out_valid || out_ready);
 wire            rd_row_last     = x_last; // && str_last;   // must assert for entire column of last pixels
 wire            rd_frame_last   = rd_row_last && sty_last;
-
-// compute next base address so writer knows when to stop
-reg  [ADDR:0]   rd_addr_base;
-always @(posedge clk) begin
-    if(rst) begin
-        rd_addr_base    <= 0;
-    end else begin
-        if(!sty_neg) begin
-            rd_addr_base[XB+:3]     <= row_base;
-            rd_addr_base[XB-1:0]    <= x + 1;
-            if(x_last) begin
-                rd_addr_base[XB+:3]     <= row_base + 1;
-                rd_addr_base[XB-1:0]    <= 0;
-            end
-        end
-    end
-end
 
 
 // ** writer **

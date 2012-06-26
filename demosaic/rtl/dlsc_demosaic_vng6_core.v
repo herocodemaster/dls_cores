@@ -107,6 +107,7 @@ wire [3:0]      vng_st;
 wire            vng_px_push;
 wire            vng_px_masked;
 wire            vng_px_last;
+wire            vng_px_row_red;
 wire [BITS-1:0] vng_px_in;
 
 wire            out_almost_full;
@@ -119,6 +120,7 @@ dlsc_demosaic_vng6_control #(
     .clk            ( clk ),
     .rst            ( rst ),
     .cfg_width      ( cfg_width ),
+    .cfg_first_r    ( cfg_first_r ),
     .cfg_first_g    ( cfg_first_g ),
     .in_ready       ( buf_ready ),
     .in_valid       ( buf_valid ),
@@ -130,6 +132,7 @@ dlsc_demosaic_vng6_control #(
     .vng_px_push    ( vng_px_push ),
     .vng_px_masked  ( vng_px_masked ),
     .vng_px_last    ( vng_px_last ),
+    .vng_px_row_red ( vng_px_row_red ),
     .vng_px_in      ( vng_px_in ),
     .out_almost_full ( out_almost_full ),
     .out_last       ( vng_out_last )
@@ -152,6 +155,7 @@ dlsc_demosaic_vng6_pipeline #(
     .px_push        ( vng_px_push ),
     .px_masked      ( vng_px_masked ),
     .px_last        ( vng_px_last ),
+    .px_row_red     ( vng_px_row_red ),
     .px_in          ( vng_px_in ),
     .out_valid      ( vng_out_valid ),
     .out_last       ( vng_out_last ),
@@ -162,11 +166,6 @@ dlsc_demosaic_vng6_pipeline #(
 
 // ** output FIFO **
 
-// swap red/blue if red is not first
-wire [BITS-1:0] fifo_r  = cfg_first_r ? vng_out_red  : vng_out_blue;
-wire [BITS-1:0] fifo_b  = cfg_first_r ? vng_out_blue : vng_out_red;
-wire [BITS-1:0] fifo_g  = vng_out_green;
-
 dlsc_fifo_rvho #(
     .DEPTH          ( 16 ),
     .DATA           ( 1+3*BITS ),
@@ -175,7 +174,7 @@ dlsc_fifo_rvho #(
     .clk            ( clk ),
     .rst            ( rst ),
     .wr_push        ( vng_out_valid ),
-    .wr_data        ( {vng_out_last,fifo_r,fifo_g,fifo_b} ),
+    .wr_data        ( {vng_out_last,vng_out_red,vng_out_green,vng_out_blue} ),
     .wr_full        (  ),
     .wr_almost_full ( out_almost_full ),
     .wr_free        (  ),

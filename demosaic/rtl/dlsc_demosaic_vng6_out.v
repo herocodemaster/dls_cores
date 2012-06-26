@@ -11,6 +11,7 @@ module dlsc_demosaic_vng6_out #(
     input   wire                px_push,
     input   wire                px_masked,
     input   wire                px_last,
+    input   wire                px_row_red,     // current row has red pixels (otherwise blue)
     input   wire    [DATA-1:0]  px_in,
 
     // from _diff
@@ -77,17 +78,18 @@ dlsc_demosaic_vng6_rom #(
 wire [DATA-1:0] px_a;
 wire            px_a_masked;
 wire            px_a_last;
+wire            px_a_row_red;
 
 dlsc_demosaic_vng6_shiftreg #(
-    .DATA       ( DATA+2 ),
+    .DATA       ( DATA+3 ),
     .INDEX      ( {4'd8, 4'd7, 4'd7, 4'd8, 4'd8, 4'd8, 4'd8, 4'd7, 4'd7, 4'd8, 4'd8, 4'd8} )
 ) dlsc_demosaic_vng6_shiftreg_inst_px_a (
     .clk        ( clk ),
     .clk_en     ( clk_en ),
     .st         ( st ),
     .push       ( px_push && center_en ),
-    .in         ( {px_last,  px_masked,  px_in} ),
-    .out        ( {px_a_last,px_a_masked,px_a } )
+    .in         ( {px_row_red,  px_last,  px_masked,  px_in} ),
+    .out        ( {px_a_row_red,px_a_last,px_a_masked,px_a } )
 );
 
 // count entries in buffer, so we know once it has been primed
@@ -132,15 +134,26 @@ end
 
 // ** drive outputs
 
-// red/green
-always @(posedge clk) if(clk_en && redgreen_en) begin
-    out_red     <=  redgreen_sel ? res_sat : px_a;
-    out_green   <= !redgreen_sel ? res_sat : px_a;
-end
-
-// blue
-always @(posedge clk) if(clk_en && blue_en) begin
-    out_blue    <= res_sat;
+always @(posedge clk) if(clk_en) begin
+    // red/green
+    if(redgreen_en) begin
+        out_green   <= !redgreen_sel ? res_sat : px_a;
+        if(px_a_row_red) begin
+            out_red     <=  redgreen_sel ? res_sat : px_a;
+        end else begin
+            // swap red/blue
+            out_blue    <=  redgreen_sel ? res_sat : px_a;
+        end
+    end
+    // blue
+    if(blue_en) begin
+        if(px_a_row_red) begin
+            out_blue    <= res_sat;
+        end else begin
+            // swap red/blue
+            out_red     <= res_sat;
+        end
+    end
 end
 
 // valid

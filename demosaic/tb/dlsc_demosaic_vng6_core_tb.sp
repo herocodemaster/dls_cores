@@ -191,6 +191,7 @@ void __MODULE__::send_frame() {
     for(int y=0;y<height;y++) {
         for(int x=0;x<width;x++) {
             bool is_green = first_g ^ ((y & 0x1) != 0) ^ ((x & 0x1) != 0);
+            bool is_red   = first_r ^ ((y & 0x1) != 0); // need to swap red/blue on odd rows
 
             int64_t rs,gs,bs;
             int cs;
@@ -368,8 +369,8 @@ void __MODULE__::send_frame() {
 
             out_type out;
             out.last = (y == (height-1)) && (x == (width-1));
-            out.r = first_r ? chk[x].out_red  : chk[x].out_blue;
-            out.b = first_r ? chk[x].out_blue : chk[x].out_red ;
+            out.r = is_red ? chk[x].out_red  : chk[x].out_blue;
+            out.b = is_red ? chk[x].out_blue : chk[x].out_red ;
             out.g = chk[x].out_green;
             out_queue.push_back(out);
         }
