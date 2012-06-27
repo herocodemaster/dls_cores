@@ -42,7 +42,7 @@ module dlsc_demosaic_vng6_control #(
     input   wire                    cfg_first_g,    // first pixel is green
     
     // pixels in from primary sequencer
-    output  reg                     in_ready,
+    output  wire                    in_ready,
     input   wire                    in_valid,
     input   wire                    in_row_last,   // last pixel column of row
     input   wire                    in_frame_last, // last pixel column of frame
