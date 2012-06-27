@@ -129,7 +129,7 @@ always @* begin
             default:  row_base_update = (str == 3'd0);
             // need to increment 3 times on last row in order to flush buffer
             // (makes up for not advancing in the 1st two states)
-            STY_POS2: row_base_update = (str == 3'd0 || str == 3'd1 || str == 3'd2);
+            STY_POS2: row_base_update = (str == 3'd0 || str == 3'd3 || str == 3'd4);
         endcase
     end
 
@@ -180,7 +180,7 @@ always @* begin
             end
         end
 
-        next_row        = (next_sty == STY_NEG1) ? (row_base + 1) : (row_base);
+        next_row        = (next_sty == STY_NEG1) ? (next_row_base + 1) : (next_row_base);
     end
 end
 
@@ -217,7 +217,9 @@ wire [ADDR:0]   rd_addr_base    = {row_base,x_base};
 
 wire [ADDR:0]   rd_addr         = {row,x};
 
-wire            rd_okay         = (wr_addr != rd_addr) && ((row-1) != wr_row);
+wire [ADDR:0]   rd_addr_diff    = rd_addr - wr_addr;
+
+wire            rd_okay         = rd_addr_diff[ADDR];  //(wr_addr != rd_addr) && ((row-3'd1) != wr_row);
 
 assign          rd_en           = rd_okay && (!out_valid || out_ready);
 wire            rd_row_last     = x_last; // && str_last;   // must assert for entire column of last pixels
