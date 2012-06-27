@@ -4,14 +4,13 @@ module dlsc_demosaic_vng6_rom #(
     parameter [(DATA*12)-1:0]   ROM     = 0
 ) (
     input   wire                clk,
-    input   wire                clk_en,
 
     input   wire    [3:0]       st,
 
     output  reg     [DATA-1:0]  out
 );
 
-always @(posedge clk) if(clk_en) begin
+always @(posedge clk) begin
     
     out <= {DATA{1'bx}};
 

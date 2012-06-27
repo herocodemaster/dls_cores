@@ -45,7 +45,6 @@ dlsc_demosaic_vng6_rom #(
     .ROM        ( {1'd0, 1'd1, 1'd1, 1'd0, 1'd0, 1'd0, 1'd0, 1'd1, 1'd1, 1'd0, 1'd0, 1'd0} )
 ) dlsc_demosaic_vng6_rom_inst_sum_rst (
     .clk        ( clk ),
-    .clk_en     ( clk_en ),
     .st         ( st ),
     .out        ( sum_rst )
 );
@@ -55,7 +54,6 @@ dlsc_demosaic_vng6_rom #(
     .ROM        ( {1'd0, 1'd1, 1'd0, 1'd0, 1'd0, 1'd0, 1'd0, 1'd1, 1'd0, 1'd0, 1'd0, 1'd0} )
 ) dlsc_demosaic_vng6_rom_inst_sum_en (
     .clk        ( clk ),
-    .clk_en     ( clk_en ),
     .st         ( st ),
     .out        ( sum_en )
 );

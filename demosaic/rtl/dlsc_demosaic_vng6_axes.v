@@ -70,7 +70,6 @@ dlsc_demosaic_vng6_rom #(
     .ROM        ( {1'd1, 1'd0, 1'd1, 1'd0, 1'd1, 1'd1, 1'd0, 1'd1, 1'd0, 1'd0, 1'd0, 1'd1} )
 ) dlsc_demosaic_vng6_rom_inst_h_push (
     .clk        ( clk ),
-    .clk_en     ( clk_en ),
     .st         ( st ),
     .out        ( axes_h_push )
 );
@@ -103,7 +102,6 @@ dlsc_demosaic_vng6_rom #(
     .ROM        ( {1'd1, 1'd0, 1'd0, 1'd0, 1'd0, 1'd0, 1'd1, 1'd1, 1'd1, 1'd1, 1'd1, 1'd0} )
 ) dlsc_demosaic_vng6_rom_inst_red_push (
     .clk        ( clk ),
-    .clk_en     ( clk_en ),
     .st         ( st ),
     .out        ( axes_red_push )
 );
@@ -115,7 +113,6 @@ dlsc_demosaic_vng6_rom #(
     .ROM        ( {2'd0, 2'd0, 2'd0, 2'd0, 2'd0, 2'd0, 2'd1, 2'd2, 2'd1, 2'd1, 2'd0, 2'd2} )
 ) dlsc_demosaic_vng6_rom_inst_red_sel (
     .clk        ( clk ),
-    .clk_en     ( clk_en ),
     .st         ( st ),
     .out        ( axes_red_sel )
 );
@@ -153,7 +150,6 @@ dlsc_demosaic_vng6_rom #(
     .ROM        ( {1'd1, 1'd1, 1'd0, 1'd0, 1'd1, 1'd0, 1'd1, 1'd1, 1'd0, 1'd0, 1'd0, 1'd1} )
 ) dlsc_demosaic_vng6_rom_inst_green_push (
     .clk        ( clk ),
-    .clk_en     ( clk_en ),
     .st         ( st ),
     .out        ( axes_green_push )
 );
@@ -165,7 +161,6 @@ dlsc_demosaic_vng6_rom #(
     .ROM        ( {1'd1, 1'd0, 1'd0, 1'd1, 1'd0, 1'd1, 1'd0, 1'd0, 1'd0, 1'd0, 1'd0, 1'd0} )
 ) dlsc_demosaic_vng6_rom_inst_green_sel (
     .clk        ( clk ),
-    .clk_en     ( clk_en ),
     .st         ( st ),
     .out        ( axes_green_sel )
 );
@@ -182,7 +177,6 @@ dlsc_demosaic_vng6_rom #(
     .ROM        ( {1'd0, 1'd1, 1'd1, 1'd1, 1'd1, 1'd1, 1'd0, 1'd0, 1'd0, 1'd0, 1'd0, 1'd0} )
 ) dlsc_demosaic_vng6_rom_inst_blue_push (
     .clk        ( clk ),
-    .clk_en     ( clk_en ),
     .st         ( st ),
     .out        ( axes_blue_push )
 );
@@ -194,7 +188,6 @@ dlsc_demosaic_vng6_rom #(
     .ROM        ( {1'd0, 1'd1, 1'd1, 1'd0, 1'd1, 1'd0, 1'd0, 1'd0, 1'd0, 1'd0, 1'd0, 1'd0} )
 ) dlsc_demosaic_vng6_rom_inst_blue_sel (
     .clk        ( clk ),
-    .clk_en     ( clk_en ),
     .st         ( st ),
     .out        ( axes_blue_sel )
 );

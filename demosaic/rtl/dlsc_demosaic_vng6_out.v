@@ -37,7 +37,6 @@ dlsc_demosaic_vng6_rom #(
     .ROM        ( {1'd0, 1'd0, 1'd1, 1'd0, 1'd0, 1'd0, 1'd0, 1'd0, 1'd1, 1'd0, 1'd0, 1'd0} )
 ) dlsc_demosaic_vng6_rom_inst_center_en (
     .clk        ( clk ),
-    .clk_en     ( clk_en ),
     .st         ( st ),
     .out        ( center_en )
 );
@@ -47,7 +46,6 @@ dlsc_demosaic_vng6_rom #(
     .ROM        ( {1'd0, 1'd0, 1'd0, 1'd0, 1'd1, 1'd0, 1'd0, 1'd0, 1'd0, 1'd0, 1'd1, 1'd0} )
 ) dlsc_demosaic_vng6_rom_inst_redgreen_en (
     .clk        ( clk ),
-    .clk_en     ( clk_en ),
     .st         ( st ),
     .out        ( redgreen_en )
 );
@@ -57,7 +55,6 @@ dlsc_demosaic_vng6_rom #(
     .ROM        ( {1'd0, 1'd1, 1'd0, 1'd0, 1'd0, 1'd0, 1'd0, 1'd1, 1'd0, 1'd0, 1'd0, 1'd0} )
 ) dlsc_demosaic_vng6_rom_inst_blue_en (
     .clk        ( clk ),
-    .clk_en     ( clk_en ),
     .st         ( st ),
     .out        ( blue_en )
 );
@@ -67,7 +64,6 @@ dlsc_demosaic_vng6_rom #(
     .ROM        ( {1'd1, 1'd1, 1'd1, 1'd1, 1'd0, 1'd0, 1'd0, 1'd0, 1'd0, 1'd0, 1'd1, 1'd1} )
 ) dlsc_demosaic_vng6_rom_inst_redgreen_sel (
     .clk        ( clk ),
-    .clk_en     ( clk_en ),
     .st         ( st ),
     .out        ( redgreen_sel )
 );

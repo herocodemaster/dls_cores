@@ -26,7 +26,6 @@ dlsc_demosaic_vng6_rom #(
     .ROM        ( INDEX )
 ) dlsc_demosaic_vng6_rom_inst (
     .clk        ( clk ),
-    .clk_en     ( clk_en ),
     .st         ( st ),
     .out        ( index )
 );

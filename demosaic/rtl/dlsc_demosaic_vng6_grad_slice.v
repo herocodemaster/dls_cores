@@ -42,7 +42,6 @@ dlsc_demosaic_vng6_rom #(
     .ROM        ( CLEAR )
 ) dlsc_demosaic_vng6_rom_inst_grad_clr (
     .clk        ( clk ),
-    .clk_en     ( clk_en ),
     .st         ( st ),
     .out        ( grad_clr )
 );
@@ -57,7 +56,6 @@ dlsc_demosaic_vng6_rom #(
     .ROM        ( MULT2 )
 ) dlsc_demosaic_vng6_rom_inst_grad_mult2 (
     .clk        ( clk ),
-    .clk_en     ( clk_en ),
     .st         ( st ),
     .out        ( grad_mult2 )
 );

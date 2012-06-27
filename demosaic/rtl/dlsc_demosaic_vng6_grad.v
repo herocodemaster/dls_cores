@@ -162,7 +162,6 @@ dlsc_demosaic_vng6_rom #(
     .ROM        ( {1'd0, 1'd1, 1'd1, 1'd1, 1'd1, 1'd0, 1'd0, 1'd1, 1'd1, 1'd1, 1'd1, 1'd0} )
 ) dlsc_demosaic_vng6_rom_inst_grad_push (
     .clk        ( clk ),
-    .clk_en     ( clk_en ),
     .st         ( st ),
     .out        ( grad_push )
 );
@@ -177,7 +176,6 @@ dlsc_demosaic_vng6_rom #(
     .ROM        ( {2'd0, 2'd1, 2'd2, 2'd3, 2'd0, 2'd0, 2'd0, 2'd1, 2'd2, 2'd3, 2'd0, 2'd0} )
 ) dlsc_demosaic_vng6_rom_inst_grad_sel (
     .clk        ( clk ),
-    .clk_en     ( clk_en ),
     .st         ( st ),
     .out        ( grad_sel )
 );
@@ -225,7 +223,6 @@ dlsc_demosaic_vng6_rom #(
     .ROM        ( {1'd0, 1'd1, 1'd1, 1'd0, 1'd0, 1'd0, 1'd0, 1'd1, 1'd1, 1'd0, 1'd0, 1'd0} )
 ) dlsc_demosaic_vng6_rom_inst_grad_rst (
     .clk        ( clk ),
-    .clk_en     ( clk_en ),
     .st         ( st ),
     .out        ( grad_rst )
 );
@@ -269,7 +266,6 @@ dlsc_demosaic_vng6_rom #(
     .ROM        ( {1'd0, 1'd1, 1'd0, 1'd0, 1'd0, 1'd0, 1'd0, 1'd1, 1'd0, 1'd0, 1'd0, 1'd0} )
 ) dlsc_demosaic_vng6_rom_inst_thresh_en (
     .clk        ( clk ),
-    .clk_en     ( clk_en ),
     .st         ( st ),
     .out        ( thresh_en )
 );

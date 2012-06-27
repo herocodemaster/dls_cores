@@ -106,7 +106,6 @@ dlsc_demosaic_vng6_rom #(
     .ROM        ( {1'd1, 1'd0, 1'd0, 1'd0, 1'd0, 1'd0, 1'd0, 1'd1, 1'd1, 1'd1, 1'd1, 1'd1} )
 ) dlsc_demosaic_vng6_rom_inst_red_push (
     .clk        ( clk ),
-    .clk_en     ( clk_en ),
     .st         ( st ),
     .out        ( diag_red_push )
 );
@@ -118,7 +117,6 @@ dlsc_demosaic_vng6_rom #(
     .ROM        ( {1'd0, 1'd0, 1'd0, 1'd0, 1'd0, 1'd0, 1'd0, 1'd0, 1'd1, 1'd1, 1'd0, 1'd0} )
 ) dlsc_demosaic_vng6_rom_inst_red_sel (
     .clk        ( clk ),
-    .clk_en     ( clk_en ),
     .st         ( st ),
     .out        ( diag_red_sel )
 );
@@ -168,7 +166,6 @@ dlsc_demosaic_vng6_rom #(
     .ROM        ( {1'd1, 1'd1, 1'd1, 1'd1, 1'd1, 1'd1, 1'd0, 1'd1, 1'd0, 1'd1, 1'd1, 1'd1} )
 ) dlsc_demosaic_vng6_rom_inst_ne_push (
     .clk        ( clk ),
-    .clk_en     ( clk_en ),
     .st         ( st ),
     .out        ( diag_ne_push )
 );
@@ -180,7 +177,6 @@ dlsc_demosaic_vng6_rom #(
     .ROM        ( {1'd0, 1'd1, 1'd0, 1'd1, 1'd0, 1'd1, 1'd0, 1'd1, 1'd0, 1'd1, 1'd0, 1'd1} )
 ) dlsc_demosaic_vng6_rom_inst_ne_sel (
     .clk        ( clk ),
-    .clk_en     ( clk_en ),
     .st         ( st ),
     .out        ( diag_ne_sel )
 );
@@ -197,7 +193,6 @@ dlsc_demosaic_vng6_rom #(
     .ROM        ( {1'd1, 1'd0, 1'd1, 1'd1, 1'd1, 1'd1, 1'd1, 1'd0, 1'd1, 1'd1, 1'd1, 1'd1} )
 ) dlsc_demosaic_vng6_rom_inst_se_push (
     .clk        ( clk ),
-    .clk_en     ( clk_en ),
     .st         ( st ),
     .out        ( diag_se_push )
 );
