@@ -160,8 +160,8 @@ void __MODULE__::send_frame() {
         img[y]  = new uint32_t[width+4];
         img[y]  = &img[y][2];
         for(int x=0;x<width;x++) {
-            img[y][x]   = ((y+1)*10)+x;
-            //img[y][x]   = dlsc_rand_u32(0,DATA_MAX);
+            //img[y][x]   = (((y+1)*10)+x) & DATA_MAX;
+            img[y][x]   = dlsc_rand_u32(0,DATA_MAX);
             in_queue.push_back(img[y][x]);
         }
         // repeat columns
@@ -388,26 +388,46 @@ void __MODULE__::send_frame() {
 }
 
 
+
 void __MODULE__::stim_thread() {
     rst     = 1;
     wait(1,SC_US);
 
-    in_rate     = 80.0;
-    out_rate    = 80.0;
+    for(int iterations=0;iterations<100;iterations++) {
+        dlsc_info("== test " << iterations << " ==");
 
-    cfg_width   = 10-1;
-    cfg_height  = 8-1;
-    cfg_first_r = 1;
-    cfg_first_g = 0;
+        in_rate     = 0.1 * dlsc_rand(50,1000);
+        out_rate    = 0.1 * dlsc_rand(50,1000);
 
-    wait(clk.posedge_event());
-    rst     = 0;
-    wait(clk.posedge_event());
+        cfg_width   = dlsc_rand(10,100)-1;
+        cfg_height  = dlsc_rand(10,30)-1;
+        cfg_first_r = dlsc_rand_bool(50.0);
+        cfg_first_g = dlsc_rand_bool(50.0);
 
-    send_frame();
-    send_frame();
+        wait(sc_core::SC_ZERO_TIME);
 
-    while(!out_queue.empty()) wait(1,SC_US);
+        dlsc_info("  in_rate:   " << in_rate);
+        dlsc_info("  out_rate:  " << out_rate);
+        dlsc_info("  width:     " << (cfg_width+1));
+        dlsc_info("  height:    " << (cfg_height+1));
+        dlsc_info("  first_r:   " << cfg_first_r);
+        dlsc_info("  first_g:   " << cfg_first_g);
+
+        wait(clk.posedge_event());
+        rst     = 0;
+        wait(clk.posedge_event());
+
+        for(int j=0;j<dlsc_rand(3,10);j++) {
+            send_frame();
+            while(in_queue.size() > 100) wait(1,SC_US);
+        }
+    
+        while(!out_queue.empty()) wait(1,SC_US);
+
+        wait(clk.posedge_event());
+        rst     = 1;
+        wait(clk.posedge_event());
+    }
 
     wait(1,SC_US);
     dut->final();
@@ -415,7 +435,7 @@ void __MODULE__::stim_thread() {
 }
 
 void __MODULE__::watchdog_thread() {
-    for(int i=0;i<100;i++) {
+    for(int i=0;i<200;i++) {
         wait(1,SC_MS);
         dlsc_info(". " << out_queue.size());
     }
