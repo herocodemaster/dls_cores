@@ -49,11 +49,14 @@ SP_CTOR_IMP(__MODULE__) : clk("clk",10,SC_NS) /*AUTOINIT*/ {
     SP_CELL(dut,DLSC_DUT);
         /*AUTOINST*/
 
-    rst     = 1;
-    clk_en  = 0;
-    st      = 0;
-    px_push = 0;
-    px_in   = 0;
+    rst         = 1;
+    clk_en      = 0;
+    st          = 0;
+    px_push     = 0;
+    px_masked   = 0;
+    px_last     = 0;
+    px_row_red  = 1;
+    px_in       = 0;
 
     SC_THREAD(stim_thread);
     SC_THREAD(watchdog_thread);
@@ -108,7 +111,7 @@ void __MODULE__::stim_thread() {
         img[y] = new int[WIDTH];
         for(x=0;x<WIDTH;++x) {
 //            img[y][x] = ((y+1)*10)+x;
-            img[y][x] = (int)(((unsigned int)rand()) % DATA_MAX);
+            img[y][x] = dlsc_rand(0,DATA_MAX);
         }
     }
 
@@ -302,6 +305,7 @@ void __MODULE__::stim_thread() {
     }
 
     rst = 1;
+    st  = 0;
 
     wait(1,SC_US);
     rst = 0;
@@ -405,12 +409,10 @@ void __MODULE__::stim_thread() {
 
         // ** stim **
 
-        if(rand()%10 == 0) {
-//        if(false) {
+        if(dlsc_rand_bool(10.0)) {
             clk_en      = 0;
             px_push     = 0;
             px_in       = 0;
-            st          = 0;
             wait(clk.posedge_event());
             continue;
         }
@@ -426,7 +428,7 @@ void __MODULE__::stim_thread() {
 
         clk_en      = 1;
 
-        // drive state (1 early, to account for ROM registering)
+        // drive next state (1 early, to account for ROM registering)
         st          = ((state+1)%12);
 
         // supply input pixels

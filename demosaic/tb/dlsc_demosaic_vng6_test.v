@@ -9,8 +9,10 @@ module dlsc_demosaic_vng6_test #(
     input   wire    [3:0]       st,
 
     input   wire                px_push,
-    input   wire    [DATA-1:0]  px_in,
     input   wire                px_masked,
+    input   wire                px_last,
+    input   wire                px_row_red,
+    input   wire    [DATA-1:0]  px_in,
 
     output  wire    [DATA  :0]  axes_red_diag,
     output  wire    [DATA  :0]  axes_add,
@@ -166,8 +168,10 @@ dlsc_demosaic_vng6_out #(
     .rst            ( rst ),
     .st             ( st ),
     .px_push        ( px_push ),
-    .px_in          ( px_in ),
     .px_masked      ( px_masked ),
+    .px_last        ( px_last ),
+    .px_row_red     ( px_row_red ),
+    .px_in          ( px_in ),
     .diff_norm      ( diff_norm_pre ),
     .out_red        ( out_red ),
     .out_green      ( out_green ),
