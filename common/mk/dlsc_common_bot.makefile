@@ -242,6 +242,7 @@ V_DIRS      += $(WORKDIR)
 V_DIRS      := $(sort $(V_DIRS))
 V_FLAGS     += $(addprefix -y ,$(V_DIRS))
 
+VH_DIRS     += $(V_DIRS)
 VH_DIRS     := $(sort $(VH_DIRS))
 V_FLAGS     += $(addprefix +incdir+,$(VH_DIRS))
 
