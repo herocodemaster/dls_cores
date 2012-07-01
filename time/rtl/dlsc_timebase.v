@@ -26,19 +26,17 @@
 
 // Module Description:
 //
-// Master timebase with fractional-n clock prescaler, master counter, and
-// multiple divided clock enable outputs.
+// Master timebase with fractional counter and multiple divided clock enable
+// outputs.
 //
 // See dlsc_timebase_core for details.
 
 module dlsc_timebase #(
     // ** Timebase **
-    parameter FREQ_IN       = 100000000,                // nominal clk input frequency (in Hz); can be changed via registers
+    parameter PERIOD_IN     = (32'd10  << 24),          // default value for PERIOD_IN register
+    parameter PERIOD_OUT    = (32'd100 << 24),          // defalut value for PERIOD_OUT register
 
-    parameter CNT_RATE      = 10000000,                 // increment rate for master counter (in Hz; < FREQ_IN)
-    parameter CNT_INC       = (1000000000/CNT_RATE),    // increment amount for master counter (defaults to effective increment rate of 1 GHz)
-
-    // output dividers (divide down from CNT_RATE)
+    // output dividers (divide down from PERIOD_OUT)
     parameter [31:0] DIV0   = 32'd1,                    // divider for clk_en_out[0];  10 MHz
     parameter [31:0] DIV1   = 32'd10,                   // divider for clk_en_out[1];   1 MHz
     parameter [31:0] DIV2   = 32'd100,                  // divider for clk_en_out[2]; 100 KHz
@@ -49,7 +47,8 @@ module dlsc_timebase #(
     parameter [31:0] DIV7   = 32'd10000000,             // divider for clk_en_out[7];   1 Hz
 
     // ** CSR **
-    parameter CSR_ADDR      = 32
+    parameter CSR_ADDR      = 32,
+    parameter CORE_INSTANCE = 32'h00000000              // 32-bit identifier to place in REG_CORE_INSTANCE field
 ) (
     // ** Timebase **
 
@@ -79,56 +78,119 @@ module dlsc_timebase #(
     // response
     output  reg                     csr_rsp_valid,
     output  reg                     csr_rsp_error,
-    output  reg     [31:0]          csr_rsp_data
+    output  reg     [31:0]          csr_rsp_data,
+
+    // interrupt
+    output  reg                     csr_int
 );
 
+localparam  CORE_MAGIC          = 32'h17b1ff98; // lower 32 bits of md5sum of "dlsc_timebase"
+localparam  CORE_VERSION        = 32'h20120630;
+localparam  CORE_INTERFACE      = 32'h20120630;
+
+localparam  OUTPUTS = 8;
+
 /* verilator lint_off WIDTHCONCAT */
-localparam [(8*32)-1:0] OUTPUT_DIV = {
+localparam [(OUTPUTS*32)-1:0] OUTPUT_DIV = {
     DIV7[31:0],DIV6[31:0],DIV5[31:0],DIV4[31:0],DIV3[31:0],DIV2[31:0],DIV1[31:0],DIV0[31:0] };
 /* verilator lint_on WIDTHCONCAT */
 
 
 // ** Registers **
-// 0x0: Control (RW)
+// 0x4: Control (RW)
 //  [0]     : enable
-// 0x1: Frequency (RW)
-// 0x4: Counter low (RO; latches Counter high on read)
-// 0x5: Counter high (RO)
-// 0x6: Adjust low (WO)
-// 0x7: Adjust high (WO; initiates adjust operation on write)
+// 0x5: Period in (RW)
+//  [31:24] : nanoseconds
+//  [23:0]  : fractional nanoseconds
+// 0x6: Period out (RW)
+//  [31:24] : nanoseconds
+//  [23:0]  : fractional nanoseconds
+// 0x7: Interrupt flags (RW; write 1 to clear)
+//  [7:0]   : clk_en asserted
+//  [31]    : counter overflowed
+// 0x7: Interrupt select (RW)
+// 0xC: Counter low (RO; latches Counter high on read)
+// 0xD: Counter high (RO)
+// 0xE: Adjust low (WO)
+// 0xF: Adjust high (WO; initiates adjust operation on write)
 
-localparam  REG_CONTROL         = 3'h0,
-            REG_FREQUENCY       = 3'h1,
-            REG_COUNTER_LOW     = 3'h4,
-            REG_COUNTER_HIGH    = 3'h5,
-            REG_ADJUST_LOW      = 3'h6,
-            REG_ADJUST_HIGH     = 3'h7;
+localparam  REG_CORE_MAGIC      = 4'h0,
+            REG_CORE_VERSION    = 4'h1,
+            REG_CORE_INTERFACE  = 4'h2,
+            REG_CORE_INSTANCE   = 4'h3;
 
-wire [2:0]      csr_addr    = csr_cmd_addr[4:2];
+localparam  REG_CONTROL         = 4'h4,
+            REG_PERIOD_IN       = 4'h5,
+            REG_PERIOD_OUT      = 4'h6,
+            REG_INT_FLAGS       = 4'h7,
+            REG_INT_SELECT      = 4'h8,
+            REG_COUNTER_LOW     = 4'hC,
+            REG_COUNTER_HIGH    = 4'hD,
+            REG_ADJUST_LOW      = 4'hE,
+            REG_ADJUST_HIGH     = 4'hF;
+
+wire [3:0]      csr_addr    = csr_cmd_addr[5:2];
 
 reg             enabled;
 
-reg  [31:0]     freq_in;
+reg  [31:0]     period_in;
+reg  [31:0]     period_out;
 
 reg  [63:32]    cnt_high;
 
 reg             adj_en;
 reg  [63:0]     adj_value;
 
+reg  [31:0]     int_select;
+
 always @(posedge clk) begin
     if(rst) begin
         enabled         <= 1'b0;
-        freq_in         <= FREQ_IN;
+        period_in       <= PERIOD_IN;
+        period_out      <= PERIOD_OUT;
+        int_select      <= 0;
     end else if(csr_cmd_valid && csr_cmd_write) begin
         // write
         if(csr_addr == REG_CONTROL) begin
             enabled         <= csr_cmd_data[0];
         end
-        if(csr_addr == REG_FREQUENCY) begin
-            freq_in         <= csr_cmd_data;
+        if(csr_addr == REG_PERIOD_IN) begin
+            period_in       <= csr_cmd_data;
+        end
+        if(csr_addr == REG_PERIOD_OUT) begin
+            period_out      <= csr_cmd_data;
+        end
+        if(csr_addr == REG_INT_SELECT) begin
+            int_select[OUTPUTS-1:0] <= csr_cmd_data[OUTPUTS-1:0];
+            int_select[31]          <= csr_cmd_data[31];
         end
     end
 end
+
+reg  [31:0]     int_flags;
+reg  [31:0]     next_int_flags;
+wire            cnt_wrapped;
+
+always @* begin
+    next_int_flags = int_flags;
+    if(csr_cmd_valid && csr_cmd_write && csr_addr == REG_INT_FLAGS) begin
+        next_int_flags = next_int_flags & ~csr_cmd_data;
+    end
+    next_int_flags[OUTPUTS-1:0] = next_int_flags[OUTPUTS-1:0] | clk_en_out;
+    next_int_flags[31]          = next_int_flags[31] | cnt_wrapped;
+    next_int_flags[30:OUTPUTS]  = 0;
+end
+
+always @(posedge clk) begin
+    if(rst) begin
+        int_flags       <= 0;
+        csr_int         <= 1'b0;
+    end else begin
+        int_flags       <= next_int_flags;
+        csr_int         <= |(int_flags & int_select);
+    end
+end
+
 
 always @(posedge clk) begin
     if(rst) begin
@@ -182,8 +244,15 @@ always @(posedge clk) begin
         if(!csr_cmd_write) begin
             // read
             case(csr_addr)
+                REG_CORE_MAGIC:     csr_rsp_data        <= CORE_MAGIC;
+                REG_CORE_VERSION:   csr_rsp_data        <= CORE_VERSION;
+                REG_CORE_INTERFACE: csr_rsp_data        <= CORE_INTERFACE;
+                REG_CORE_INSTANCE:  csr_rsp_data        <= CORE_INSTANCE;
                 REG_CONTROL:        csr_rsp_data[0]     <= enabled;
-                REG_FREQUENCY:      csr_rsp_data        <= freq_in;
+                REG_PERIOD_IN:      csr_rsp_data        <= period_in;
+                REG_PERIOD_OUT:     csr_rsp_data        <= period_out;
+                REG_INT_FLAGS:      csr_rsp_data        <= int_flags;
+                REG_INT_SELECT:     csr_rsp_data        <= int_select;
                 REG_COUNTER_LOW:    csr_rsp_data        <= cnt[31:0];           // taken directly from counter
                 REG_COUNTER_HIGH:   csr_rsp_data        <= cnt_high[63:32];     // latched value of counter
                 default:            csr_rsp_data        <= 0;
@@ -198,23 +267,23 @@ end
 wire rst_timebase = rst || !enabled;
 
 dlsc_timebase_core #(
-    .CNT_RATE       ( CNT_RATE ),
-    .CNT_INC        ( CNT_INC ),
     .CNTB           ( 64 ),
-    .DIVB           ( 33 ),
+    .PERB           ( 8 ),
+    .SUBB           ( 24 ),
     .OUTPUTS        ( 8 ),
     .OUTPUT_DIV     ( OUTPUT_DIV )
 ) dlsc_timebase_core (
     .clk            ( clk ),
     .rst            ( rst_timebase ),
     .clk_en_out     ( clk_en_out ),
+    .cfg_period_in  ( period_in ),
+    .cfg_period_out ( period_out ),
+    .cfg_adj_en     ( adj_en ),
+    .cfg_adj_value  ( adj_value ),
     .stopped        ( stopped ),
     .adjusting      ( adjusting ),
     .cnt            ( cnt ),
-    .cnt_wrapped    (  ),
-    .adj_en         ( adj_en ),
-    .adj_value      ( adj_value ),
-    .freq_in        ( {1'b0,freq_in} )
+    .cnt_wrapped    ( cnt_wrapped )
 );
 
 

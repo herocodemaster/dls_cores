@@ -10,9 +10,6 @@ SP_TESTBENCH    += dlsc_timebase_tb.sp
 SP_FILES        += dlsc_csr_tlm_master_32b.sp
 
 V_PARAMS_DEF    += \
-    FREQ_IN=100000000 \
-    CNT_RATE=10000000 \
-    CNT_INC=100 \
     DIV0=1 \
     DIV1=10 \
     DIV2=100 \

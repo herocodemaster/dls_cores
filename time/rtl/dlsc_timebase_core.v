@@ -26,11 +26,11 @@
 
 // Module Description:
 //
-// Master timebase with fractional-n clock prescaler, master counter, and
-// multiple divided clock enable outputs.
+// Master timebase with fractional counter and multiple divided clock enable
+// outputs.
 //
 // External control firmware can implement a simple phase-locked-loop that
-// fine-tunes the prescaler (via freq_in) to keep the timebase in sync with
+// fine-tunes the count rate (via period_in) to keep the timebase in sync with
 // an external reference.
 //
 // Large changes to the timebase can be made via the adj_en/value inputs.
@@ -39,23 +39,14 @@
 // over them. If you wish to maintain alignment between the timebase and the
 // clk_en outputs, then you should only apply adjustment values that are
 // multiples of the least-common-multiple of all OUTPUT_DIV values.
-//
-// E.g. with an effective CNT_FREQ of 1 GHz (e.g. CNT_RATE of 10 MHz and CNT_INC
-// of 100) and clk_en_out rates of 10 MHz, 1 MHz, 1 KHz and 1 Hz, then you should
-// only apply adj_values that are a multiple of 1 GHz / 1 Hz = 1,000,000,000.
 
 module dlsc_timebase_core #(
-
-//  parameter FREQ_IN       = 100000000,                // nominal clk input frequency (in Hz)
-
-    parameter CNT_RATE      = 10000000,                 // increment rate for master counter (in Hz)
-    parameter CNT_INC       = (1000000000/CNT_RATE),    // increment amount for master counter
-
     parameter CNTB          = 64,                       // bits for master counter
-    parameter DIVB          = 32,                       // bits for fractional divider (enough bits for max FREQ_IN + sign bit)
+    parameter PERB          = 8,                        // bits to specify input period
+    parameter SUBB          = (32-PERB),                // bits to specify fractional input period
 
     parameter OUTPUTS       = 1,                        // number of clk_en outputs (at least 1)
-    parameter OUTPUT_DIV    = {OUTPUTS{32'd1}}          // integer divider for each output (divides down from CNT_RATE)
+    parameter OUTPUT_DIV    = {OUTPUTS{32'd1}}          // integer divider for each output (divides down from cfg_period_out)
 ) (
     // system
     input   wire                    clk,
@@ -64,90 +55,193 @@ module dlsc_timebase_core #(
     // enable outputs
     output  wire    [OUTPUTS-1:0]   clk_en_out,
 
+    // configuration
+    input   wire    [PERB+SUBB-1:0] cfg_period_in,      // period of input clock
+    input   wire    [PERB+SUBB-1:0] cfg_period_out,     // period of output clock
+    input   wire                    cfg_adj_en,         // enable adjust operation
+    input   wire    [CNTB-1:0]      cfg_adj_value,      // signed adjustment value
+
     // status
     output  wire                    stopped,            // flag that indicates timebase is stopped (in reset)
     output  wire                    adjusting,          // flag indicating counter is about to be adjusted
 
     // master counter output
     output  wire    [CNTB-1:0]      cnt,                // unsigned master counter value
-    output  wire                    cnt_wrapped,        // counter wrapped across 0 (typically overflow, but could also be underflow from negative adj_value)
-
-    // master counter adjust input
-    input   wire                    adj_en,
-    input   wire    [CNTB-1:0]      adj_value,          // signed adjustment value
-
-    // fractional divider control
-    input   wire    [DIVB-1:0]      freq_in             // actual input frequency (in Hz; must be > CNT_RATE)
+    output  wire                    cnt_wrapped         // counter overflowed
 );
 
+`include "dlsc_util.vh"
 `include "dlsc_synthesis.vh"
 
 integer i;
 genvar j;
 
+localparam  BITS        = CNTB+SUBB;            // bits for master counter
+localparam  STGB        = 32;                   // bits per adder stage
+localparam  STAGES      = (BITS+STGB-1)/STGB;   // number of adder stages required
 
-// ** divider **
+localparam  CA0         = STAGES;               // ca0 is output of adj_period adder
+localparam  CB0         = CA0 + STAGES;         // cb0 is output of master counter
 
-reg  [DIVB-1:0] divcnt;
-wire            c0_cnt_en       = !divcnt[DIVB-1];
-
+// delayed valids
+reg  [CB0:1] valids_r;
+wire [CB0:0] valids = {valids_r,1'b1};
+reg  [CB0:1] adj_en_r;
+wire [CB0:0] adj_en = {adj_en_r,cfg_adj_en};
 always @(posedge clk) begin
     if(rst) begin
-        divcnt          <= 0;
+        valids_r    <= 0;
+        adj_en_r    <= 0;
     end else begin
-/* verilator lint_off WIDTH */
-        divcnt          <= divcnt + CNT_RATE - (c0_cnt_en ? freq_in : 0);
-/* verilator lint_on WIDTH */
-    end
-end
-
-`DLSC_FANOUT_REG reg c1_cnt_en;
-
-always @(posedge clk) begin
-    if(rst) begin
-        c1_cnt_en       <= 1'b0;
-    end else begin
-        c1_cnt_en       <= c0_cnt_en;
+        valids_r    <= valids[CB0-1:0];
+        adj_en_r    <= adj_en[CB0-1:0];
     end
 end
 
 
-// ** adjuster **
+// ** add adj_value to period_in **
 
-reg             c2_adj_en;
-reg  [CNTB-1:0] c2_adj;
+// inputs
+wire [BITS-1:0] pad_period_in   = { {(CNTB-PERB){1'b0}}, cfg_period_in };
+wire [BITS-1:0] pad_adj_value   = { cfg_adj_value, {SUBB{1'b0}} };
+
+// outputs
+// cycle: STAGES (minimum: c1)
+wire [BITS-1:0] sum_period_adj;
+
+// carry between stages
+wire [STAGES:0] sum_carrys;
+assign sum_carrys[0] = 1'b0;
+
+`define stgb ( (j==(STAGES-1)) ? (BITS-((STAGES-1)*STGB)) : STGB )
+
+generate
+for(j=0;j<STAGES;j=j+1) begin:GEN_ADJ_STAGES
+
+    // delay inputs
+    wire [`stgb-1:0] period;
+    wire [`stgb-1:0] adj;
+
+    dlsc_pipedelay #(
+        .DATA       ( 2*`stgb ),
+        .DELAY      ( j )
+    ) dlsc_pipedelay_inputs (
+        .clk        ( clk ),
+        .in_data    ( { pad_period_in[ j*STGB +: `stgb ] , pad_adj_value[ j*STGB +: `stgb ] } ),
+        .out_data   ( { period, adj } )
+    );
+
+    // add
+    reg [`stgb  :0] sum;
+    always @(posedge clk) begin
+        sum     <= {1'b0,period} + ( adj_en[j] ? {1'b0,adj} : 0 ) + {{(`stgb){1'b0}},sum_carrys[j]};
+    end
+    assign sum_carrys[j+1] = sum[`stgb];
+
+    // delay output
+    dlsc_pipedelay #(
+        .DATA       ( `stgb ),
+        .DELAY      ( CA0-1-j )
+    ) dlsc_pipedelay_output (
+        .clk        ( clk ),
+        .in_data    ( sum[`stgb-1:0] ),
+        .out_data   ( sum_period_adj[ j*STGB +: `stgb ] )
+    );
+
+end
+endgenerate
+
+
+// ** add period_adj to counter **
+
+// counter output
+// cycle: 2*STAGES (minimum: c2)
+wire [BITS:0] master_cnt_pre;
+
+// carry between stages
+wire [STAGES:0] cnt_carrys;
+assign cnt_carrys[0] = 1'b0;
+assign master_cnt_pre[BITS] = cnt_carrys[STAGES];
+
+generate
+for(j=0;j<STAGES;j=j+1) begin:GEN_CNT_STAGES
+
+    // delay input
+    wire [`stgb-1:0] period_adj;
+
+    dlsc_pipedelay #(
+        .DATA       ( `stgb ),
+        .DELAY      ( j )
+    ) dlsc_pipedelay_input (
+        .clk        ( clk ),
+        .in_data    ( sum_period_adj[ j*STGB +: `stgb ] ),
+        .out_data   ( period_adj )
+    );
+
+    // add
+    reg [`stgb  :0] sum;
+    always @(posedge clk) begin
+        if(rst) begin
+            sum     <= 0;
+        end else if(valids[CA0+j]) begin
+            sum     <= {1'b0,sum[`stgb-1:0]} + {1'b0,period_adj} + {{(`stgb){1'b0}},cnt_carrys[j]};
+        end
+    end
+    assign cnt_carrys[j+1] = sum[`stgb];
+
+    // delay output
+    dlsc_pipedelay #(
+        .DATA       ( `stgb ),
+        .DELAY      ( CB0-CA0-1-j )
+    ) dlsc_pipedelay_output (
+        .clk        ( clk ),
+        .in_data    ( sum[`stgb-1:0] ),
+        .out_data   ( master_cnt_pre[ j*STGB +: `stgb ] )
+    );
+
+end
+endgenerate
+
+`undef stgb
+
+
+// ** master output divider **
+
+// delay inputs so period changes take effect on the divider and the master
+// counter at the same time
+
+wire [PERB+SUBB-1:0] ca0_period_in;
+wire [PERB+SUBB-1:0] ca0_period_out;
+
+dlsc_pipedelay #(
+    .DATA       ( 2*(PERB+SUBB) ),
+    .DELAY      ( CA0  )
+) dlsc_pipedelay_periods (
+    .clk        ( clk ),
+    .in_data    ( {cfg_period_in,cfg_period_out} ),
+    .out_data   ( {ca0_period_in,ca0_period_out} )
+);
+
+localparam DIVB = PERB+SUBB+1;
+
+reg  [DIVB-1:0]     div_cnt;
+wire                ca0_cnt_en  = !div_cnt[DIVB-1];
+`DLSC_FANOUT_REG reg ca1_cnt_en;
 
 always @(posedge clk) begin
-    if(rst) begin
-        c2_adj_en       <= 1'b0;
-        c2_adj          <= 0;
+    if(!valids[CA0]) begin
+        div_cnt     <= 0;
+        ca1_cnt_en  <= 1'b0;
     end else begin
-        c2_adj_en       <= adj_en;
-/* verilator lint_off WIDTH */
-        c2_adj          <= (c1_cnt_en ? CNT_INC : 0) + (adj_en ? adj_value : 0);
-/* verilator lint_on WIDTH */
+        div_cnt     <= div_cnt + {1'b0,ca0_period_in} - (ca0_cnt_en ? {1'b0,ca0_period_out} : 0);
+        ca1_cnt_en  <= ca0_cnt_en;
     end
 end
 
 
-// ** counter **
+// ** secondary output dividers **
 
-reg  [CNTB-1:0] c3_cnt;
-reg             c3_cnt_wrapped;
-
-always @(posedge clk) begin
-    if(rst) begin
-        { c3_cnt_wrapped, c3_cnt } <= 0;
-    end else begin
-        // cnt is unsigned; adj is signed; carry/borrow indicates overflow/underflow
-        { c3_cnt_wrapped, c3_cnt } <= { 1'b0, c3_cnt } + { c2_adj[CNTB-1], c2_adj };
-    end
-end
-
-
-// ** output dividers **
-
-wire [OUTPUTS-1:0] c2_clk_en;
+wire [OUTPUTS-1:0] ca2_clk_en;
 
 generate
 for(j=0;j<OUTPUTS;j=j+1) begin:GEN_OUTPUT_DIV
@@ -155,15 +249,15 @@ for(j=0;j<OUTPUTS;j=j+1) begin:GEN_OUTPUT_DIV
     integer od_cnt;
     reg     od_clk_en;
 
-    assign c2_clk_en[j] = od_clk_en;
+    assign  ca2_clk_en[j]   = od_clk_en;
 
     always @(posedge clk) begin
-        if(rst) begin
+        if(!valids[CA0+1]) begin
             od_cnt      <= 0;
             od_clk_en   <= 1'b0;
         end else begin
             od_clk_en   <= 1'b0;
-            if(c1_cnt_en) begin
+            if(ca1_cnt_en) begin
                 if(od_cnt == 0) begin
                     od_clk_en   <= 1'b1;
                     od_cnt      <= (OUTPUT_DIV[ j*32 +: 32 ] - 1);
@@ -177,41 +271,66 @@ for(j=0;j<OUTPUTS;j=j+1) begin:GEN_OUTPUT_DIV
 end
 endgenerate
 
+// delay to match counter
+
+wire [OUTPUTS-1:0] cb0_clk_en;
+
+dlsc_pipedelay_rst #(
+    .DATA       ( OUTPUTS ),
+    .RESET      ( {OUTPUTS{1'b0}} ),
+    .DELAY      ( CB0 - (CA0+2) )
+) dlsc_pipedelay_rst_clk_en (
+    .clk        ( clk ),
+    .rst        ( rst ),
+    .in_data    ( ca2_clk_en ),
+    .out_data   ( cb0_clk_en )
+);
+
 
 // ** buffer outputs **
 
-`DLSC_FANOUT_REG    reg  [CNTB-1:0]     c4_cnt;
-                    reg                 c4_cnt_wrapped;
+wire            cb0_valid       = valids[CB0];
+wire            cb0_adj_en      = adj_en[CB0];
+wire [CNTB-1:0] cb0_cnt         = master_cnt_pre[BITS-1:SUBB];
+wire            cb0_cnt_wrapped = master_cnt_pre[BITS];
 
-`DLSC_FANOUT_REG    reg  [OUTPUTS-1:0]  c3_clk_en;
-                    reg                 c3_stopped;
-                    reg                 c3_adj_en;
+`DLSC_FANOUT_REG    reg  [OUTPUTS-1:0]  cb1_clk_en;
+                    reg                 cb1_adj_en;
+                    reg                 cb1_stopped;
+                    reg  [CNTB-1:0]     cb1_cnt;
+                    reg                 cb1_cnt_wrapped;
+
+`DLSC_FANOUT_REG    reg  [CNTB-1:0]     cb2_cnt;
+                    reg                 cb2_cnt_wrapped;
 
 always @(posedge clk) begin
     if(rst) begin
-        c4_cnt          <= 0;
-        c4_cnt_wrapped  <= 1'b0;
-        c3_clk_en       <= 0;
-        c3_stopped      <= 1'b1;
-        c3_adj_en       <= 1'b0;
-    end else begin
-        c4_cnt          <= c3_cnt;
-        c4_cnt_wrapped  <= c3_cnt_wrapped;
-        c3_clk_en       <= c2_clk_en;
-        if(c2_clk_en[0]) begin
-            c3_stopped      <= 1'b0;
-        end
-        c3_adj_en       <= c2_adj_en;
+        cb1_stopped     <= 1'b1;
+        cb1_clk_en      <= 0;
+        cb1_adj_en      <= 1'b0;
+        cb1_cnt         <= 0;
+        cb1_cnt_wrapped <= 1'b0;
+        cb2_cnt         <= 0;
+        cb2_cnt_wrapped <= 1'b0;
+    end else if(cb0_valid) begin
+        cb1_stopped     <= 1'b0;
+        cb1_clk_en      <= cb0_clk_en;
+        cb1_adj_en      <= cb0_adj_en;
+        cb1_cnt         <= cb0_cnt;
+        cb1_cnt_wrapped <= cb0_cnt_wrapped;
+        cb2_cnt         <= cb1_cnt;
+        cb2_cnt_wrapped <= cb1_cnt_wrapped;
     end
 end
 
-assign clk_en_out   = c3_clk_en;        // enables assert 1 cycle before count changes
+assign clk_en_out   = cb1_clk_en;        // enables assert 1 cycle before count changes
 
-assign stopped      = c3_stopped;
-assign adjusting    = c3_adj_en;
+assign stopped      = cb1_stopped;
+assign adjusting    = cb1_adj_en;
 
-assign cnt          = c4_cnt;
-assign cnt_wrapped  = c4_cnt_wrapped;
+assign cnt          = cb2_cnt;
+assign cnt_wrapped  = cb2_cnt_wrapped;
+
 
 endmodule
 
