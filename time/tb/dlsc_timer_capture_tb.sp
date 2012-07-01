@@ -19,8 +19,9 @@ struct channel_state {
     int prescaler;
     int ps_cnt;
     int events;
-    std::deque<uint64_t> times;
-    std::deque<uint32_t> states;
+    std::deque<uint64_t> time_q;
+    std::deque<uint32_t> state_q;
+    std::deque<uint32_t> meta_q;
 };
 
 SC_MODULE (__MODULE__) {
@@ -91,8 +92,9 @@ const uint32_t REG_INT_FLAGS       = 0x06;
 const uint32_t REG_INT_SELECT      = 0x07;
 const uint32_t REG_FIFO_COUNT      = 0x08;
 const uint32_t REG_FIFO_CHANNEL    = 0x09;
-const uint32_t REG_FIFO_LOW        = 0x0A;
-const uint32_t REG_FIFO_HIGH       = 0x0B;
+const uint32_t REG_FIFO_META       = 0x0A;
+const uint32_t REG_FIFO_LOW        = 0x0B;
+const uint32_t REG_FIFO_HIGH       = 0x0C;
 const uint32_t REG_SOURCE          = 0x10;
 const uint32_t REG_PRESCALER       = 0x20;
 const uint32_t REG_EVENT           = 0x30;
@@ -113,7 +115,7 @@ void __MODULE__::clk_method() {
         enabled     = false;
         for(int i=0;i<PARAM_CHANNELS;i++) {
             channel_state &ch = channels[i];
-            ch.source       = 0;
+            ch.source       = i;
             ch.pos          = false;
             ch.neg          = false;
             ch.prescaler    = 0;
@@ -125,19 +127,23 @@ void __MODULE__::clk_method() {
             channel_state &ch = channels[i];
             ch.ps_cnt       = 0;
             ch.events       = 0;
-            ch.times.clear();
-            ch.states.clear();
+            ch.time_q.clear();
+            ch.state_q.clear();
+            ch.meta_q.clear();
         }
         cnt.write(0);
         trigger.write(0);
+        meta.write(0);
         return;
     }
     
     uint64_t time   = cnt.read() + 1;//dlsc_rand_u64();
     uint64_t inputs = trigger.read();
     uint64_t prev   = inputs;
+    uint32_t metas[PARAM_INPUTS];
 
     for(int i=0;i<PARAM_INPUTS;i++) {
+        metas[i] = dlsc_rand_u32(0,(1u<<PARAM_META)-1);
         if(dlsc_rand_bool(rates[i])) {
             inputs ^= (1ull << i);
         }
@@ -146,9 +152,21 @@ void __MODULE__::clk_method() {
     cnt.write(time);
     trigger.write(inputs);
 
+#if ((PARAM_INPUTS*PARAM_META) <= 64)
+    uint64_t data = 0;
+    for(int i=0;i<PARAM_INPUTS;i++) {
+        data |= metas[i] << (i*PARAM_META);
+    }
+#else
+    sc_bv<PARAM_INPUTS*PARAM_META> data = 0;
+    for(int i=0;i<PARAM_INPUTS;i++) {
+        data.range( ((i+1)*PARAM_META)-1 , (i*PARAM_META) ) = metas[i];
+    }
+#endif
+    meta.write(data);
+
     uint64_t rise   = (~prev) & ( inputs);
     uint64_t fall   = ( prev) & (~inputs);
-
 
     uint32_t states = 0;
     for(int i=0;i<PARAM_CHANNELS;i++) {
@@ -160,14 +178,16 @@ void __MODULE__::clk_method() {
 
     for(int i=0;i<PARAM_CHANNELS;i++) {
         channel_state &ch = channels[i];
+        assert(ch.source >= 0 && ch.source < PARAM_INPUTS);
         if( (ch.pos && (rise & (1ull << ch.source))) ||
             (ch.neg && (fall & (1ull << ch.source))) )
         {
             ch.events++;
             if(ch.ps_cnt == ch.prescaler) {
                 ch.ps_cnt = 0;
-                ch.times.push_back(time);
-                ch.states.push_back(states);
+                ch.time_q.push_back(time);
+                ch.state_q.push_back(states);
+                ch.meta_q.push_back(metas[ch.source]);
             } else {
                 ch.ps_cnt++;
             }
@@ -210,7 +230,7 @@ void __MODULE__::stim_thread() {
         // setup capture channels
         for(int i=0;i<PARAM_CHANNELS;i++) {
             channel_state &ch = channels[i];
-            ch.source = dlsc_rand(0,PARAM_INPUTS-1);
+            ch.source   = PARAM_NOMUX ? i : dlsc_rand(0,PARAM_INPUTS-1);
             ch.pos      = dlsc_rand_bool(50.0);
             ch.neg      = dlsc_rand_bool(50.0);
             if(dlsc_rand_bool(50.0)) {
@@ -251,10 +271,12 @@ void __MODULE__::stim_thread() {
                 if(data & 0x80000000) break;
 
                 int channel = (data >> 16) & 0xF;
-                uint32_t states = (data & 0xFFFF);
+                uint32_t ff_states = (data & 0xFFFF);
 
-                uint64_t time = reg_read(REG_FIFO_LOW);
-                time |= ((uint64_t)reg_read(REG_FIFO_HIGH) << 32);
+                uint32_t ff_meta = reg_read(REG_FIFO_META);
+
+                uint64_t ff_time = reg_read(REG_FIFO_LOW);
+                ff_time |= ((uint64_t)reg_read(REG_FIFO_HIGH) << 32);
 
                 if(channel < 0 || channel >= PARAM_CHANNELS) {
                     dlsc_error("invalid channel: " << channel);
@@ -264,22 +286,24 @@ void __MODULE__::stim_thread() {
                 while(true) {
                     channel_state &ch = channels[channel];
                     
-                    if(ch.times.empty() || ch.states.empty()) {
+                    if(ch.time_q.empty() || ch.state_q.empty() || ch.meta_q.empty()) {
                         dlsc_error("channel FIFO empty: " << channel);
                         break;
                     }
 
-                    uint32_t ch_states  = ch.states.front(); ch.states.pop_front();
-                    uint64_t ch_time    = ch.times.front(); ch.times.pop_front();
+                    uint32_t ch_states  = ch.state_q.front(); ch.state_q.pop_front();
+                    uint32_t ch_meta    = ch.meta_q.front(); ch.meta_q.pop_front();
+                    uint64_t ch_time    = ch.time_q.front(); ch.time_q.pop_front();
 
-                    if( (int_flags & (0x10000<<channel)) && (ch_states != states || ch_time != time) ) {
+                    if( (int_flags & (0x10000<<channel)) && (ch_states != ff_states || ch_meta != ff_meta || ch_time != ff_time) ) {
                         // ignore mismatch if event(s) were lost
                         dlsc_info("ignoring possible mismatch due to event loss flag: " << channel);
                         continue;
                     }
 
-                    dlsc_assert_equals(ch_states,states);
-                    dlsc_assert_equals(ch_time,time);
+                    dlsc_assert_equals(ch_states,ff_states);
+                    dlsc_assert_equals(ch_meta,  ff_meta);
+                    dlsc_assert_equals(ch_time,  ff_time);
 
                     break;
                 }
@@ -309,13 +333,6 @@ void __MODULE__::stim_thread() {
                     ch.events -= (int)data;
                 }
             }
-
-    //        for(int i=0;i<PARAM_CHANNELS;i++) {
-    //            if(channels[i].times.empty()) {
-    //                // no more events stored; can safely clear loss flag
-    //                int_flags_next |= (int_flags & (0x10000<<i));
-    //            }
-    //        }
 
             reg_write(REG_INT_FLAGS,int_flags_next);
         }

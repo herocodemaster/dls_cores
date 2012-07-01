@@ -33,7 +33,9 @@
 
 module dlsc_timer_capture #(
     parameter INPUTS        = 1,                // number of event inputs (1-256)
-    parameter CHANNELS      = 1,                // number of capture channels (1-16)
+    parameter META          = 1,                // bits of metadata per event input (1-32)
+    parameter CHANNELS      = INPUTS,           // number of capture channels (1-16)
+    parameter NOMUX         = 1,                // disable input muxes (1:1 INPUT:CHANNEL relationship)
     parameter DEPTH         = 16,               // entries in event FIFO
     parameter PBITS         = 4,                // bits for input prescaler (2-32)
     parameter EBITS         = 8,                // bits for event counter (2-31)
@@ -51,6 +53,7 @@ module dlsc_timer_capture #(
 
     // event inputs
     input   wire    [INPUTS-1:0]    trigger,
+    input   wire    [(INPUTS*META)-1:0] meta,
     
     // ** Register Bus **
 
@@ -103,8 +106,9 @@ genvar j;
 //  [15:0]  : channel states at time of event
 //  [19:16] : channel index
 //  [31]    : FIFO empty
-// 0x0A: FIFO: Event time low (RO)
-// 0x0B: FIFO: Event time high (RO; pops FIFO)
+// 0x0A: FIFO: Event metadata (RO)
+// 0x0B: FIFO: Event time low (RO)
+// 0x0C: FIFO: Event time high (RO; pops FIFO)
 // 0x10: channel 0 source (RW)
 //  [7:0]   : source
 //  [8]     : positive edge sensitive
@@ -131,8 +135,9 @@ localparam  REG_CONTROL         = 6'h04,
             REG_INT_SELECT      = 6'h07,
             REG_FIFO_COUNT      = 6'h08,
             REG_FIFO_CHANNEL    = 6'h09,
-            REG_FIFO_LOW        = 6'h0A,
-            REG_FIFO_HIGH       = 6'h0B;
+            REG_FIFO_META       = 6'h0A,
+            REG_FIFO_LOW        = 6'h0B,
+            REG_FIFO_HIGH       = 6'h0C;
 
 localparam  REG_SOURCE          = 6'h1Z,
             REG_PRESCALER       = 6'h2Z,
@@ -158,6 +163,7 @@ reg  [31:0] int_select;
 
 wire [31:0] fifo_count;
 wire [31:0] fifo_channel;
+wire [31:0] fifo_meta;
 wire [31:0] fifo_low;
 wire [31:0] fifo_high;
 
@@ -184,6 +190,7 @@ always @(posedge clk) begin
                 REG_INT_SELECT:     csr_rsp_data        <= int_select;
                 REG_FIFO_COUNT:     csr_rsp_data        <= fifo_count;
                 REG_FIFO_CHANNEL:   csr_rsp_data        <= fifo_channel;
+                REG_FIFO_META:      csr_rsp_data        <= fifo_meta;
                 REG_FIFO_LOW:       csr_rsp_data        <= fifo_low;
                 REG_FIFO_HIGH:      csr_rsp_data        <= fifo_high;
                 REG_SOURCE:         csr_rsp_data        <= channel_source[csr_addr[3:0]];
@@ -265,6 +272,7 @@ wire [15:0]     arb_ready;
 wire [15:0]     arb_valid;
 wire [63:0]     arb_time [15:0];
 wire [CHANNELS-1:0] arb_chstate [15:0];
+wire [META-1:0] arb_meta [15:0];
 
 generate
 
@@ -274,7 +282,9 @@ for(j=0;j<CHANNELS;j=j+1) begin:GEN_CHANNELS
         .INDEX              ( j ),
         .INPUTS             ( INPUTS ),
         .IBITS              ( IBITS ),
+        .META               ( META ),
         .CHANNELS           ( CHANNELS ),
+        .NOMUX              ( NOMUX ),
         .PBITS              ( PBITS ),
         .EBITS              ( EBITS ),
         .CSR_ADDR           ( CSR_ADDR )
@@ -283,6 +293,7 @@ for(j=0;j<CHANNELS;j=j+1) begin:GEN_CHANNELS
         .rst                ( rst ),
         .cnt                ( c1_cnt ),
         .trigger            ( trigger ),
+        .meta               ( meta ),
         .enabled            ( enabled ),
         .ch_out             ( channel_states[j] ),
         .ch_in              ( channel_states[CHANNELS-1:0] ),
@@ -290,6 +301,7 @@ for(j=0;j<CHANNELS;j=j+1) begin:GEN_CHANNELS
         .fifo_valid         ( arb_valid[j] ),
         .fifo_cnt           ( arb_time[j] ),
         .fifo_chstate       ( arb_chstate[j] ),
+        .fifo_meta          ( arb_meta[j] ),
         .set_event_overflow ( set_event_overflow[j] ),
         .set_lost_event     ( set_lost_event[j] ),
         .csr_cmd_valid      ( csr_cmd_valid ),
@@ -308,6 +320,7 @@ for(j=CHANNELS;j<16;j=j+1) begin:GEN_UNUSED_CHANNELS
     assign arb_valid[j]             = 1'b0;
     assign arb_time[j]              = 64'h0;
     assign arb_chstate[j]           = 0;
+    assign arb_meta[j]              = 0;
     assign set_event_overflow[j]    = 1'b0;
     assign set_lost_event[j]        = 1'b0;
     assign channel_states[j]        = 1'b0;
@@ -330,6 +343,7 @@ wire        wr_push     = wr_valid && !wr_full;
 reg  [3:0]  wr_index;
 reg  [63:0] wr_time;
 reg  [CHANNELS-1:0] wr_chstate;
+reg  [META-1:0] wr_meta;
 
 reg       arb_set;
 reg [3:0] arb_sel;
@@ -357,6 +371,7 @@ always @(posedge clk) begin
         wr_index    <= arb_sel;
         wr_time     <= arb_time[arb_sel];
         wr_chstate  <= arb_chstate[arb_sel];
+        wr_meta     <= arb_meta[arb_sel];
     end
 end
 
@@ -391,22 +406,23 @@ end
 wire [3:0]  rd_index;
 wire [63:0] rd_time;
 wire [CHANNELS-1:0] rd_chstate;
+wire [META-1:0] rd_meta;
 
 dlsc_fifo #(
     .ADDR           ( FIFO_ADDR ),
-    .DATA           ( CHANNELS + 4 + 64 ),
+    .DATA           ( META + CHANNELS + 4 + 64 ),
     .ALMOST_FULL    ( (2**FIFO_ADDR)/2 ),
     .COUNT          ( 1 )
 ) dlsc_fifo (
     .clk            ( clk ),
     .rst            ( rst || !enabled ),
     .wr_push        ( wr_push ),
-    .wr_data        ( { wr_chstate, wr_index, wr_time } ),
+    .wr_data        ( { wr_meta, wr_chstate, wr_index, wr_time } ),
     .wr_full        ( wr_full ),
     .wr_almost_full ( wr_almost_full ),
     .wr_free        (  ),
     .rd_pop         ( rd_pop ),
-    .rd_data        ( { rd_chstate, rd_index, rd_time } ),
+    .rd_data        ( { rd_meta, rd_chstate, rd_index, rd_time } ),
     .rd_empty       ( rd_empty ),
     .rd_almost_empty (  ),
     .rd_count       ( rd_count )
@@ -415,6 +431,7 @@ dlsc_fifo #(
 assign fifo_count   = { {(31-FIFO_ADDR){1'b0}}, rd_count };
 
 assign fifo_channel = rd_empty ? 32'h80000000 : { 12'd0, rd_index, {(16-CHANNELS){1'b0}}, rd_chstate };
+assign fifo_meta    = rd_empty ? 32'h00000000 : { {(32-META){1'b0}} , rd_meta };
 assign fifo_low     = rd_empty ? 32'h00000000 : rd_time[31:0];
 assign fifo_high    = rd_empty ? 32'h00000000 : rd_time[63:32];
 

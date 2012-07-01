@@ -36,7 +36,9 @@ module dlsc_timer_capture_channel #(
     parameter INDEX         = 0,                // channel index
     parameter INPUTS        = 1,                // number of event inputs (1-256)
     parameter IBITS         = 1,                // bits for INPUTS
+    parameter META          = 1,                // bits of metadata per input (1-32)
     parameter CHANNELS      = 1,                // number of capture channels (1-16)
+    parameter NOMUX         = 1,                // disable input muxes (1:1 INPUT:CHANNEL relationship)
     parameter PBITS         = 4,                // bits for input prescaler (2-32)
     parameter EBITS         = 8,                // bits for event counter (2-31)
     parameter CSR_ADDR      = 32
@@ -50,6 +52,7 @@ module dlsc_timer_capture_channel #(
 
     // event inputs
     input   wire    [INPUTS-1:0]    trigger,
+    input   wire    [(INPUTS*META)-1:0] meta,
 
     // master enable
     input   wire                    enabled,
@@ -63,6 +66,7 @@ module dlsc_timer_capture_channel #(
     output  reg                     fifo_valid,
     output  reg     [63:0]          fifo_cnt,
     output  reg     [CHANNELS-1:0]  fifo_chstate,
+    output  reg     [META-1:0]      fifo_meta,
 
     // Interrupt flag set
     output  reg                     set_event_overflow,
@@ -79,6 +83,8 @@ module dlsc_timer_capture_channel #(
     output  wire    [31:0]          reg_prescaler,
     output  wire    [31:0]          reg_event
 );
+
+genvar j;
 
 
 // Registers
@@ -104,7 +110,9 @@ assign reg_event        = { event_overflow, {(31-EBITS){1'b0}}, event_cnt };
 
 always @(posedge clk) begin
     if(rst) begin
-        source_sel  <= 0;
+/* verilator lint_off WIDTH */
+        source_sel  <= INDEX;
+/* verilator lint_on WIDTH */
         source_pos  <= 1'b0;
         source_neg  <= 1'b0;
         prescaler   <= 0;
@@ -112,7 +120,9 @@ always @(posedge clk) begin
 /* verilator lint_off WIDTH */
         if(csr_addr == REG_SOURCE) begin
 /* verilator lint_on WIDTH */
-            source_sel  <= csr_cmd_data[IBITS-1:0];
+            if(!NOMUX) begin
+                source_sel  <= csr_cmd_data[IBITS-1:0];
+            end
             source_pos  <= csr_cmd_data[8];
             source_neg  <= csr_cmd_data[9];
         end
@@ -127,22 +137,58 @@ end
 
 // Channel mux
 
-wire [(2**IBITS)-1:0] inputs = { {((2**IBITS)-INPUTS){1'b0}} , trigger };
+reg             in;
+reg             in_prev;
 
-reg in;
-reg in_prev;
+reg  [META-1:0] in_meta;
 
-assign ch_out = in;
+assign          ch_out      = in;
 
-always @(posedge clk) begin
-    if(rst) begin
-        in      <= 1'b0;
-        in_prev <= 1'b0;
-    end else begin
-        in      <= inputs[source_sel];
-        in_prev <= in;
+generate
+if(!NOMUX) begin:GEN_MUX
+    wire [(2**IBITS)-1:0] trigger_mux = { {((2**IBITS)-INPUTS){1'b0}} , trigger };
+
+    always @(posedge clk) begin
+        if(rst) begin
+            in      <= 1'b0;
+            in_prev <= 1'b0;
+        end else begin
+            in      <= trigger_mux[source_sel];
+            in_prev <= in;
+        end
     end
+
+    wire [META-1:0] meta_mux [(2**IBITS)-1:0];
+
+    for(j=0;j<INPUTS;j=j+1) begin:GEN_META_MUX
+        assign meta_mux[j] = meta[ j*META +: META ];
+    end
+    for(j=INPUTS;j<(2**IBITS);j=j+1) begin:GEN_META_MUX_PAD
+        assign meta_mux[j] = 0;
+    end
+
+    always @(posedge clk) begin
+        in_meta <= meta_mux[source_sel];
+    end
+end else begin:GEN_NOMUX
+
+    always @(posedge clk) begin
+        if(rst) begin
+            in      <= 1'b0;
+            in_prev <= 1'b0;
+        end else begin
+            in      <= trigger[INDEX];
+            in_prev <= in;
+        end
+    end
+
+    always @(posedge clk) begin
+        in_meta <= meta[ INDEX*META +: META ];
+    end
+
 end
+endgenerate
+
 
 
 // Event detect
@@ -244,6 +290,7 @@ always @(posedge clk) begin
     if(ps_event && !fifo_valid) begin
         fifo_cnt        <= cnt;
         fifo_chstate    <= ch_in;
+        fifo_meta       <= in_meta;
     end
 end
 
