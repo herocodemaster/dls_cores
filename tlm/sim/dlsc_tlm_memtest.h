@@ -398,7 +398,8 @@ bool dlsc_tlm_memtest<DATATYPE>::find_region(
     // TODO: randomize better
     unsigned int begin  = rand() % size;                        // [0,size)
     unsigned int min    = (rand() % 2) ? 1 : (max_length/2)+1;  // 50% chance of not-small burst
-    unsigned int max    = (rand() % (max_length-min)) + min;    // [min,max_length]
+    unsigned int max    = (rand() % (max_length-min+1)) + min;  // [min,max_length]
+    assert(max >= 1 && max <= max_length);
 
     length  = 0;
     unsigned int i = begin;
