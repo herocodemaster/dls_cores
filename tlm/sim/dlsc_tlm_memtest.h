@@ -31,6 +31,7 @@ public:
     void set_ignore_error_read(const bool ignore_error_read) { this->ignore_error_read = ignore_error_read; }
     void set_ignore_error_write(const bool ignore_error_write) { this->ignore_error_write = ignore_error_write; }
     void set_strobe_rate(const unsigned int strb_pct) { assert(strb_pct <= 100); this->strb_pct = strb_pct; }
+    void set_strobe_all(const bool all) { strb_all = all; }
     void set_max_outstanding(const unsigned int mot) { this->max_mots = mot; }
     
     void end_of_elaboration();
@@ -65,6 +66,7 @@ private:
     bool                ignore_error_read;  // don't flag failed transactions as an error
     bool                ignore_error_write; // ""
     unsigned int        strb_pct;       // use write strobes
+    bool                strb_all;       // make strobes be all-or-nothing
 
     // clears all allocated memory
     void clear();
@@ -128,6 +130,7 @@ dlsc_tlm_memtest<DATATYPE>::dlsc_tlm_memtest(
     ignore_error_read   = false;
     ignore_error_write  = false;
     strb_pct            = 20;
+    strb_all            = false;
     max_mots            = 4;
 
     done                = true;
@@ -380,7 +383,13 @@ void dlsc_tlm_memtest<DATATYPE>::launch_write(int socket_id, unsigned int index,
     } else {
         // with strobes
         for(unsigned int i=0;i<length;++i) {
-            strb[i] = rand() & ((1<<sizeof(DATATYPE))-1);
+            if(strb_all) {
+                // strobes are all-or-nothing
+                strb[i] = (rand() % 2 ) ? 0 : ((1u<<sizeof(DATATYPE))-1u);
+            } else {
+                // strobes can be anything
+                strb[i] = rand() & ((1<<sizeof(DATATYPE))-1);
+            }
         }
         outstanding[socket_id].push_back(initiator->nb_write(addr,data,data+length,strb,strb+length,delay));
     }
