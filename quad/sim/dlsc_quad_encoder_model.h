@@ -16,7 +16,7 @@ public:
     void set_range(double min, double max);     // internal count will cover interval [min,max)
     void set_index(double min, double max);     // index will be asserted in interval [min,max)
     void set_velocity(double max_vel);          // maximum velocity in ticks/second
-    void set_acceleration(double max_accel);    // maximum acceleration in ticks/second^2
+    void set_acceleration(double max_accel);    // maximum acceleration in ticks/second^2 (0 for infinite acceleration)
     void set_glitch(sc_core::sc_time min, sc_core::sc_time max);
     void reset();
 
@@ -116,7 +116,6 @@ void dlsc_quad_encoder_model::set_velocity(
 void dlsc_quad_encoder_model::set_acceleration(
     double max_accel
 ) {
-    assert(max_accel > 0.0);
     accel_max   = max_accel;
 }
 
@@ -148,7 +147,7 @@ void dlsc_quad_encoder_model::move(
 
     double dt = time_step.to_seconds();
 
-    int pos_i = (int)pos;
+    int pos_i = (int)floor(pos);
     int pos_prev_i = pos_i;
 
     bool index = ideal_z.read();
@@ -162,13 +161,21 @@ void dlsc_quad_encoder_model::move(
         delay += time_step;
 
         // update velocity
-        if(delta_pos < 0) {
-            vel -= (accel * dt);
-            if(vel < -vel_max) vel = -vel_max;
+        if(accel <= 0.0) {
+            // infinite acceleration
+            vel = delta_pos/dt;
         } else {
-            vel += (accel * dt);
-            if(vel > vel_max) vel = vel_max;
+            // conventional acceleration
+            if(delta_pos < 0) {
+                vel -= (accel * dt);
+            } else {
+                vel += (accel * dt);
+            }
         }
+
+        // clamp velocity
+        if(vel < -vel_max) vel = -vel_max;
+        if(vel >  vel_max) vel =  vel_max;
 
         // update delta position
         double delta = (vel * dt);
@@ -182,7 +189,7 @@ void dlsc_quad_encoder_model::move(
         if(pos < range_min) pos += (range_max-range_min);
         else if(pos >= range_max) pos -= (range_max-range_min);
         pos_prev_i = pos_i;
-        pos_i = (int)pos;
+        pos_i = (int)floor(pos);
 
         // update index
         index_prev = index;
