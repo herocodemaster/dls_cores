@@ -131,13 +131,13 @@ void __MODULE__::clk_method() {
             ch.state_q.clear();
             ch.meta_q.clear();
         }
-        cnt.write(0);
+        timebase_cnt.write(0);
         trigger.write(0);
         meta.write(0);
         return;
     }
     
-    uint64_t time   = cnt.read() + 1;//dlsc_rand_u64();
+    uint64_t time   = timebase_cnt.read() + 1;//dlsc_rand_u64();
     uint64_t inputs = trigger.read();
     uint64_t prev   = inputs;
     uint32_t metas[PARAM_INPUTS];
@@ -149,7 +149,7 @@ void __MODULE__::clk_method() {
         }
     }
 
-    cnt.write(time);
+    timebase_cnt.write(time);
     trigger.write(inputs);
 
 #if ((PARAM_INPUTS*PARAM_META) <= 64)

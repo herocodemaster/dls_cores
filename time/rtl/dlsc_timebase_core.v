@@ -52,8 +52,9 @@ module dlsc_timebase_core #(
     input   wire                    clk,
     input   wire                    rst,
 
-    // enable outputs
-    output  wire    [OUTPUTS-1:0]   clk_en_out,
+    // timebase output
+    output  wire    [OUTPUTS-1:0]   timebase_en,
+    output  wire    [CNTB-1:0]      timebase_cnt,       // unsigned master counter value
 
     // configuration
     input   wire    [PERB+SUBB-1:0] cfg_period_in,      // period of input clock
@@ -64,10 +65,7 @@ module dlsc_timebase_core #(
     // status
     output  wire                    stopped,            // flag that indicates timebase is stopped (in reset)
     output  wire                    adjusting,          // flag indicating counter is about to be adjusted
-
-    // master counter output
-    output  wire    [CNTB-1:0]      cnt,                // unsigned master counter value
-    output  wire                    cnt_wrapped         // counter overflowed
+    output  wire                    wrapped             // counter overflowed
 );
 
 `include "dlsc_util.vh"
@@ -323,13 +321,13 @@ always @(posedge clk) begin
     end
 end
 
-assign clk_en_out   = cb1_clk_en;        // enables assert 1 cycle before count changes
+assign timebase_en  = cb1_clk_en;        // enables assert 1 cycle before count changes
 
 assign stopped      = cb1_stopped;
 assign adjusting    = cb1_adj_en;
 
-assign cnt          = cb2_cnt;
-assign cnt_wrapped  = cb2_cnt_wrapped;
+assign timebase_cnt = cb2_cnt;
+assign wrapped      = cb2_cnt_wrapped;
 
 
 endmodule

@@ -115,22 +115,23 @@ void __MODULE__::clk_method() {
     } else {
         bool outputs[OUTPUTS];
         for(int i=0;i<OUTPUTS;++i) {
-            outputs[i] = clk_en_out.read() & (1u << i);
+            outputs[i] = timebase_en.read() & (1u << i);
             if(outputs[i]) {
                 counts[i]++;
             }
         }
+        uint64_t cnt = timebase_cnt.read();
         if(!stopped) {
-            dlsc_assert_equals( outputs[0] , (cnt.read() % (PARAM_DIV0*100)) <= (cnt_prev % (PARAM_DIV0*100)) );
-            dlsc_assert_equals( outputs[1] , (cnt.read() % (PARAM_DIV1*100)) <= (cnt_prev % (PARAM_DIV1*100)) );
-            dlsc_assert_equals( outputs[2] , (cnt.read() % (PARAM_DIV2*100)) <= (cnt_prev % (PARAM_DIV2*100)) );
-            dlsc_assert_equals( outputs[3] , (cnt.read() % (PARAM_DIV3*100)) <= (cnt_prev % (PARAM_DIV3*100)) );
-            dlsc_assert_equals( outputs[4] , (cnt.read() % (PARAM_DIV4*100)) <= (cnt_prev % (PARAM_DIV4*100)) );
-            dlsc_assert_equals( outputs[5] , (cnt.read() % (PARAM_DIV5*100)) <= (cnt_prev % (PARAM_DIV5*100)) );
-            dlsc_assert_equals( outputs[6] , (cnt.read() % (PARAM_DIV6*100)) <= (cnt_prev % (PARAM_DIV6*100)) );
-            dlsc_assert_equals( outputs[7] , (cnt.read() % (PARAM_DIV7*100)) <= (cnt_prev % (PARAM_DIV7*100)) );
+            dlsc_assert_equals( outputs[0] , (cnt % (PARAM_DIV0*100)) <= (cnt_prev % (PARAM_DIV0*100)) );
+            dlsc_assert_equals( outputs[1] , (cnt % (PARAM_DIV1*100)) <= (cnt_prev % (PARAM_DIV1*100)) );
+            dlsc_assert_equals( outputs[2] , (cnt % (PARAM_DIV2*100)) <= (cnt_prev % (PARAM_DIV2*100)) );
+            dlsc_assert_equals( outputs[3] , (cnt % (PARAM_DIV3*100)) <= (cnt_prev % (PARAM_DIV3*100)) );
+            dlsc_assert_equals( outputs[4] , (cnt % (PARAM_DIV4*100)) <= (cnt_prev % (PARAM_DIV4*100)) );
+            dlsc_assert_equals( outputs[5] , (cnt % (PARAM_DIV5*100)) <= (cnt_prev % (PARAM_DIV5*100)) );
+            dlsc_assert_equals( outputs[6] , (cnt % (PARAM_DIV6*100)) <= (cnt_prev % (PARAM_DIV6*100)) );
+            dlsc_assert_equals( outputs[7] , (cnt % (PARAM_DIV7*100)) <= (cnt_prev % (PARAM_DIV7*100)) );
         }
-        cnt_prev = cnt.read();
+        cnt_prev = cnt;
     }
 }
 
@@ -143,7 +144,7 @@ void __MODULE__::stim_thread() {
 
     reg_write(REG_CONTROL,0x1);
     
-    wait(clk_en_out.value_changed_event());
+    wait(timebase_en.value_changed_event());
 
     uint64_t cnt_val, cnt_val_prev;
     double delta;
@@ -183,7 +184,7 @@ void __MODULE__::stim_thread() {
     
     reg_write(REG_CONTROL,0x1);
 
-    wait(clk_en_out.value_changed_event());
+    wait(timebase_en.value_changed_event());
     sc_time start = sc_core::sc_time_stamp();
 
     reg_write(REG_INT_FLAGS,0xFF);
@@ -213,7 +214,7 @@ void __MODULE__::stim_thread() {
     dlsc_assert_equals(counts[6],1+(uint64_t)(elapsed_ns/(period_out_ns*PARAM_DIV6)));
     dlsc_assert_equals(counts[7],1+(uint64_t)(elapsed_ns/(period_out_ns*PARAM_DIV7)));
 
-    cnt_val = cnt.read();
+    cnt_val = timebase_cnt.read();
     
     dlsc_info("count value (port): " << cnt_val);
 

@@ -37,14 +37,14 @@ module dlsc_timebase #(
     parameter PERIOD_OUT    = (32'd100 << 24),          // defalut value for PERIOD_OUT register
 
     // output dividers (divide down from PERIOD_OUT)
-    parameter [31:0] DIV0   = 32'd1,                    // divider for clk_en_out[0];  10 MHz
-    parameter [31:0] DIV1   = 32'd10,                   // divider for clk_en_out[1];   1 MHz
-    parameter [31:0] DIV2   = 32'd100,                  // divider for clk_en_out[2]; 100 KHz
-    parameter [31:0] DIV3   = 32'd1000,                 // divider for clk_en_out[3];  10 KHz
-    parameter [31:0] DIV4   = 32'd10000,                // divider for clk_en_out[4];   1 KHz
-    parameter [31:0] DIV5   = 32'd100000,               // divider for clk_en_out[5]; 100 Hz
-    parameter [31:0] DIV6   = 32'd1000000,              // divider for clk_en_out[6];  10 Hz
-    parameter [31:0] DIV7   = 32'd10000000,             // divider for clk_en_out[7];   1 Hz
+    parameter [31:0] DIV0   = 32'd1,                    // divider for timebase_en[0];  10 MHz
+    parameter [31:0] DIV1   = 32'd10,                   // divider for timebase_en[1];   1 MHz
+    parameter [31:0] DIV2   = 32'd100,                  // divider for timebase_en[2]; 100 KHz
+    parameter [31:0] DIV3   = 32'd1000,                 // divider for timebase_en[3];  10 KHz
+    parameter [31:0] DIV4   = 32'd10000,                // divider for timebase_en[4];   1 KHz
+    parameter [31:0] DIV5   = 32'd100000,               // divider for timebase_en[5]; 100 Hz
+    parameter [31:0] DIV6   = 32'd1000000,              // divider for timebase_en[6];  10 Hz
+    parameter [31:0] DIV7   = 32'd10000000,             // divider for timebase_en[7];   1 Hz
 
     // ** CSR **
     parameter CSR_ADDR      = 32,
@@ -56,16 +56,13 @@ module dlsc_timebase #(
     input   wire                    clk,
     input   wire                    rst,
 
-    // enable outputs
-    output  wire    [7:0]           clk_en_out,
+    // timebase output
+    output  wire    [7:0]           timebase_en,
+    output  wire    [63:0]          timebase_cnt,
     
     // status
     output  wire                    stopped,            // flag that indicates timebase is stopped (in reset)
     output  wire                    adjusting,          // flag indicating counter is about to be adjusted
-
-    // master counter output
-    output  wire    [63:0]          cnt,
-
 
     // ** Register Bus **
 
@@ -169,15 +166,15 @@ end
 
 reg  [31:0]     int_flags;
 reg  [31:0]     next_int_flags;
-wire            cnt_wrapped;
+wire            wrapped;
 
 always @* begin
     next_int_flags = int_flags;
     if(csr_cmd_valid && csr_cmd_write && csr_addr == REG_INT_FLAGS) begin
         next_int_flags = next_int_flags & ~csr_cmd_data;
     end
-    next_int_flags[OUTPUTS-1:0] = next_int_flags[OUTPUTS-1:0] | clk_en_out;
-    next_int_flags[31]          = next_int_flags[31] | cnt_wrapped;
+    next_int_flags[OUTPUTS-1:0] = next_int_flags[OUTPUTS-1:0] | timebase_en;
+    next_int_flags[31]          = next_int_flags[31] | wrapped;
     next_int_flags[30:OUTPUTS]  = 0;
 end
 
@@ -225,7 +222,7 @@ always @(posedge clk) begin
         // read
         if(csr_addr == REG_COUNTER_LOW) begin
             // latch high bits when low is read
-            cnt_high[63:32]     <= cnt[63:32];
+            cnt_high[63:32]     <= timebase_cnt[63:32];
         end
     end
 end
@@ -253,7 +250,7 @@ always @(posedge clk) begin
                 REG_PERIOD_OUT:     csr_rsp_data        <= period_out;
                 REG_INT_FLAGS:      csr_rsp_data        <= int_flags;
                 REG_INT_SELECT:     csr_rsp_data        <= int_select;
-                REG_COUNTER_LOW:    csr_rsp_data        <= cnt[31:0];           // taken directly from counter
+                REG_COUNTER_LOW:    csr_rsp_data        <= timebase_cnt[31:0];  // taken directly from counter
                 REG_COUNTER_HIGH:   csr_rsp_data        <= cnt_high[63:32];     // latched value of counter
                 default:            csr_rsp_data        <= 0;
             endcase
@@ -275,15 +272,15 @@ dlsc_timebase_core #(
 ) dlsc_timebase_core (
     .clk            ( clk ),
     .rst            ( rst_timebase ),
-    .clk_en_out     ( clk_en_out ),
+    .timebase_en    ( timebase_en ),
+    .timebase_cnt   ( timebase_cnt ),
     .cfg_period_in  ( period_in ),
     .cfg_period_out ( period_out ),
     .cfg_adj_en     ( adj_en ),
     .cfg_adj_value  ( adj_value ),
     .stopped        ( stopped ),
     .adjusting      ( adjusting ),
-    .cnt            ( cnt ),
-    .cnt_wrapped    ( cnt_wrapped )
+    .wrapped        ( wrapped )
 );
 
 

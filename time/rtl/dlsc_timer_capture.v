@@ -48,8 +48,8 @@ module dlsc_timer_capture #(
     input   wire                    clk,
     input   wire                    rst,
 
-    // master counter input
-    input   wire    [63:0]          cnt,
+    // timebase input
+    input   wire    [63:0]          timebase_cnt,
 
     // event inputs
     input   wire    [INPUTS-1:0]    trigger,
@@ -265,7 +265,7 @@ end
 // delay cnt by 1 cycle to match trigger input registering delay inside capture channels
 reg [63:0] c1_cnt;
 always @(posedge clk) begin
-    c1_cnt <= cnt;
+    c1_cnt <= timebase_cnt;
 end
 
 wire [15:0]     arb_ready;
