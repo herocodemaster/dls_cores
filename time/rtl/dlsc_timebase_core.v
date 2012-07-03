@@ -68,7 +68,6 @@ module dlsc_timebase_core #(
     output  wire                    wrapped             // counter overflowed
 );
 
-`include "dlsc_util.vh"
 `include "dlsc_synthesis.vh"
 
 integer i;
