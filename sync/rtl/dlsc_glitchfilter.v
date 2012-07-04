@@ -29,6 +29,7 @@
 // for DEPTH consecutive enabled clock cycles.
 
 module dlsc_glitchfilter #(
+    parameter   SYNC  = 1,      // include syncflop
     parameter   DEPTH = 4,
     parameter   RESET = 1'b0
 ) (
@@ -49,15 +50,21 @@ localparam CNTB = `dlsc_clog2(DEPTH);
 
 wire in_synced;
 
-dlsc_syncflop #(
-    .DATA   ( 1 ),
-    .RESET  ( RESET )
-) dlsc_syncflop_inst (
-    .rst    ( rst ),
-    .in     ( in ),
-    .clk    ( clk ),
-    .out    ( in_synced )
-);
+generate
+if(SYNC>0) begin:GEN_SYNC
+    dlsc_syncflop #(
+        .DATA   ( 1 ),
+        .RESET  ( RESET )
+    ) dlsc_syncflop_inst (
+        .rst    ( rst ),
+        .in     ( in ),
+        .clk    ( clk ),
+        .out    ( in_synced )
+    );
+end else begin:GEN_NOSYNC
+    assign in_synced = in;
+end
+endgenerate
 
 // glitch filter
 
