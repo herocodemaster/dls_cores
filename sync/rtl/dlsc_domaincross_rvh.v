@@ -28,8 +28,12 @@
 // Provides an asynchronous clock domain crossing for an arbitrary data payload
 // with ready/valid handshaking. Lower latency than an async FIFO, but poor
 // throughput. Good for command channels.
+//
+// BYPASS parameter turns module into a wire (use for simplifying parameterized
+// async crossings).
 
 module dlsc_domaincross_rvh #(
+    parameter               BYPASS              = 0,
     parameter               DATA                = 32,
     parameter               DEPTH               = 2,        // depth of synchronizers on handshake signals
 `ifndef ICARUS
@@ -53,11 +57,22 @@ module dlsc_domaincross_rvh #(
     input   wire                out_rst,
 
     input   wire                out_ready,
-    output  reg                 out_valid,
+    output  wire                out_valid,
     output  wire    [DATA-1:0]  out_data
 );
 
 `include "dlsc_synthesis.vh"
+
+genvar j;
+
+generate
+if(BYPASS) begin:GEN_BYPASS
+
+assign in_ready     = out_ready;
+assign out_valid    = in_valid;
+assign out_data     = in_data;
+
+end else begin:GEN_ASYNC
 
 // ** input **
 `DLSC_KEEP_REG reg  in_flag    = 1'b0;
@@ -83,24 +98,27 @@ end
 `DLSC_KEEP_REG reg  out_ack    = 1'b0;
 `DLSC_KEEP_REG reg  out_ackx   = 1'b1;
 
+reg  out_valid_r;
+assign out_valid = out_valid_r;
+
 wire out_flag;
-wire out_en         = (out_flag != out_ack) && (out_ready || !out_valid);
-wire out_rst_data   = out_rst || (RESET_ON_TRANSFER && !out_en && out_ready && out_valid);
+wire out_en         = (out_flag != out_ack) && (out_ready || !out_valid_r);
+wire out_rst_data   = out_rst || (RESET_ON_TRANSFER && !out_en && out_ready && out_valid_r);
 
 always @(posedge out_clk) begin
     if(out_rst) begin
         out_ack     <= 1'b0;
         out_ackx    <= 1'b1;
-        out_valid   <= 1'b0;
+        out_valid_r <= 1'b0;
     end else begin
         if(out_ready) begin
-            out_valid   <= 1'b0;
+            out_valid_r <= 1'b0;
         end
         if(out_en) begin
             // consume and ack new value when flagged
             out_ack     <= !out_ack;
             out_ackx    <= !out_ack;
-            out_valid   <= 1'b1;
+            out_valid_r <= 1'b1;
         end else begin
             out_ackx    <=  out_ack;
         end
@@ -110,23 +128,20 @@ end
 
 // ** data crossing **
 
-generate
-    genvar j;
-    for(j=0;j<DATA;j=j+1) begin:GEN_SLICES
-        dlsc_domaincross_slice #(
-            .RESET      ( RESET[j] )
-        ) dlsc_domaincross_slice_inst (
-            .in_clk     ( in_clk ),
-            .in_rst     ( in_rst ),
-            .in_en      ( in_en ),
-            .in_data    ( in_data[j] ),
-            .out_clk    ( out_clk ),
-            .out_rst    ( out_rst_data ),
-            .out_en     ( out_en ),
-            .out_data   ( out_data[j] )
-        );
-    end
-endgenerate
+for(j=0;j<DATA;j=j+1) begin:GEN_SLICES
+    dlsc_domaincross_slice #(
+        .RESET      ( RESET[j] )
+    ) dlsc_domaincross_slice_inst (
+        .in_clk     ( in_clk ),
+        .in_rst     ( in_rst ),
+        .in_en      ( in_en ),
+        .in_data    ( in_data[j] ),
+        .out_clk    ( out_clk ),
+        .out_rst    ( out_rst_data ),
+        .out_en     ( out_en ),
+        .out_data   ( out_data[j] )
+    );
+end
 
 
 // ** control synchronization **
@@ -152,6 +167,9 @@ dlsc_syncflop #(
     .rst    ( out_rst ),
     .out    ( out_flag )
 );
+
+end
+endgenerate
 
 endmodule
 

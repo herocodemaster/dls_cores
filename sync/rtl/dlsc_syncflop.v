@@ -26,15 +26,18 @@
 
 // Module Description:
 // 2-level synchronizer flipflop for asynchronous domain crossing.
+// BYPASS parameter turns module into a wire (use for simplifying parameterized
+// async crossings).
 
 module dlsc_syncflop #(
-    parameter            DATA  = 1,
-    parameter            DEPTH = 2, 
+    parameter               BYPASS  = 0,
+    parameter               DATA    = 1,
+    parameter               DEPTH   = 2, 
 `ifndef ICARUS
     // Icarus crashes with explicit parameter size; Verilator fails without it.
-    parameter [DATA-1:0] RESET = {DATA{1'b0}}
+    parameter [DATA-1:0]    RESET   = {DATA{1'b0}}
 `else
-    parameter            RESET = {DATA{1'b0}}
+    parameter               RESET   = {DATA{1'b0}}
 `endif
 ) (
     // asynchronous input
@@ -47,6 +50,9 @@ module dlsc_syncflop #(
 );
 
 generate
+if(BYPASS) begin:GEN_BYPASS
+    assign out = in;
+end else begin:GEN_ASYNC
     genvar j;
     for(j=0;j<DATA;j=j+1) begin:GEN_SYNCFLOPS
         dlsc_syncflop_slice #(
@@ -60,6 +66,7 @@ generate
             .out    ( out[j] )
         );
     end
+end
 endgenerate
 
 endmodule

@@ -36,8 +36,12 @@
 //
 // For payloads that can be gray coded (e.g. FIFO counters), you can achieve
 // more consistent and lower latency by using a more conventional dlsc_syncflop.
+//
+// BYPASS parameter turns module into a wire (use for simplifying parameterized
+// async crossings).
 
 module dlsc_domaincross #(
+    parameter               BYPASS  = 0,
     parameter               DATA    = 32,
 `ifndef ICARUS
     // Icarus crashes with explicit parameter size; Verilator fails without it.
@@ -60,6 +64,7 @@ module dlsc_domaincross #(
 // _rvh is essentially the same functionality; no point in maintaining two
 // nearly-identical modules..
 dlsc_domaincross_rvh #(
+    .BYPASS     ( BYPASS ),
     .DATA       ( DATA ),
     .RESET      ( RESET )
 ) dlsc_domaincross_rvh_inst (
