@@ -2,6 +2,7 @@
 #sp interface
 
 #include <systemperl.h>
+#include <verilated.h>
 
 #include <deque>
 
@@ -10,8 +11,6 @@
 #include "dlsc_tlm_channel.h"
 
 // for syntax highlighter: SC_MODULE
-
-/*AUTOSUBCELL_CLASS*/
 
 #define MAX_H       PARAM_MAX_H
 #define MAX_V       PARAM_MAX_V
@@ -23,6 +22,14 @@
 #define MAX_PX      ((1u<<(PARAM_BYTES_PER_PIXEL*8))-1)
 
 #define MEM_SIZE    (1ull<<PARAM_AXI_ADDR)
+
+#if (PARAM_AXI_ASYNC>0)
+    #define AXI_ASYNC 1
+    #define AXI_CLK axi_clk
+#else
+    #define AXI_SYNC 1
+    #define AXI_CLK clk
+#endif
 
 #if (PARAM_IN_ASYNC>0)
     #define IN_ASYNC 1
@@ -56,15 +63,19 @@
     #define OUT3_RST rst
 #endif
 
+/*AUTOSUBCELL_CLASS*/
+
 SC_MODULE (__MODULE__) {
 private:
     sc_clock clk;
+    sc_clock axi_clk;
     sc_clock in_clk;
     sc_clock out0_clk;
     sc_clock out1_clk;
     sc_clock out2_clk;
     sc_clock out3_clk;
 
+    sc_signal<bool> axi_rst;
     sc_signal<bool> in_rst;
     sc_signal<bool> out0_rst;
     sc_signal<bool> out1_rst;
@@ -88,7 +99,7 @@ private:
     
     void reg_write(uint32_t dev, uint32_t addr, uint32_t data);
     uint32_t reg_read(uint32_t dev, uint32_t addr);
-    dlsc_tlm_initiator_nb<uint32_t> *apb_initiator;
+    dlsc_tlm_initiator_nb<uint32_t> *csr_initiator;
 
     dlsc_tlm_memory<uint32_t> *memory;
     dlsc_tlm_channel<uint32_t> *channel;
@@ -110,18 +121,16 @@ public:
 
 /*AUTOSUBCELL_INCLUDE*/
 
-#include <algorithm>
-#include <numeric>
-
 #include "dlsc_main.cpp"
 
 SP_CTOR_IMP(__MODULE__) :
     clk("clk",10,SC_NS),
+    axi_clk("axi_clk",8,SC_NS),
     in_clk("in_clk",12,SC_NS),
-    out0_clk("out0_clk",25,SC_NS),
-    out1_clk("out1_clk",15,SC_NS),
-    out2_clk("out2_clk",10,SC_NS),
-    out3_clk("out3_clk",7,SC_NS)
+    out0_clk("out0_clk",21,SC_NS),
+    out1_clk("out1_clk",10,SC_NS),
+    out2_clk("out2_clk",7,SC_NS),
+    out3_clk("out3_clk",3,SC_NS)
     /*AUTOINIT*/
 {
     SP_AUTO_CTOR;
@@ -129,6 +138,15 @@ SP_CTOR_IMP(__MODULE__) :
     /*AUTOTIEOFF*/
     SP_CELL(dut,DLSC_DUT);
         /*AUTOINST*/
+        SP_PIN(dut,csr_clk,clk);
+        SP_PIN(dut,csr_rst,rst);
+#ifdef AXI_ASYNC
+        SP_PIN(dut,axi_clk,axi_clk);
+        SP_PIN(dut,axi_rst,axi_rst);
+#else
+        SP_PIN(dut,axi_clk,clk);
+        SP_PIN(dut,axi_rst,rst);
+#endif
 #ifdef IN_ASYNC
         SP_PIN(dut,in_clk,in_clk);
         SP_PIN(dut,in_rst,in_rst);
@@ -156,11 +174,17 @@ SP_CTOR_IMP(__MODULE__) :
         SP_PIN(dut,out3_rst,rst);
 #endif
     
-    SP_CELL(apb_master,dlsc_apb_tlm_master_32b);
+    SP_CELL(csr_master,dlsc_csr_tlm_master_32b);
         /*AUTOINST*/
 
     SP_CELL(axi_slave,dlsc_axi4lb_tlm_slave_32b);
-        SP_PIN(axi_slave,rst,rst_axi);
+#ifdef AXI_ASYNC
+        SP_PIN(axi_slave,clk,axi_clk);
+        SP_PIN(axi_slave,rst,axi_rst);
+#else
+        SP_PIN(axi_slave,clk,clk);
+        SP_PIN(axi_slave,rst,rst);
+#endif
         /*AUTOINST*/
     
     memory      = new dlsc_tlm_memory<uint32_t>("memory",MEM_SIZE,0,sc_core::sc_time(1.0,SC_NS),sc_core::sc_time(10,SC_NS));
@@ -172,12 +196,11 @@ SP_CTOR_IMP(__MODULE__) :
     axi_slave->socket.bind(channel->in_socket);
     channel->out_socket.bind(memory->socket);
     
-    apb_initiator   = new dlsc_tlm_initiator_nb<uint32_t>("apb_initiator",1);
-    apb_initiator->socket.bind(apb_master->socket);
+    csr_initiator   = new dlsc_tlm_initiator_nb<uint32_t>("csr_initiator",1);
+    csr_initiator->socket.bind(csr_master->socket);
 
     rst         = 1;
-    rst_axi     = 1;
-
+    axi_rst     = 1;
     in_rst      = 1;
     out0_rst    = 1;
     out1_rst    = 1;
@@ -213,9 +236,10 @@ void __MODULE__::set_reset(bool rst_val) {
 
     wait(clk.posedge_event());
     rst         = rst_val;
-    if(!rst_val) {
-        rst_axi     = 0;
-    }
+#ifdef AXI_ASYNC
+    wait(axi_clk.posedge_event());
+    axi_rst     = rst_val;
+#endif
 #ifdef IN_ASYNC
     wait(in_clk.posedge_event());
     in_rst      = rst_val;
@@ -232,6 +256,9 @@ void __MODULE__::set_reset(bool rst_val) {
 #endif
 
     wait(clk.posedge_event());
+#ifdef AXI_ASYNC
+    wait(axi_clk.posedge_event());
+#endif
 #ifdef IN_ASYNC
     wait(in_clk.posedge_event());
 #endif
@@ -245,15 +272,15 @@ void __MODULE__::set_reset(bool rst_val) {
 }
 void __MODULE__::reg_write(uint32_t dev, uint32_t addr, uint32_t data) {
     assert(dev<=READERS);
-    addr += dev*16;
-    apb_initiator->b_write(addr<<2,data);
+    addr += dev<<10;
+    csr_initiator->b_write(addr<<2,data);
     dlsc_verb("wrote 0x" << std::hex << addr << " : 0x" << data);
 }
 
 uint32_t __MODULE__::reg_read(uint32_t dev, uint32_t addr) {
     assert(dev<=READERS);
-    addr += dev*16;
-    uint32_t data = apb_initiator->b_read(addr<<2);
+    addr += dev<<10;
+    uint32_t data = csr_initiator->b_read(addr<<2);
     dlsc_verb("read 0x" << std::hex << addr << " : 0x" << data);
     return data;
 }
@@ -286,10 +313,10 @@ void __MODULE__::out ## INDEX ## _method() { \
         out ## INDEX ## _ready  = 0; \
         out_queue[INDEX].clear(); \
     } else { \
-        if(out ## INDEX ## _ready && out ## INDEX ## _valid) { \
+        if(out ## INDEX ## _valid) { \
             if(out_queue[INDEX].empty()) { \
                 dlsc_error("unexpected data (" << INDEX << ")"); \
-            } else { \
+            } else if(out ## INDEX ## _ready)  { \
                 dlsc_assert_equals( out ## INDEX ## _data , out_queue[INDEX].front() ); \
                 out_queue[INDEX].pop_front(); \
             } \
@@ -303,18 +330,30 @@ OUT_METHOD_TEMPLATE(1);
 OUT_METHOD_TEMPLATE(2);
 OUT_METHOD_TEMPLATE(3);
 
-const uint32_t REG_CONTROL = 0;
-const uint32_t REG_STATUS = 1;
-const uint32_t REG_INT_FLAGS = 2;
-const uint32_t REG_INT_SELECT = 3;
-const uint32_t REG_BUF0_ADDR = 4;
-const uint32_t REG_BUF1_ADDR = 5;
-const uint32_t REG_ACK_STATUS = 6;
-const uint32_t REG_ACK_SELECT = 7;
-const uint32_t REG_BPR = 8;
-const uint32_t REG_STEP = 9;
-const uint32_t REG_HDISP = 10;
-const uint32_t REG_VDISP = 11;
+const uint32_t REG_CORE_MAGIC = 0x00;
+const uint32_t REG_CORE_VERSION = 0x01;
+const uint32_t REG_CORE_INTERFACE = 0x02;
+const uint32_t REG_CORE_INSTANCE = 0x03;
+const uint32_t REG_CONTROL = 0x04;
+const uint32_t REG_STATUS = 0x05;
+const uint32_t REG_FIFO_FREE = 0x06;
+const uint32_t REG_FIFO = 0x07;
+const uint32_t REG_ROWS_COMPLETED = 0x08;
+const uint32_t REG_ROWS_THRESH = 0x09;
+const uint32_t REG_BUFFERS_COMPLETED = 0x0A;
+const uint32_t REG_BUFFERS_THRESH = 0x0B;
+const uint32_t REG_ACK_ROWS = 0x0C;
+const uint32_t REG_INT_FLAGS = 0x0D;
+const uint32_t REG_INT_SELECT = 0x0E;
+const uint32_t REG_CONFIG = 0x10;
+const uint32_t REG_ACK_SELECT = 0x11;
+const uint32_t REG_ACK_STATUS = 0x12;
+const uint32_t REG_PIXELS_PER_ROW = 0x13;
+const uint32_t REG_ROWS_PER_FRAME = 0x14;
+const uint32_t REG_BYTES_PER_PIXEL = 0x15;
+const uint32_t REG_BYTES_PER_ROW = 0x16;
+const uint32_t REG_ROW_STEP = 0x17;
+const uint32_t REG_ROWS_PER_BUFFER = 0x18;
 
 void __MODULE__::stim_thread() {
 
@@ -338,9 +377,12 @@ void __MODULE__::stim_thread() {
     for(i=0;i<25;i++) {
         dlsc_info("iteration " << i);
 
+        // TODO: update to support new pxdma_control features
+
         // disable
         for(j=0;j<=READERS;j++) {
-            reg_write(j,REG_CONTROL,0);
+            reg_write(j,REG_CONTROL,0x0);   // disable
+            reg_write(j,REG_CONFIG,0x3);    // clear address FIFO and set auto-mode
         }
         
         wait(1,SC_US);
@@ -369,12 +411,15 @@ void __MODULE__::stim_thread() {
         // write configuration
         for(j=0;j<=READERS;j++) {
             if( j>=1 && !(reader_sel & (1<<(j-1))) ) continue;
-            reg_write(j,REG_BUF0_ADDR,buf0_addr);
-            reg_write(j,REG_BUF1_ADDR,buf1_addr);
-            reg_write(j,REG_BPR,bpr);
-            reg_write(j,REG_STEP,step);
-            reg_write(j,REG_HDISP,hdisp);
-            reg_write(j,REG_VDISP,vdisp);
+            reg_write(j,REG_FIFO,buf0_addr);
+            if(double_buffer) {
+                reg_write(j,REG_FIFO,buf1_addr);
+            }
+            reg_write(j,REG_PIXELS_PER_ROW,hdisp);
+            reg_write(j,REG_ROWS_PER_FRAME,vdisp);
+            reg_write(j,REG_BYTES_PER_ROW,bpr);
+            reg_write(j,REG_ROW_STEP,step);
+            reg_write(j,REG_ROWS_PER_BUFFER,vdisp);
             if(j>=1) reg_write(j,REG_ACK_SELECT,0x1);
         }
         
@@ -383,10 +428,9 @@ void __MODULE__::stim_thread() {
 
         // enable
         data        = 0x1;
-        if(double_buffer) data |= 0x2;
         for(j=0;j<=READERS;j++) {
             if( j>=1 && !(reader_sel & (1<<(j-1))) ) continue;
-            reg_write(j,REG_CONTROL,data);
+            reg_write(j,REG_CONTROL,0x1);
         }
 
         // create random frames
@@ -404,11 +448,18 @@ void __MODULE__::stim_thread() {
             }
         }
 
+        assert(in_queue.size() == (frames*vdisp*hdisp));
+        assert(out_queue[0].empty() || (out_queue[0].size() == in_queue.size()));
+        assert(out_queue[1].empty() || (out_queue[1].size() == in_queue.size()));
+        assert(out_queue[2].empty() || (out_queue[2].size() == in_queue.size()));
+        assert(out_queue[3].empty() || (out_queue[3].size() == in_queue.size()));
+
         // wait for completion
         while( !(in_queue.empty() && out_queue[0].empty() && out_queue[1].empty() && out_queue[2].empty() && out_queue[3].empty()) ) {
             wait(1,SC_US);
         }
 
+#if 0
         // check configuration
         for(j=0;j<=READERS;j++) {
             if( j>=1 && !(reader_sel & (1<<(j-1))) ) {
@@ -450,6 +501,7 @@ void __MODULE__::stim_thread() {
                 dlsc_assert_equals( 0x1 | ((double_buffer && (frames%2) == 1) ? 0x2 : 0x0) , data );
             }
         }
+#endif
 
     }
 
@@ -459,7 +511,10 @@ void __MODULE__::stim_thread() {
 }
 
 void __MODULE__::watchdog_thread() {
-    wait(100,SC_MS);
+    for(int i=0;i<100;i++) {
+        wait(1,SC_MS);
+        dlsc_info(". " << in_queue.size() << ", " << out_queue[0].size() << ", " << out_queue[1].size() << ", " << out_queue[2].size() << ", " << out_queue[3].size());
+    }
 
     dlsc_error("watchdog timeout");
 

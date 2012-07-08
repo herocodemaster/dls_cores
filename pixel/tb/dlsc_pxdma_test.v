@@ -1,42 +1,56 @@
 
 module dlsc_pxdma_test #(
-    parameter APB_ADDR          = 32,               // size of APB address field
-    parameter AXI_ADDR          = 32,               // size of AXI address field
-    parameter AXI_LEN           = 4,                // size of AXI length field
-    parameter AXI_MOT           = 16,               // maximum outstanding transactions
-    parameter MAX_H             = 1024,             // maximum horizontal resolution
-    parameter MAX_V             = 1024,             // maximum vertical resolution
-    parameter BYTES_PER_PIXEL   = 3,                // bytes per pixel; 1-4
-    parameter READERS           = 1,                // number of pxdma_readers (1-4)
-    parameter IN_BUFFER         = ((2**AXI_LEN)*8),
-    parameter OUT_BUFFER        = 1024,
+    // ** Clock Domains **
+    parameter AXI_ASYNC         = 0,
     parameter IN_ASYNC          = 0,
     parameter OUT_ASYNC         = 0,
+    // ** Config **
+    parameter READERS           = 1,                    // number of pxdma_readers (1-4)
+    parameter IN_BUFFER         = ((2**AXI_LEN)*8),
+    parameter OUT_BUFFER        = 1024,
+    parameter MAX_H             = 1024,                 // maximum horizontal resolution
+    parameter MAX_V             = 1024,                 // maximum vertical resolution
+    parameter BYTES_PER_PIXEL   = 3,                    // bytes per pixel; 1-4
     // derived; don't touch
-    parameter PX_DATA           = (BYTES_PER_PIXEL*8)
+    parameter PX_DATA           = (BYTES_PER_PIXEL*8),
+    // ** AXI **
+    parameter AXI_ADDR          = 32,                   // size of AXI address field
+    parameter AXI_LEN           = 4,                    // size of AXI length field
+    parameter AXI_MOT           = 16,                   // maximum outstanding transactions
+    // ** CSR **
+    parameter CSR_ADDR          = 32
 ) (
 
 /* verilator coverage_off */
+    
+    // ** CSR Domain **
 
     // System
-    input   wire                    clk,
-    input   wire                    rst,
-
-    // APB register bus
-    input   wire    [APB_ADDR-1:0]  apb_addr,
-    input   wire                    apb_sel,
-    input   wire                    apb_enable,
-    input   wire                    apb_write,
-    input   wire    [31:0]          apb_wdata,
-    input   wire    [3:0]           apb_strb,
-    output  reg                     apb_ready,
-    output  reg     [31:0]          apb_rdata,
-
-    // Interrupt
-    output  wire    [READERS:0]     int_out,
+    input   wire                    csr_clk,
+    input   wire                    csr_rst,
 
     // Status
-    output  wire    [READERS:0]     enabled,
+    output  wire    [READERS:0]     csr_enabled,        // asserted when engine is enabled
+    
+    // CSR command
+    input   wire                    csr_cmd_valid,
+    input   wire                    csr_cmd_write,
+    input   wire    [CSR_ADDR-1:0]  csr_cmd_addr,
+    input   wire    [31:0]          csr_cmd_data,
+
+    // CSR response
+    output  reg                     csr_rsp_valid,
+    output  reg                     csr_rsp_error,
+    output  reg     [31:0]          csr_rsp_data,
+
+    // Interrupt
+    output  wire    [READERS:0]     csr_int,
+
+    // ** AXI Doamin **
+
+    // System
+    input   wire                    axi_clk,
+    input   wire                    axi_rst,
     
     // AXI read command
     input   wire                    axi_ar_ready,
@@ -68,6 +82,8 @@ module dlsc_pxdma_test #(
     output  wire                    axi_b_ready,
     input   wire                    axi_b_valid,
     input   wire    [1:0]           axi_b_resp,
+
+    // ** Pixel Domains **
 
     // Pixel input
     input   wire                    in_clk,
@@ -103,60 +119,75 @@ module dlsc_pxdma_test #(
     output  wire    [PX_DATA-1:0]   out3_data
 );
 
-// ** APB **
+localparam CSR_DOMAIN   = 0;
+localparam AXI_DOMAIN   = AXI_ASYNC ? 1 : 0;
+localparam IN_DOMAIN    = IN_ASYNC ? 2 : 0;
+localparam OUT_DOMAIN   = OUT_ASYNC ? 3 : 0;
 
-reg     [READERS:0]     apb_sel_i;
-wire    [READERS:0]     apb_ready_i;
-wire    [31:0]          apb_rdata_i [READERS:0];
+// ** CSR decode/mux **
+
+reg     [READERS:0]     csr_cmd_valid_i;
+wire    [READERS:0]     csr_rsp_valid_i;
+wire    [READERS:0]     csr_rsp_error_i;
+wire    [31:0]          csr_rsp_data_i [READERS:0];
 
 integer i;
 
 /* verilator lint_off WIDTH */
 always @* begin
-    apb_sel_i   = 0;
-    apb_ready   = 0;
-    apb_rdata   = 0;
+    csr_cmd_valid_i = 0;
+    csr_rsp_valid   = 0;
+    csr_rsp_error   = 0;
+    csr_rsp_data    = 0;
 
     for(i=0;i<=READERS;i=i+1) begin
-        apb_sel_i[i]    = apb_sel && (apb_addr[8:6] == i);
-        apb_ready       = apb_ready || apb_ready_i[i];
-        apb_rdata       = apb_rdata | apb_rdata_i[i];
+        csr_cmd_valid_i[i]  = csr_cmd_valid && (csr_cmd_addr[CSR_ADDR-1:12] == i);
+        csr_rsp_valid       = csr_rsp_valid | csr_rsp_valid_i[i];
+        csr_rsp_error       = csr_rsp_error | csr_rsp_error_i[i];
+        csr_rsp_data        = csr_rsp_data  | csr_rsp_data_i[i];
     end
 end
 /* verilator lint_on WIDTH */
 
 
-// ** writer **
+// ** Writer **
 
-wire    [READERS-1:0]   row_written;
-wire    [READERS-1:0]   row_read;
+wire    [READERS-1:0]   csr_row_written;
+wire    [READERS-1:0]   csr_row_read;
 
 dlsc_pxdma_writer #(
-    .APB_ADDR ( APB_ADDR ),
-    .AXI_ADDR ( AXI_ADDR ),
-    .AXI_LEN ( AXI_LEN ),
-    .AXI_MOT ( AXI_MOT ),
+    .CSR_DOMAIN ( CSR_DOMAIN ),
+    .AXI_DOMAIN ( AXI_DOMAIN ),
+    .PX_DOMAIN ( IN_DOMAIN ),
+    .READERS ( READERS ),
     .BUFFER ( IN_BUFFER ),
     .MAX_H ( MAX_H ),
     .MAX_V ( MAX_V ),
     .BYTES_PER_PIXEL ( BYTES_PER_PIXEL ),
-    .READERS ( READERS ),
-    .PX_ASYNC ( IN_ASYNC )
+    .AXI_ADDR ( AXI_ADDR ),
+    .AXI_LEN ( AXI_LEN ),
+    .AXI_MOT ( AXI_MOT ),
+    .CSR_ADDR ( CSR_ADDR )
 ) dlsc_pxdma_writer (
-    .clk ( clk ),
-    .rst ( rst ),
-    .apb_addr ( apb_addr ),
-    .apb_sel ( apb_sel_i[0] ),
-    .apb_enable ( apb_enable ),
-    .apb_write ( apb_write ),
-    .apb_wdata ( apb_wdata ),
-    .apb_strb ( apb_strb ),
-    .apb_ready ( apb_ready_i[0] ),
-    .apb_rdata ( apb_rdata_i[0] ),
-    .int_out ( int_out[0] ),
-    .enabled ( enabled[0] ),
-    .row_written ( row_written ),
-    .row_read ( row_read ),
+    // ** CSR **
+    .csr_clk ( csr_clk ),
+    .csr_rst ( csr_rst ),
+    .csr_rst_out (  ),
+    .csr_enabled ( csr_enabled[0] ),
+    .csr_row_written ( csr_row_written ),
+    .csr_row_read ( csr_row_read ),
+    .csr_cmd_valid ( csr_cmd_valid_i[0] ),
+    .csr_cmd_write ( csr_cmd_write ),
+    .csr_cmd_addr ( csr_cmd_addr ),
+    .csr_cmd_data ( csr_cmd_data ),
+    .csr_rsp_valid ( csr_rsp_valid_i[0] ),
+    .csr_rsp_error ( csr_rsp_error_i[0] ),
+    .csr_rsp_data ( csr_rsp_data_i[0] ),
+    .csr_int ( csr_int[0] ),
+    // ** AXI **
+    .axi_clk ( axi_clk ),
+    .axi_rst ( axi_rst ),
+    .axi_rst_out (  ),
     .axi_aw_ready ( axi_aw_ready ),
     .axi_aw_valid ( axi_aw_valid ),
     .axi_aw_addr ( axi_aw_addr ),
@@ -169,15 +200,17 @@ dlsc_pxdma_writer #(
     .axi_b_ready ( axi_b_ready ),
     .axi_b_valid ( axi_b_valid ),
     .axi_b_resp ( axi_b_resp ),
+    // ** Pixel **
     .px_clk ( in_clk ),
     .px_rst ( in_rst ),
+    .px_rst_out (  ),
     .px_ready ( in_ready ),
     .px_valid ( in_valid ),
     .px_data ( in_data )
 );
 
 
-// ** readers **
+// ** Readers **
 
 wire    [READERS-1:0]   out_clk;
 wire    [READERS-1:0]   out_rst;
@@ -200,30 +233,38 @@ generate
 for(j=0;j<READERS;j=j+1) begin:GEN_READERS
 
     dlsc_pxdma_reader #(
-        .APB_ADDR ( APB_ADDR ),
-        .AXI_ADDR ( AXI_ADDR ),
-        .AXI_LEN ( AXI_LEN ),
-        .AXI_MOT ( AXI_MOT ),
+        .CSR_DOMAIN ( CSR_DOMAIN ),
+        .AXI_DOMAIN ( AXI_DOMAIN ),
+        .PX_DOMAIN ( OUT_DOMAIN ),
+        .WRITERS ( 1 ),
         .BUFFER ( OUT_BUFFER ),
         .MAX_H ( MAX_H ),
         .MAX_V ( MAX_V ),
         .BYTES_PER_PIXEL ( BYTES_PER_PIXEL ),
-        .PX_ASYNC ( OUT_ASYNC )
+        .AXI_ADDR ( AXI_ADDR ),
+        .AXI_LEN ( AXI_LEN ),
+        .AXI_MOT ( AXI_MOT ),
+        .CSR_ADDR ( CSR_ADDR )
     ) dlsc_pxdma_reader (
-        .clk ( clk ),
-        .rst ( rst ),
-        .apb_addr ( apb_addr ),
-        .apb_sel ( apb_sel_i[j+1] ),
-        .apb_enable ( apb_enable ),
-        .apb_write ( apb_write ),
-        .apb_wdata ( apb_wdata ),
-        .apb_strb ( apb_strb ),
-        .apb_ready ( apb_ready_i[j+1] ),
-        .apb_rdata ( apb_rdata_i[j+1] ),
-        .int_out ( int_out[j+1] ),
-        .enabled ( enabled[j+1] ),
-        .row_written ( row_written[j] ),
-        .row_read ( row_read[j] ),
+        // ** CSR **
+        .csr_clk ( csr_clk ),
+        .csr_rst ( csr_rst ),
+        .csr_rst_out (  ),
+        .csr_enabled ( csr_enabled[j+1] ),
+        .csr_row_written ( csr_row_written[j] ),
+        .csr_row_read ( csr_row_read[j] ),
+        .csr_cmd_valid ( csr_cmd_valid_i[j+1] ),
+        .csr_cmd_write ( csr_cmd_write ),
+        .csr_cmd_addr ( csr_cmd_addr ),
+        .csr_cmd_data ( csr_cmd_data ),
+        .csr_rsp_valid ( csr_rsp_valid_i[j+1] ),
+        .csr_rsp_error ( csr_rsp_error_i[j+1] ),
+        .csr_rsp_data ( csr_rsp_data_i[j+1] ),
+        .csr_int ( csr_int[j+1] ),
+        // ** AXI **
+        .axi_clk ( axi_clk ),
+        .axi_rst ( axi_rst ),
+        .axi_rst_out (  ),
         .axi_ar_ready ( readers_ar_ready[j] ),
         .axi_ar_valid ( readers_ar_valid[j] ),
         .axi_ar_addr ( readers_ar_addr[ j*AXI_ADDR +: AXI_ADDR ] ),
@@ -233,8 +274,10 @@ for(j=0;j<READERS;j=j+1) begin:GEN_READERS
         .axi_r_last ( readers_r_last[j] ),
         .axi_r_data ( readers_r_data[ j*32 +: 32 ] ),
         .axi_r_resp ( readers_r_resp[ j*2 +: 2 ] ),
+        // ** Pixel **
         .px_clk ( out_clk[j] ),
         .px_rst ( out_rst[j] ),
+        .px_rst_out (  ),
         .px_ready ( out_ready[j] ),
         .px_valid ( out_valid[j] ),
         .px_data ( out_data[j] )
@@ -282,7 +325,7 @@ assign  out0_valid      = out_valid[0];
 assign  out0_data       = out_data[0];
 
 
-// ** read router **
+// ** AXI Read Router **
 
 dlsc_axi_router_rd #(
     .ADDR       ( AXI_ADDR ),
@@ -292,8 +335,8 @@ dlsc_axi_router_rd #(
     .INPUTS     ( READERS ),
     .OUTPUTS    ( 1 )
 ) dlsc_axi_router_rd (
-    .clk ( clk ),
-    .rst ( rst ),
+    .clk ( axi_clk ),
+    .rst ( axi_rst ),
     .in_ar_ready ( readers_ar_ready ),
     .in_ar_valid ( readers_ar_valid ),
     .in_ar_addr ( readers_ar_addr ),

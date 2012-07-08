@@ -1,41 +1,59 @@
 
 module dlsc_pxdma_writer #(
-    parameter APB_ADDR          = 32,               // size of APB address field
-    parameter AXI_ADDR          = 32,               // size of AXI address field
-    parameter AXI_LEN           = 4,                // size of AXI length field
-    parameter AXI_MOT           = 16,               // maximum outstanding transactions
-    parameter BUFFER            = ((2**AXI_LEN)*8), // size of write buffer, in bytes
-    parameter MAX_H             = 1024,             // maximum horizontal resolution
-    parameter MAX_V             = 1024,             // maximum vertical resolution
-    parameter BYTES_PER_PIXEL   = 3,                // bytes per pixel; 1-4
-    parameter READERS           = 1,                // number of downstream pxdma_readers
-    parameter PX_ASYNC          = 0,                // px_clk is asynchronous to clk
+    // ** Clock Domains **
+    parameter CSR_DOMAIN        = 0,
+    parameter AXI_DOMAIN        = 1,
+    parameter PX_DOMAIN         = 2,
+    // ** Config **
+    parameter READERS           = 1,                    // number of readers this writer can handshake with
+    parameter BUFFER            = 1024,                 // size of write buffer, in bytes
+    parameter MAX_H             = 1024,                 // maximum horizontal resolution
+    parameter MAX_V             = 1024,                 // maximum vertical resolution
+    parameter BYTES_PER_PIXEL   = 3,                    // bytes per pixel; 1-4
     // derived; don't touch
-    parameter PX_DATA           = (BYTES_PER_PIXEL*8)
+    parameter PX_DATA           = (BYTES_PER_PIXEL*8),
+    // ** AXI **
+    parameter AXI_ADDR          = 32,                   // size of AXI address field
+    parameter AXI_LEN           = 4,                    // size of AXI length field
+    parameter AXI_MOT           = 16,                   // maximum outstanding transactions
+    // ** CSR **
+    parameter CSR_ADDR          = 32,
+    parameter CORE_INSTANCE     = 32'h00000000          // 32-bit identifier to place in REG_CORE_INSTANCE field
 ) (
+    // ** CSR Domain **
+
     // System
-    input   wire                    clk,
-    input   wire                    rst,
-
-    // APB register bus
-    input   wire    [APB_ADDR-1:0]  apb_addr,
-    input   wire                    apb_sel,
-    input   wire                    apb_enable,
-    input   wire                    apb_write,
-    input   wire    [31:0]          apb_wdata,
-    input   wire    [3:0]           apb_strb,
-    output  wire                    apb_ready,
-    output  wire    [31:0]          apb_rdata,
-
-    // Interrupt
-    output  wire                    int_out,
+    input   wire                    csr_clk,
+    input   wire                    csr_rst,
+    output  wire                    csr_rst_out,        // asserted when engine is disabled
 
     // Status
-    output  wire                    enabled,
+    output  wire                    csr_enabled,        // asserted when engine is enabled
 
     // Handshake
-    output  wire    [READERS-1:0]   row_written,    // done writing a row (out to pxdma_reader(s))
-    input   wire    [READERS-1:0]   row_read,       // done reading a row (in from pxdma_reader(s))
+    output  wire    [READERS-1:0]   csr_row_written,    // done writing a row (out to pxdma_reader(s))
+    input   wire    [READERS-1:0]   csr_row_read,       // done reading a row (in from pxdma_reader(s))
+    
+    // CSR command
+    input   wire                    csr_cmd_valid,
+    input   wire                    csr_cmd_write,
+    input   wire    [CSR_ADDR-1:0]  csr_cmd_addr,
+    input   wire    [31:0]          csr_cmd_data,
+
+    // CSR response
+    output  wire                    csr_rsp_valid,
+    output  wire                    csr_rsp_error,
+    output  wire    [31:0]          csr_rsp_data,
+
+    // Interrupt
+    output  wire                    csr_int,
+
+    // ** AXI Doamin **
+
+    // System
+    input   wire                    axi_clk,
+    input   wire                    axi_rst,
+    output  wire                    axi_rst_out,        // asserted when engine is disabled
 
     // AXI write command
     input   wire                    axi_aw_ready,
@@ -55,13 +73,20 @@ module dlsc_pxdma_writer #(
     input   wire                    axi_b_valid,
     input   wire    [1:0]           axi_b_resp,
 
-    // Pixel input
+    // ** Pixel Domain **
+    
+    // System
     input   wire                    px_clk,
     input   wire                    px_rst,
+    output  wire                    px_rst_out,         // asserted when engine is disabled
+
+    // Pixel input
     output  wire                    px_ready,
     input   wire                    px_valid,
     input   wire    [PX_DATA-1:0]   px_data
 );
+
+localparam  CORE_MAGIC  = 32'h4a0e0c46; // lower 32 bits of md5sum of "dlsc_pxdma_writer"
 
 `include "dlsc_clog2.vh"
 
@@ -70,11 +95,7 @@ localparam  XBITS       = `dlsc_clog2(MAX_H+1);
 localparam  YBITS       = `dlsc_clog2(MAX_V+1);
 localparam  FIFO_ADDR   = `dlsc_clog2(BUFFER/4);
 
-
-// ** control **
-
-wire                    rst_bus;
-wire                    px_rst_bus;
+// ** Control **
 
 wire                    axi_halt;
 wire                    axi_busy;
@@ -84,41 +105,49 @@ wire                    axi_cmd_ready;
 wire                    axi_cmd_valid;
 wire    [AXI_ADDR-1:0]  axi_cmd_addr;
 wire    [BLEN-1:0]      axi_cmd_bytes;
-wire                    pack_cmd_ready;
-wire                    pack_cmd_valid;
-wire    [1:0]           pack_cmd_offset;
-wire    [1:0]           pack_cmd_bpw;
-wire    [XBITS-1:0]     pack_cmd_words;
+
+wire                    px_cmd_ready;
+wire                    px_cmd_valid;
+wire    [1:0]           px_cmd_offset;
+wire    [1:0]           px_cmd_bpw;
+wire    [XBITS-1:0]     px_cmd_words;
 
 dlsc_pxdma_control #(
-    .APB_ADDR           ( APB_ADDR ),
-    .AXI_ADDR           ( AXI_ADDR ),
+    .CSR_DOMAIN         ( CSR_DOMAIN ),
+    .AXI_DOMAIN         ( AXI_DOMAIN ),
+    .PX_DOMAIN          ( PX_DOMAIN ),
+    .WRITER             ( 1 ),
+    .ACKS               ( READERS ),
+    .AF_ADDR            ( 4 ),                  // 16 buffer address entries in FIFO
     .BYTES_PER_PIXEL    ( BYTES_PER_PIXEL ),
-    .BLEN               ( BLEN ),
     .XBITS              ( XBITS ),
     .YBITS              ( YBITS ),
-    .ACKS               ( READERS ),
-    .WRITER             ( 1 ),
-    .PX_ASYNC           ( PX_ASYNC )
+    .BLEN               ( BLEN ),
+    .AXI_ADDR           ( AXI_ADDR ),
+    .AXI_MOT            ( AXI_MOT ),
+    .CSR_ADDR           ( CSR_ADDR ),
+    .CORE_MAGIC         ( CORE_MAGIC ),
+    .CORE_INSTANCE      ( CORE_INSTANCE )
 ) dlsc_pxdma_control (
-    .clk                ( clk ),
-    .rst_in             ( rst ),
-    .rst_bus            ( rst_bus ),
-    .px_clk             ( px_clk ),
-    .px_rst_in          ( px_rst ),
-    .px_rst_bus         ( px_rst_bus ),
-    .apb_addr           ( apb_addr ),
-    .apb_sel            ( apb_sel ),
-    .apb_enable         ( apb_enable ),
-    .apb_write          ( apb_write ),
-    .apb_wdata          ( apb_wdata ),
-    .apb_strb           ( apb_strb ),
-    .apb_ready          ( apb_ready ),
-    .apb_rdata          ( apb_rdata ),
-    .int_out            ( int_out ),
-    .enabled            ( enabled ),
-    .row_ack            ( row_read ),
-    .row_done           ( row_written ),
+    // ** CSR Domain **
+    .csr_clk            ( csr_clk ),
+    .csr_rst            ( csr_rst ),
+    .csr_rst_out        ( csr_rst_out ),
+    .csr_enabled        ( csr_enabled ),
+    .csr_row_ack        ( csr_row_read ),
+    .csr_row_done       ( csr_row_written ),
+    .csr_cmd_valid      ( csr_cmd_valid ),
+    .csr_cmd_write      ( csr_cmd_write ),
+    .csr_cmd_addr       ( csr_cmd_addr ),
+    .csr_cmd_data       ( csr_cmd_data ),
+    .csr_rsp_valid      ( csr_rsp_valid ),
+    .csr_rsp_error      ( csr_rsp_error ),
+    .csr_rsp_data       ( csr_rsp_data ),
+    .csr_int            ( csr_int ),
+    // ** AXI Doamin **
+    .axi_clk            ( axi_clk ),
+    .axi_rst            ( axi_rst ),
+    .axi_rst_out        ( axi_rst_out ),
     .axi_halt           ( axi_halt ),
     .axi_busy           ( axi_busy ),
     .axi_error          ( axi_error ),
@@ -127,134 +156,130 @@ dlsc_pxdma_control #(
     .axi_cmd_valid      ( axi_cmd_valid ),
     .axi_cmd_addr       ( axi_cmd_addr ),
     .axi_cmd_bytes      ( axi_cmd_bytes ),
-    .pack_cmd_ready     ( pack_cmd_ready ),
-    .pack_cmd_valid     ( pack_cmd_valid ),
-    .pack_cmd_offset    ( pack_cmd_offset ),
-    .pack_cmd_bpw       ( pack_cmd_bpw ),
-    .pack_cmd_words     ( pack_cmd_words )
+    // ** Pixel Domain **
+    .px_clk             ( px_clk ),
+    .px_rst             ( px_rst ),
+    .px_rst_out         ( px_rst_out ),
+    .px_cmd_ready       ( px_cmd_ready ),
+    .px_cmd_valid       ( px_cmd_valid ),
+    .px_cmd_offset      ( px_cmd_offset ),
+    .px_cmd_bpw         ( px_cmd_bpw ),
+    .px_cmd_words       ( px_cmd_words )
 );
 
-// ** packer **
+// ** Packer **
 
 wire    [31:0]          px_data_padded  = { {(32-PX_DATA){1'b0}}, px_data };
 
-wire                    pack_ready;
-wire                    pack_valid;
-wire    [31:0]          pack_data;
-wire    [3:0]           pack_strb;
-
-wire                    px_pack_cmd_ready;
-wire                    px_pack_cmd_valid;
-wire    [1:0]           px_pack_cmd_offset;
-wire    [1:0]           px_pack_cmd_bpw;
-wire    [XBITS-1:0]     px_pack_cmd_words;
-
-generate
-if(PX_ASYNC) begin:GEN_PACK_ASYNC
-    dlsc_domaincross_rvh #(
-        .DATA       ( XBITS + 4 )
-    ) dlsc_domaincross_rvh (
-        .in_clk     ( clk ),
-        .in_rst     ( rst_bus ),
-        .in_ready   ( pack_cmd_ready ),
-        .in_valid   ( pack_cmd_valid ),
-        .in_data    ( { pack_cmd_offset, pack_cmd_bpw, pack_cmd_words } ),
-        .out_clk    ( px_clk ),
-        .out_rst    ( px_rst_bus ),
-        .out_ready  ( px_pack_cmd_ready ),
-        .out_valid  ( px_pack_cmd_valid ),
-        .out_data   ( { px_pack_cmd_offset, px_pack_cmd_bpw, px_pack_cmd_words } )
-    );
-
-end else begin:GEN_PACK_SYNC
-    assign  pack_cmd_ready      = px_pack_cmd_ready;
-    assign  px_pack_cmd_valid   = pack_cmd_valid;
-    assign  px_pack_cmd_offset  = pack_cmd_offset;
-    assign  px_pack_cmd_bpw     = pack_cmd_bpw;
-    assign  px_pack_cmd_words   = pack_cmd_words;
-end
-endgenerate
+wire                    px_pack_ready;
+wire                    px_pack_valid;
+wire                    px_pack_last;
+wire    [31:0]          px_pack_data;
+wire    [3:0]           px_pack_strb;
 
 dlsc_data_packer #(
     .WLEN               ( XBITS ),
     .WORDS_ZERO         ( 0 )
 ) dlsc_data_packer (
     .clk                ( px_clk ),
-    .rst                ( px_rst_bus ),
+    .rst                ( px_rst_out ),
     .cmd_done           (  ),
-    .cmd_ready          ( px_pack_cmd_ready ),
-    .cmd_valid          ( px_pack_cmd_valid ),
-    .cmd_offset         ( px_pack_cmd_offset ),
-    .cmd_bpw            ( px_pack_cmd_bpw ),
-    .cmd_words          ( px_pack_cmd_words ),
+    .cmd_ready          ( px_cmd_ready ),
+    .cmd_valid          ( px_cmd_valid ),
+    .cmd_offset         ( px_cmd_offset ),
+    .cmd_bpw            ( px_cmd_bpw ),
+    .cmd_words          ( px_cmd_words ),
     .in_ready           ( px_ready ),
     .in_valid           ( px_valid ),
     .in_data            ( px_data_padded ),
-    .out_ready          ( pack_ready ),
-    .out_valid          ( pack_valid ),
-    .out_last           (  ),
-    .out_data           ( pack_data ),
-    .out_strb           ( pack_strb )
+    .out_ready          ( px_pack_ready ),
+    .out_valid          ( px_pack_valid ),
+    .out_last           ( px_pack_last ),
+    .out_data           ( px_pack_data ),
+    .out_strb           ( px_pack_strb )
 );
 
-// ** FIFO **
+// ** Async FIFO **
+// A small, separate async FIFO is used to bridge between the two clock domains,
+// if necessary.
 
-wire                    fifo_empty;
-wire                    fifo_full;
-wire    [FIFO_ADDR:0]   fifo_count;
-
-wire                    fifo_ready;
-wire                    fifo_valid;
-wire    [31:0]          fifo_data;
-wire    [3:0]           fifo_strb;
-
-assign                  pack_ready      = !fifo_full;
-assign                  fifo_valid      = !fifo_empty;
+wire                    axi_pack_full;
+wire                    axi_pack_push;
+wire    [31:0]          axi_pack_data;
+wire    [3:0]           axi_pack_strb;
 
 generate
-if(PX_ASYNC) begin:GEN_ASYNC
+if(AXI_DOMAIN != PX_DOMAIN) begin:GEN_FIFO_ASYNC
+
+    wire                    px_pack_full;
+    assign                  px_pack_ready       = !px_pack_full;
+    wire                    axi_pack_empty;
+    assign                  axi_pack_push       = !axi_pack_empty && !axi_pack_full;
+
     dlsc_fifo_async #(
-        .ADDR               ( FIFO_ADDR ),
-        .DATA               ( 4+32 )
+        .ADDR           ( 4 ),      // shallow
+        .DATA           ( 4+32 )
     ) dlsc_fifo_async (
-        .wr_clk             ( px_clk ),
-        .wr_rst             ( px_rst_bus ),
-        .wr_push            ( pack_ready && pack_valid ),
-        .wr_data            ( { pack_strb, pack_data } ),
-        .wr_full            ( fifo_full ),
-        .wr_almost_full     (  ),
-        .wr_free            (  ),
-        .rd_clk             ( clk ),
-        .rd_rst             ( rst_bus ),
-        .rd_pop             ( fifo_ready && fifo_valid ),
-        .rd_data            ( { fifo_strb, fifo_data } ),
-        .rd_empty           ( fifo_empty ),
-        .rd_almost_empty    (  ),
-        .rd_count           ( fifo_count )
+        .wr_clk         ( px_clk ),
+        .wr_rst         ( px_rst_out ),
+        .wr_push        ( px_pack_ready && px_pack_valid ),
+        .wr_data        ( {px_pack_strb,px_pack_data} ),
+        .wr_full        ( px_pack_full ),
+        .wr_almost_full (  ),
+        .wr_free        (  ),
+        .rd_clk         ( axi_clk ),
+        .rd_rst         ( axi_rst_out ),
+        .rd_pop         ( axi_pack_push ),
+        .rd_data        ( {axi_pack_strb,axi_pack_data} ),
+        .rd_empty       ( axi_pack_empty ),
+        .rd_almost_empty (  ),
+        .rd_count       (  )
     );
-end else begin:GEN_SYNC
-    dlsc_fifo #(
-        .ADDR               ( FIFO_ADDR ),
-        .DATA               ( 4+32 ),
-        .COUNT              ( 1 )
-    ) dlsc_fifo (
-        .clk                ( clk ),
-        .rst                ( rst_bus ),
-        .wr_push            ( pack_ready && pack_valid ),
-        .wr_data            ( { pack_strb, pack_data } ),
-        .wr_full            ( fifo_full ),
-        .wr_almost_full     (  ),
-        .wr_free            (  ),
-        .rd_pop             ( fifo_ready && fifo_valid ),
-        .rd_data            ( { fifo_strb, fifo_data } ),
-        .rd_empty           ( fifo_empty ),
-        .rd_almost_empty    (  ),
-        .rd_count           ( fifo_count )
-    );
+
+end else begin:GEN_FIFO_SYNC
+
+    // just connect packer directly to sync FIFO
+    assign px_pack_ready    = !axi_pack_full;
+    assign axi_pack_push    = px_pack_ready && px_pack_valid;
+    assign axi_pack_data    = px_pack_data;
+    assign axi_pack_strb    = px_pack_strb;
+
 end
 endgenerate
 
-// ** writer **
+// ** Buffer FIFO **
+// Buffer FIFO lives completely in AXI domain to prevent AXI deadlock if pixel
+// domain enters reset while there are outstanding AXI transactions.
+
+wire                    axi_fifo_empty;
+wire    [FIFO_ADDR:0]   axi_fifo_count;
+
+wire                    axi_fifo_ready;
+wire                    axi_fifo_valid      = !axi_fifo_empty;
+
+wire    [31:0]          axi_fifo_data;
+wire    [3:0]           axi_fifo_strb;
+
+dlsc_fifo #(
+    .ADDR           ( FIFO_ADDR ),
+    .DATA           ( 4+32 ),
+    .COUNT          ( 1 )
+) dlsc_fifo_buffer (
+    .clk            ( axi_clk ),
+    .rst            ( axi_rst_out ),
+    .wr_push        ( axi_pack_push ),
+    .wr_data        ( {axi_pack_strb,axi_pack_data} ),
+    .wr_full        ( axi_pack_full ),
+    .wr_almost_full (  ),
+    .wr_free        (  ),
+    .rd_pop         ( axi_fifo_ready && axi_fifo_valid ),
+    .rd_data        ( {axi_fifo_strb,axi_fifo_data} ),
+    .rd_empty       ( axi_fifo_empty ),
+    .rd_almost_empty (  ),
+    .rd_count       ( axi_fifo_count )
+);
+
+// ** Writer **
 
 dlsc_axi_writer #(
     .ADDR               ( AXI_ADDR ),
@@ -264,8 +289,8 @@ dlsc_axi_writer #(
     .FIFO_ADDR          ( FIFO_ADDR ),
     .WARNINGS           ( 1 )
 ) dlsc_axi_writer (
-    .clk                ( clk ),
-    .rst                ( rst_bus ),
+    .clk                ( axi_clk ),
+    .rst                ( axi_rst_out ),
     .axi_halt           ( axi_halt ),
     .axi_busy           ( axi_busy ),
     .axi_error          ( axi_error ),
@@ -286,12 +311,71 @@ dlsc_axi_writer #(
     .axi_b_ready        ( axi_b_ready ),
     .axi_b_valid        ( axi_b_valid ),
     .axi_b_resp         ( axi_b_resp ),
-    .in_count           ( fifo_count ),
-    .in_ready           ( fifo_ready ),
-    .in_valid           ( fifo_valid ),
-    .in_data            ( fifo_data ),
-    .in_strb            ( fifo_strb )
+    .in_count           ( axi_fifo_count ),
+    .in_ready           ( axi_fifo_ready ),
+    .in_valid           ( axi_fifo_valid ),
+    .in_data            ( axi_fifo_data ),
+    .in_strb            ( axi_fifo_strb )
 );
+
+
+`ifdef SIMULATION
+
+integer cnt_px_valid;
+integer cnt_px_cmd_valid;
+integer cnt_px_pack_valid;
+integer cnt_px_pack_last;
+
+always @(posedge px_clk) begin
+    if(px_rst_out) begin
+        cnt_px_valid <= 0;
+        cnt_px_cmd_valid <= 0;
+        cnt_px_pack_valid <= 0;
+        cnt_px_pack_last <= 0;
+    end else begin
+        if(px_ready && px_valid) begin
+            cnt_px_valid <= cnt_px_valid + 1;
+        end
+        if(px_cmd_ready && px_cmd_valid) begin
+            cnt_px_cmd_valid <= cnt_px_cmd_valid + 1;
+        end
+        if(px_pack_ready && px_pack_valid) begin
+            cnt_px_pack_valid <= cnt_px_pack_valid + 1;
+            if(px_pack_last) begin
+                cnt_px_pack_last <= cnt_px_pack_last + 1;
+            end
+        end
+    end
+end
+
+integer cnt_axi_cmd_valid;
+integer cnt_axi_cmd_done;
+integer cnt_axi_pack_push;
+integer cnt_axi_fifo_valid;
+
+always @(posedge axi_clk) begin
+    if(axi_rst_out) begin
+        cnt_axi_cmd_valid <= 0;
+        cnt_axi_cmd_done <= 0;
+        cnt_axi_pack_push <= 0;
+        cnt_axi_fifo_valid <= 0;
+    end else begin
+        if(axi_cmd_ready && axi_cmd_valid) begin
+            cnt_axi_cmd_valid <= cnt_axi_cmd_valid + 1;
+        end
+        if(axi_cmd_done) begin
+            cnt_axi_cmd_done <= cnt_axi_cmd_done + 1;
+        end
+        if(axi_pack_push) begin
+            cnt_axi_pack_push <= cnt_axi_pack_push + 1;
+        end
+        if(axi_fifo_ready && axi_fifo_valid) begin
+            cnt_axi_fifo_valid <= cnt_axi_fifo_valid + 1;
+        end
+    end
+end
+
+`endif
 
 endmodule
 
