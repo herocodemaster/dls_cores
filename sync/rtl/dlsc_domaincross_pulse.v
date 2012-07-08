@@ -25,10 +25,16 @@
 //
 
 // Module Description:
-// Synchronizes a pulse on one clock domain into a single-cycle pulse on
-// a different clock domain
+// Synchronizes single-cycle pulses on one clock domain into single-cycle
+// pulses on a different clock domain.
+//
+// BYPASS parameter turns module into a wire (use for simplifying parameterized
+// async crossings).
 
-module dlsc_domaincross_pulse (
+module dlsc_domaincross_pulse #(
+    parameter BYPASS    = 0,
+    parameter DEPTH     = 1         // number of pulses that can be buffered internally
+) (
     // source domain
     input   wire                in_clk,
     input   wire                in_rst,
@@ -40,49 +46,82 @@ module dlsc_domaincross_pulse (
     output  wire                out_pulse
 );
 
-// find in_pulse edges
+`include "dlsc_clog2.vh"
+localparam ADDR = `dlsc_clog2(DEPTH);
 
-reg         in_pulse_prev;
+generate
+if(BYPASS) begin:GEN_BYPASS
 
-always @(posedge in_clk) begin
-    in_pulse_prev <= in_pulse;
-end
+    assign out_pulse = in_pulse;
 
-// synchronize
+end else begin:GEN_ASYNC
 
-wire        in_ready;
-wire        in_valid  = !in_pulse_prev && in_pulse;
+    wire        in_ready;
 
-dlsc_domaincross_rvh #(
-    .DATA           ( 1 )
-) dlsc_domaincross_rvh_inst (
-    .in_clk         ( in_clk ),
-    .in_rst         ( in_rst ),
-    .in_ready       ( in_ready ),
-    .in_valid       ( in_valid ),
-    .in_data        ( 1'b0 ),
-    .out_clk        ( out_clk ),
-    .out_rst        ( out_rst ),
-    .out_ready      ( 1'b1 ),
-    .out_valid      ( out_pulse ),
-    .out_data       (  )
-);
+    if(DEPTH<=1) begin:GEN_SHALLOW
+        dlsc_domaincross_rvh #(
+            .BYPASS         ( BYPASS ),
+            .DATA           ( 1 )
+        ) dlsc_domaincross_rvh (
+            .in_clk         ( in_clk ),
+            .in_rst         ( in_rst ),
+            .in_ready       ( in_ready ),
+            .in_valid       ( in_pulse ),
+            .in_data        ( 1'b0 ),
+            .out_clk        ( out_clk ),
+            .out_rst        ( out_rst ),
+            .out_ready      ( 1'b1 ),
+            .out_valid      ( out_pulse ),
+            .out_data       (  )
+        );
+    end else begin:GEN_DEPTH
 
+        // use async FIFO as a cross-domain counter of sorts
+        // TODO: do something more efficient
+        
+        wire        in_full;
+        assign      in_ready    = !in_full;
 
-// simulation checks
+        wire        out_empty;
+        assign      out_pulse   = !out_empty;
 
-`ifdef DLSC_SIMULATION
-`include "dlsc_sim_top.vh"
-
-always @(posedge in_clk) begin
-    if(!in_rst && in_valid && !in_ready) begin
-        `dlsc_warn("lost in_pulse");
+        dlsc_fifo_async #(
+            .DATA           ( 1 ),
+            .ADDR           ( ADDR )
+        ) dlsc_fifo_async (
+            .wr_clk         ( in_clk ),
+            .wr_rst         ( in_rst ),
+            .wr_push        ( in_ready && in_pulse ),
+            .wr_data        ( 1'b0 ),
+            .wr_full        ( in_full ),
+            .wr_almost_full (  ),
+            .wr_free        (  ),
+            .rd_clk         ( out_clk ),
+            .rd_rst         ( out_rst ),
+            .rd_pop         ( out_pulse ),
+            .rd_data        (  ),
+            .rd_empty       ( out_empty ),
+            .rd_almost_empty (  ),
+            .rd_count       (  )
+        );
     end
+
+    // simulation checks
+
+    `ifdef DLSC_SIMULATION
+    `include "dlsc_sim_top.vh"
+
+    always @(posedge in_clk) begin
+        if(!in_rst && in_pulse && !in_ready) begin
+            `dlsc_error("lost pulse");
+        end
+    end
+
+    `include "dlsc_sim_bot.vh"
+    `endif
+
 end
-
-`include "dlsc_sim_bot.vh"
-`endif
-
+endgenerate
 
 endmodule
 
