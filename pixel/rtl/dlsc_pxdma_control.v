@@ -291,7 +291,7 @@ wire                obs_px_rst;
 // interrupt set flags
 
 reg                 set_disabled;
-wire                set_axi_error       = obs_axi_error && ctrl_enable;
+wire                set_axi_error       = enabled && obs_axi_error;
 wire                set_ack_overflow;
 wire                set_fifo_overflow;
 wire                set_fifo_empty;
@@ -382,7 +382,7 @@ always @(posedge csr_clk) begin
         int_select  <= 0;
         csr_int     <= 1'b0;
     end else begin
-        csr_int     <= |next_int_flags;
+        csr_int     <= |(next_int_flags & int_select);
         int_flags   <= next_int_flags;
         if(csr_cmd_valid && csr_cmd_write && csr_addr == REG_INT_SELECT) begin
             int_select  <= csr_cmd_data[INTB-1:0];
@@ -637,17 +637,9 @@ always @(posedge csr_clk) begin
     end
 end
 
-reg                 af_almost_empty_prev;
-reg                 af_empty_prev;
-
 assign              set_fifo_overflow   = af_push_pre && (af_full || (enabled && auto_mode));
-assign              set_fifo_empty      = af_empty && !af_empty_prev;
-assign              set_fifo_half_empty = af_almost_empty && !af_almost_empty_prev;
-
-always @(posedge csr_clk) begin
-    af_almost_empty_prev    <= af_almost_empty;
-    af_empty_prev           <= af_empty_prev;
-end
+assign              set_fifo_empty      = enabled && af_empty;
+assign              set_fifo_half_empty = enabled && af_almost_empty;
 
 dlsc_fifo #(
     .ADDR           ( AF_ADDR ),
