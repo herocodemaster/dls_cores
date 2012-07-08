@@ -117,15 +117,15 @@ objclean:
 
 .PHONY: sims_summary
 sims_summary: | sims0 sims1 sims2 sims3
-	@echo "\n\n                                   *** Results for $(TESTBENCH) ***\n"
+	@echo -e "\n\n                                   *** Results for $(TESTBENCH) ***\n"
 	@cd $(WORKROOT) && grep -n "assertions" _$(TESTBENCH)_*/*.log
-	@echo "\n"
+	@echo -e "\n"
 
 .PHONY: summary
 summary:
-	@echo "\n\n                                   *** Results for $(TESTBENCH) ***\n"
+	@echo -e "\n\n                                   *** Results for $(TESTBENCH) ***\n"
 	@cd $(WORKROOT) && grep -n "assertions" _$(TESTBENCH)_*/*.log
-	@echo "\n"
+	@echo -e "\n"
 
 else
 # *****************************************************************************
