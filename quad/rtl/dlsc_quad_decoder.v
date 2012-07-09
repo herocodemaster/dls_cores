@@ -136,7 +136,6 @@ wire            error_quad;
 reg  [5:0]      int_flags;
 reg  [5:0]      int_select;
 
-wire [BITS-1:0] count;
 wire [BITS-1:0] index_count;
 
 wire [31:0]     csr_control     = { 24'd0, index_qual, 1'b0, index_clr, read_clr, enabled };

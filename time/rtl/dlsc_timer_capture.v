@@ -268,7 +268,7 @@ always @(posedge clk) begin
     c1_cnt <= timebase_cnt;
 end
 
-wire [15:0]     arb_ready;
+reg  [15:0]     arb_ready;
 wire [15:0]     arb_valid;
 wire [63:0]     arb_time [15:0];
 wire [CHANNELS-1:0] arb_chstate [15:0];

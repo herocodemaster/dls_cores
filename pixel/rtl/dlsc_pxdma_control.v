@@ -176,7 +176,7 @@ module dlsc_pxdma_control #(
 
     // Data unpacker/packer
     input   wire                    px_cmd_ready,
-    output  reg                     px_cmd_valid,
+    output  wire                    px_cmd_valid,
     output  wire    [1:0]           px_cmd_offset,
     output  wire    [1:0]           px_cmd_bpw,
     output  wire    [XBITS-1:0]     px_cmd_words

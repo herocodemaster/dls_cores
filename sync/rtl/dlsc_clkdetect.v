@@ -96,7 +96,7 @@ end
 wire monitor_tx;
 
 dlsc_syncflop #(
-    .DATA       ( 1 ),
+    .DATA       ( 1 )
 ) dlsc_syncflop_monitor (
     .in         ( tx ),
     .clk        ( clk_monitor ),
