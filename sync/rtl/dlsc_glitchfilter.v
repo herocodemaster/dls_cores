@@ -50,55 +50,62 @@ localparam CNTB = `dlsc_clog2(DEPTH);
 
 wire in_synced;
 
+dlsc_syncflop #(
+    .BYPASS ( !SYNC ),
+    .DATA   ( 1 ),
+    .RESET  ( RESET )
+) dlsc_syncflop (
+    .rst    ( rst ),
+    .in     ( in ),
+    .clk    ( clk ),
+    .out    ( in_synced )
+);
+
 generate
-if(SYNC>0) begin:GEN_SYNC
-    dlsc_syncflop #(
-        .DATA   ( 1 ),
-        .RESET  ( RESET )
-    ) dlsc_syncflop_inst (
-        .rst    ( rst ),
-        .in     ( in ),
-        .clk    ( clk ),
-        .out    ( in_synced )
-    );
-end else begin:GEN_NOSYNC
-    assign in_synced = in;
-end
-endgenerate
+if(DEPTH>0) begin:GEN_FILTER
 
-// glitch filter
+    // glitch filter
 
-reg             in_prev     = RESET;
-wire            in_change   = (in_prev != in_synced);
+    reg             in_prev     = RESET;
+    wire            in_change   = (in_prev != in_synced);
 
-reg             in_stable_r = 1'b0;
-wire            in_stable   = in_stable_r && !in_change;
+    reg             in_stable_r = 1'b0;
+    wire            in_stable   = in_stable_r && !in_change;
 
-reg  [CNTB-1:0] cnt         = 0;
+    reg  [CNTB-1:0] cnt         = 0;
 
-always @(posedge clk) begin
-    if(rst || in_change) begin
-        cnt         <= 0;
-        in_stable_r <= 1'b0;
-    end else if(clk_en && !in_stable_r) begin
-        cnt         <= cnt + 1;
-        /* verilator lint_off WIDTH */
-        in_stable_r <= (cnt == (DEPTH-1));
-        /* veirlator lint_on WIDTH */
-    end
-end
-
-always @(posedge clk) begin
-    if(rst) begin
-        in_prev     <= RESET;
-        out         <= RESET;
-    end else begin
-        in_prev     <= in_synced;
-        if(in_stable) begin
-            out         <= in_prev;
+    always @(posedge clk) begin
+        if(rst || in_change) begin
+            cnt         <= 0;
+            in_stable_r <= 1'b0;
+        end else if(clk_en && !in_stable_r) begin
+            cnt         <= cnt + 1;
+            /* verilator lint_off WIDTH */
+            in_stable_r <= (cnt == (DEPTH-1));
+            /* veirlator lint_on WIDTH */
         end
     end
+
+    always @(posedge clk) begin
+        if(rst) begin
+            in_prev     <= RESET;
+            out         <= RESET;
+        end else begin
+            in_prev     <= in_synced;
+            if(in_stable) begin
+                out         <= in_prev;
+            end
+        end
+    end
+
+end else begin:GEN_BYPASS
+
+    always @* begin
+        out     = in_synced;
+    end
+
 end
+endgenerate
 
 endmodule
 
