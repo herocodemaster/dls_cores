@@ -96,7 +96,7 @@ private:
     void stim_thread();
     void watchdog_thread();
 
-    void alloc_buffers(std::deque<uint32_t> &buf_addrs, uint32_t buf_size, unsigned int buffers);
+    void alloc_buffers(std::deque<uint32_t> &buf_addrs, uint32_t buf_size, unsigned int buffers, bool aligned);
     
     void reg_write(uint32_t dev, uint32_t addr, uint32_t data);
     uint32_t reg_read(uint32_t dev, uint32_t addr);
@@ -356,10 +356,14 @@ const uint32_t REG_BYTES_PER_ROW = 0x16;
 const uint32_t REG_ROW_STEP = 0x17;
 const uint32_t REG_ROWS_PER_BUFFER = 0x18;
 
-void __MODULE__::alloc_buffers(std::deque<uint32_t> &buf_addrs, uint32_t buf_size, unsigned int buffers) {
+void __MODULE__::alloc_buffers(std::deque<uint32_t> &buf_addrs, uint32_t buf_size, unsigned int buffers, bool aligned) {
     unsigned int target = buf_addrs.size() + buffers;
     while(buf_addrs.size() < target) {
         uint32_t addr = dlsc_rand_u32(0,MEM_SIZE-buf_size-1);
+        if(aligned) {
+            // align to 4K boundary
+            addr &= ~0xFFF;
+        }
         bool okay = true;
         // ugly method to detect conflicts..
         for(unsigned int j=0;j<buf_addrs.size();j++) {
@@ -393,13 +397,14 @@ void __MODULE__::stim_thread() {
     uint32_t rows_thresh;
     uint32_t bufs_thresh;
     bool buf_auto;
+    bool aligned;
 
     uint32_t data,intr;
 
     unsigned int j,k,x,y,frames;
     
-    for(int iteration=0;iteration<25;iteration++) {
-        dlsc_info("iteration " << iteration);
+    for(int iteration=0;iteration<100;iteration++) {
+        dlsc_info("== iteration " << iteration << " ==");
 
         // remove from reset (if necessary)
         if(rst) {
@@ -423,8 +428,20 @@ void __MODULE__::stim_thread() {
         dlsc_assert_equals(bpp,PARAM_BYTES_PER_PIXEL);
         
         // randomize configuration
-        hdisp       = dlsc_rand_u32(2,100);//MAX_H);
-        vdisp       = dlsc_rand_u32(2,100);//MAX_V);
+        switch(dlsc_rand(0,9)) {
+            case 3:
+                hdisp       = MAX_H;
+                vdisp       = dlsc_rand_u32(2,8);
+                break;
+            case 8:
+                hdisp       = dlsc_rand_u32(2,8);
+                vdisp       = MAX_V;
+                break;
+            default:
+                hdisp       = dlsc_rand_u32(2,100);
+                vdisp       = dlsc_rand_u32(2,100);
+                break;
+        }
         bpr         = hdisp*bpp;
         step        = dlsc_rand_bool(50.0) ? bpr : dlsc_rand_u32(bpr,bpr*2);
         buf_rows    = dlsc_rand_bool(50.0) ? vdisp : dlsc_rand_u32(vdisp/10+1,vdisp);
@@ -433,6 +450,7 @@ void __MODULE__::stim_thread() {
         rows_thresh = dlsc_rand_u32(1,(vdisp/10)+1);
         bufs_thresh = dlsc_rand_u32(1,(vdisp/buf_rows)+1);
         buf_auto    = dlsc_rand_bool(50.0);
+        aligned     = dlsc_rand_bool(20.0);
 
         reader_sel  = dlsc_rand_u32(1,READERS_MASK);
 
@@ -460,7 +478,7 @@ void __MODULE__::stim_thread() {
         unsigned int buf_addr_index[READERS+1] = {0};
         buf_addrs.clear();
         if(buf_auto || dlsc_rand_bool(50.0)) {
-            alloc_buffers(buf_addrs,buf_size,buffers);
+            alloc_buffers(buf_addrs,buf_size,buffers,aligned);
         }
 
         // randomize rates
@@ -544,7 +562,7 @@ void __MODULE__::stim_thread() {
                     // out of addresses
                     if(buf_addr_index[j] == buf_addrs.size()) {
                         // need more addresses
-                        alloc_buffers(buf_addrs,buf_size,dlsc_rand(1,max_buffers/4));
+                        alloc_buffers(buf_addrs,buf_size,dlsc_rand(1,max_buffers/4),aligned);
                     }
                     // push addresses
                     uint32_t free = reg_read(j,REG_FIFO_FREE);
@@ -636,7 +654,7 @@ void __MODULE__::stim_thread() {
 }
 
 void __MODULE__::watchdog_thread() {
-    for(int i=0;i<100;i++) {
+    for(int i=0;i<200;i++) {
         wait(1,SC_MS);
         dlsc_info(". " << in_queue.size() << ", " << out_queue[0].size() << ", " << out_queue[1].size() << ", " << out_queue[2].size() << ", " << out_queue[3].size());
     }
