@@ -90,7 +90,7 @@ localparam  CORE_MAGIC  = 32'h4a0e0c46; // lower 32 bits of md5sum of "dlsc_pxdm
 
 `include "dlsc_clog2.vh"
 
-localparam  BLEN        = `dlsc_clog2(BYTES_PER_PIXEL*MAX_H);
+localparam  BLEN        = `dlsc_clog2((MAX_H*BYTES_PER_PIXEL)+1);
 localparam  XBITS       = `dlsc_clog2(MAX_H+1);
 localparam  YBITS       = `dlsc_clog2(MAX_V+1);
 localparam  FIFO_ADDR   = `dlsc_clog2(BUFFER/4);
