@@ -128,20 +128,27 @@ end
 
 // ** data crossing **
 
-for(j=0;j<DATA;j=j+1) begin:GEN_SLICES
-    dlsc_domaincross_slice #(
-        .RESET      ( RESET[j] )
-    ) dlsc_domaincross_slice_inst (
-        .in_clk     ( in_clk ),
-        .in_rst     ( in_rst ),
-        .in_en      ( in_en ),
-        .in_data    ( in_data[j] ),
-        .out_clk    ( out_clk ),
-        .out_rst    ( out_rst_data ),
-        .out_en     ( out_en ),
-        .out_data   ( out_data[j] )
-    );
+`DLSC_ASYNC_REG reg [DATA-1:0] in_reg;
+
+always @(posedge in_clk) begin
+    if(in_rst) begin
+        in_reg  <= RESET;
+    end else if(in_en) begin
+        in_reg  <= in_data;
+    end
 end
+
+`DLSC_ASYNC_REG reg [DATA-1:0] out_reg;
+
+always @(posedge out_clk) begin
+    if(out_rst) begin
+        out_reg <= RESET;
+    end else if(out_en) begin
+        out_reg <= in_reg;
+    end
+end
+
+assign out_data = out_reg;
 
 
 // ** control synchronization **
