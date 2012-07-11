@@ -465,6 +465,7 @@ always @(posedge csr_clk) begin
     if(csr_rst) begin
         auto_mode       <= 1'b0;
         clear_fifo      <= 1'b0;
+        ack_select      <= 0;
         pixels_per_row  <= 0;
         rows_per_frame  <= 0;
         bytes_per_row   <= 0;
