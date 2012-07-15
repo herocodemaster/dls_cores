@@ -8,6 +8,19 @@
 
 // for syntax highlighter: SC_MODULE
 
+#ifndef PARAM_CORE_TEST
+    #include "dlsc_tlm_initiator_nb.h"
+    #define PARAM_XB            (dlsc_clog2(PARAM_MAX_WIDTH))
+    #define PARAM_YB            (dlsc_clog2(PARAM_MAX_HEIGHT))
+    #define PARAM_BINB          (dlsc_clog2(PARAM_MAX_BIN))
+#else
+    #define PARAM_MAX_WIDTH     (PARAM_WIDTH)
+    #define PARAM_MAX_HEIGHT    (1<<PARAM_YB)
+    #define PARAM_MAX_BIN       (1<<PARAM_BINB)
+    #define PARAM_CSR_DOMAIN    0
+    #define PARAM_PX_DOMAIN     1
+#endif
+
 /*AUTOSUBCELL_CLASS*/
 
 struct out_type {
@@ -18,7 +31,11 @@ struct out_type {
 
 SC_MODULE (__MODULE__) {
 private:
-    sc_clock clk;
+    sc_clock        clk;
+    sc_signal<bool> rst;
+    
+    sc_clock        csr_clk;
+    sc_signal<bool> csr_rst;
 
     void clk_method();
     void stim_thread();
@@ -37,6 +54,20 @@ private:
     double in_rate;
     double out_rate;
 
+#ifndef PARAM_CORE_TEST
+    void reg_write(uint32_t addr, uint32_t data);
+    uint32_t reg_read(uint32_t addr);
+    dlsc_tlm_initiator_nb<uint32_t> *csr_initiator;
+
+    uint32_t    cfg_width;
+    uint32_t    cfg_height;
+    uint32_t    cfg_bin_x;
+    uint32_t    cfg_bin_y;
+    bool        cfg_bayer;
+    bool        cfg_first_r;
+    bool        cfg_first_g;
+#endif
+
     /*AUTOSUBCELL_DECL*/
     /*AUTOSIGNAL*/
 
@@ -54,7 +85,8 @@ public:
 #include "dlsc_main.cpp"
 
 SP_CTOR_IMP(__MODULE__) :
-    clk("clk",10,SC_NS)
+    clk("clk",10,SC_NS),
+    csr_clk("csr_clk",15,SC_NS)
     /*AUTOINIT*/
 {
     SP_AUTO_CTOR;
@@ -62,8 +94,43 @@ SP_CTOR_IMP(__MODULE__) :
     /*AUTOTIEOFF*/
     SP_CELL(dut,DLSC_DUT);
         /*AUTOINST*/
+#ifndef PARAM_CORE_TEST
+#ifdef PARAM_PX_DOMAIN
+        SP_PIN(dut,csr_clk,clk);
+        SP_PIN(dut,csr_rst,rst);
+#else
+        SP_PIN(dut,csr_clk,csr_clk);
+        SP_PIN(dut,csr_rst,csr_rst);
+#endif
+        SP_PIN(dut,px_clk,clk);
+        SP_PIN(dut,px_rst,rst);
+        SP_PIN(dut,px_in_ready,in_ready);
+        SP_PIN(dut,px_in_valid,in_valid);
+        SP_PIN(dut,px_in_data,in_data);
+        SP_PIN(dut,px_out_ready,out_ready);
+        SP_PIN(dut,px_out_valid,out_valid);
+        SP_PIN(dut,px_out_data_r,out_data_r);
+        SP_PIN(dut,px_out_data_g,out_data_g);
+        SP_PIN(dut,px_out_data_b,out_data_b);
+#endif
+    
+#ifndef PARAM_CORE_TEST
+    SP_CELL(csr_master,dlsc_csr_tlm_master_32b);
+        /*AUTOINST*/
+#ifdef PARAM_PX_DOMAIN
+        SP_PIN(csr_master,clk,clk);
+        SP_PIN(csr_master,rst,rst);
+#else
+        SP_PIN(csr_master,clk,csr_clk);
+        SP_PIN(csr_master,rst,csr_rst);
+#endif
+    
+    csr_initiator   = new dlsc_tlm_initiator_nb<uint32_t>("csr_initiator",1);
+    csr_initiator->socket.bind(csr_master->socket);
+#endif
 
     rst         = 1;
+    csr_rst     = 1;
 
     SC_METHOD(clk_method);
         sensitive << clk.posedge_event();
@@ -71,6 +138,31 @@ SP_CTOR_IMP(__MODULE__) :
     SC_THREAD(stim_thread);
     SC_THREAD(watchdog_thread);
 }
+
+#ifndef PARAM_CORE_TEST
+const uint32_t REG_CORE_MAGIC       = 0x0;
+const uint32_t REG_CORE_VERSION     = 0x1;
+const uint32_t REG_CORE_INTERFACE   = 0x2;
+const uint32_t REG_CORE_INSTANCE    = 0x3;
+const uint32_t REG_CONTROL          = 0x4;
+const uint32_t REG_STATUS           = 0x5;
+const uint32_t REG_WIDTH            = 0x8;
+const uint32_t REG_HEIGHT           = 0x9;
+const uint32_t REG_BIN_X            = 0xA;
+const uint32_t REG_BIN_Y            = 0xB;
+const uint32_t REG_BAYER            = 0xC;
+
+void __MODULE__::reg_write(uint32_t addr, uint32_t data) {
+    csr_initiator->b_write(addr<<2,data);
+    dlsc_verb("wrote 0x" << std::hex << addr << " : 0x" << data);
+}
+
+uint32_t __MODULE__::reg_read(uint32_t addr) {
+    uint32_t data = csr_initiator->b_read(addr<<2);
+    dlsc_verb("read 0x" << std::hex << addr << " : 0x" << data);
+    return data;
+}
+#endif
 
 void __MODULE__::clk_method() {
     if(rst) {
@@ -206,10 +298,11 @@ void __MODULE__::send_frame() {
 
 void __MODULE__::stim_thread() {
     rst         = 1;
+    csr_rst     = 1;
     
     wait(1,SC_US);
 
-    for(int iterations=0;iterations<20;iterations++) {
+    for(int iterations=0;iterations<100;iterations++) {
 
         in_rate     = 1.0*dlsc_rand(10,100);
         out_rate    = 1.0*dlsc_rand(10,100);
@@ -217,12 +310,23 @@ void __MODULE__::stim_thread() {
         cfg_first_r = dlsc_rand_bool(50.0);
         cfg_first_g = dlsc_rand_bool(50.0);
         wait(SC_ZERO_TIME);
-        cfg_width   = dlsc_rand(10,200)-1;
-        cfg_height  = dlsc_rand(10,100)-1;
+        switch(dlsc_rand(0,19)) {
+            case 9:
+                cfg_width   = PARAM_MAX_WIDTH-1;
+                cfg_height  = dlsc_rand(10,20)-1;
+                break;
+            case 12:
+                cfg_width   = dlsc_rand(10,20)-1;
+                cfg_height  = PARAM_MAX_HEIGHT-1;
+                break;
+            default:
+                cfg_width   = dlsc_rand(10,200)-1;
+                cfg_height  = dlsc_rand(10,100)-1;
+        }
         if(!cfg_bayer) {
             // raw mode can handle any bin factor (sorta-kinda)
-            cfg_bin_x   = dlsc_rand(1,(1<<PARAM_BINB))-1;
-            cfg_bin_y   = dlsc_rand(1,(1<<PARAM_BINB))-1;
+            cfg_bin_x   = dlsc_rand(1,PARAM_MAX_BIN)-1;
+            cfg_bin_y   = dlsc_rand(1,PARAM_MAX_BIN)-1;
         } else {
             // bayer mode can only reasonably handle powers of 2
             cfg_bin_x   = (1<<dlsc_rand(1,PARAM_BINB))-1;
@@ -239,7 +343,23 @@ void __MODULE__::stim_thread() {
 
         wait(clk.posedge_event());
         rst         = 0;
+        wait(csr_clk.posedge_event());
+        csr_rst     = 0;
         wait(clk.posedge_event());
+        wait(csr_clk.posedge_event());
+
+#ifndef PARAM_CORE_TEST
+        reg_write(REG_CONTROL,0);
+        reg_write(REG_WIDTH,cfg_width);
+        reg_write(REG_HEIGHT,cfg_height);
+        reg_write(REG_BIN_X,cfg_bin_x);
+        reg_write(REG_BIN_Y,cfg_bin_y);
+        reg_write(REG_BAYER, (
+            (cfg_bayer   ? 0x1 : 0x0) |
+            (cfg_first_r ? 0x2 : 0x0) |
+            (cfg_first_g ? 0x4 : 0x0)) );
+        reg_write(REG_CONTROL,1);
+#endif
 
         for(int i=0;i<dlsc_rand(5,15);i++) {
             send_frame();
@@ -251,7 +371,10 @@ void __MODULE__::stim_thread() {
         wait(1,SC_US);
         wait(clk.posedge_event());
         rst         = 1;
+        wait(csr_clk.posedge_event());
+        csr_rst     = 1;
         wait(clk.posedge_event());
+        wait(csr_clk.posedge_event());
         wait(1,SC_US);
     }
 
@@ -262,7 +385,7 @@ void __MODULE__::stim_thread() {
 }
 
 void __MODULE__::watchdog_thread() {
-    for(int i=0;i<100;i++) {
+    for(int i=0;i<200;i++) {
         wait(1,SC_MS);
         dlsc_info(". " << out_queue.size());
     }

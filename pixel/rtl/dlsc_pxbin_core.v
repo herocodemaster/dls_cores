@@ -137,7 +137,14 @@ reg             c0_valid;
 reg  [BITS-1:0] c0_data;
 
 always @(posedge clk) begin
-    c0_valid    <= in_ready && in_valid;
+    if(rst) begin
+        c0_valid    <= 1'b0;
+    end else begin
+        c0_valid    <= in_ready && in_valid;
+    end
+end
+
+always @(posedge clk) begin
     if(in_valid) begin
         c0_data     <= in_data;
     end
@@ -266,11 +273,13 @@ dlsc_pipedelay #(
 
 wire            c6_en;
 
-dlsc_pipedelay #(
+dlsc_pipedelay_rst #(
     .DATA       ( 1 ),
-    .DELAY      ( 6-0 )
-) dlsc_pipedelay_c0c6 (
+    .DELAY      ( 6-0 ),
+    .RESET      ( 1'b0 )
+) dlsc_pipedelay_rst_c0c6 (
     .clk        ( clk ),
+    .rst        ( rst ),
     .in_data    ( c0_en ),
     .out_data   ( c6_en )
 );
