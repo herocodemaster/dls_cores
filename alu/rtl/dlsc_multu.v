@@ -42,86 +42,19 @@ module dlsc_multu #(
     output  wire    [OUT  -1:0] out
 );
 
-// split pipelining evenly between input and output
-// (output gets an extra stage for odd pipeline counts)
-localparam PIPELINE_IN  = PIPELINE/2;
-localparam PIPELINE_OUT = PIPELINE - PIPELINE_IN;
-
-// width of full (non-truncated) output result
-localparam MULT_BITS    = (DATA0+DATA1);
-
-
-// ** pipeline inputs **
-
-wire [DATA0    -1:0] in0_s;
-wire [DATA1    -1:0] in1_s;
-
-dlsc_pipedelay #(
-    .DATA   ( DATA0 ),
-    .DELAY  ( PIPELINE_IN )
-) dlsc_pipedelay_inst_in0 (
+dlsc_mult #(
+    .SIGNED     ( 0 ),
+    .DATA0      ( DATA0 ),
+    .DATA1      ( DATA1 ),
+    .OUT        ( OUT ),
+    .PIPELINE   ( PIPELINE )
+) dlsc_mult (
     .clk        ( clk ),
-    .in_data    ( in0 ),
-    .out_data   ( in0_s )
+    .clk_en     ( 1'b1 ),
+    .in0        ( in0 ),
+    .in1        ( in1 ),
+    .out        ( out )
 );
-
-dlsc_pipedelay #(
-    .DATA   ( DATA1 ),
-    .DELAY  ( PIPELINE_IN )
-) dlsc_pipedelay_inst_in1 (
-    .clk        ( clk ),
-    .in_data    ( in1 ),
-    .out_data   ( in1_s )
-);
-
-
-// ** multiply **
-
-wire [MULT_BITS-1:0] out_m;
-
-assign out_m = in0_s * in1_s;
-
-
-// ** pipeline outputs **
-
-wire [MULT_BITS-1:0] out_s;
-
-dlsc_pipedelay #(
-    .DATA   ( MULT_BITS ),
-    .DELAY  ( PIPELINE_OUT )
-) dlsc_pipedelay_inst_out (
-    .clk        ( clk ),
-    .in_data    ( out_m ),
-    .out_data   ( out_s )
-);
-
-
-// ** assign output **
-
-generate
-    if(OUT < MULT_BITS) begin:GEN_OUT_TRUNC
-        assign out = out_s[OUT-1:0];
-    end else if(OUT == MULT_BITS) begin:GEN_OUT_EXACT
-        assign out = out_s;
-    end else begin:GEN_OUT_PAD
-        assign out = { {(OUT-MULT_BITS){1'b0}} , out_s };
-    end
-endgenerate
-
-
-`ifdef DLSC_SIMULATION
-`include "dlsc_sim_top.vh"
-generate
-    if(OUT<MULT_BITS) begin:GEN_CHECK_OVERFLOW
-        always @(posedge clk) begin
-            if(out_s[MULT_BITS-1:OUT] != 0) begin
-                `dlsc_warn("multiplier output overflowed! (out = 0x%0x ; out_full = 0x%0x)", out, out_s);
-            end
-        end
-    end
-endgenerate
-`include "dlsc_sim_bot.vh"
-`endif
 
 endmodule
 
