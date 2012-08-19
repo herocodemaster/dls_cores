@@ -5,12 +5,25 @@
 
 #include <deque>
 
+#define SIGNED      PARAM_SIGNED
 #define IN_BITS     PARAM_IN_BITS
 #define OUT_BITS    PARAM_OUT_BITS
 #define INPUTS      PARAM_INPUTS
 #define META        PARAM_META
 
 #define IN_BITS_I (IN_BITS*INPUTS)
+
+#define IN_MASK     ((1ull<<IN_BITS)-1ull)
+#define OUT_MASK    ((1ull<<OUT_BITS)-1ull)
+#define META_MASK   ((1ull<<META)-1ull)
+
+#if(!SIGNED)
+    #define IN_MAX      (((1<<(IN_BITS  ))-1)/INPUTS)
+    #define IN_MIN      0
+#else
+    #define IN_MAX      (((1<<(IN_BITS-1))-1)/INPUTS)
+    #define IN_MIN      (-IN_MAX)
+#endif
 
 /*AUTOSUBCELL_CLASS*/
 
@@ -24,8 +37,8 @@ private:
 
     void run_test(unsigned int iterations);
 
-    std::deque<uint32_t> check_vals;
-    std::deque<uint32_t> meta_vals;
+    std::deque<uint64_t> check_vals;
+    std::deque<uint64_t> meta_vals;
 
     /*AUTOSUBCELL_DECL*/
     /*AUTOSIGNAL*/
@@ -70,23 +83,26 @@ void __MODULE__::run_test(unsigned int iterations) {
 #endif
     unsigned int i=0;
     while(i<iterations) {
-        if(rand()%10) {
-            unsigned int sum = 0;
+        if(dlsc_rand_bool(90.0)) {
+            int64_t sum = 0;
             data = 0;
             for(unsigned int j=0;j<INPUTS;++j) {
-                unsigned int val = rand() % (((1<<IN_BITS)-1)/INPUTS);
+                int64_t val = dlsc_rand(IN_MIN,IN_MAX);
                 sum += val;
+                val &= IN_MASK;
 #if IN_BITS_I <= 64
                 data |= ((uint64_t)val) << (j*IN_BITS);
 #else
                 data.range((j*IN_BITS)+IN_BITS-1,(j*IN_BITS)) = val;
 #endif
             }
-            unsigned int meta = rand() % ((1<<META)-1);
+            uint64_t meta = dlsc_rand_u64(0,META_MASK);
 
             in_valid    = 1;
             in_data     = data;
             in_meta     = meta;
+
+            sum         &= OUT_MASK;
 
             check_vals.push_back(sum);
             meta_vals.push_back(meta);
@@ -141,11 +157,15 @@ void __MODULE__::stim_thread() {
 }
 
 void __MODULE__::check_method() {
-    if(!check_vals.empty() && out_valid) {
-        dlsc_assert(out_data == check_vals.front());
-        dlsc_assert(out_meta == meta_vals.front());
-        check_vals.pop_front();
-        meta_vals.pop_front();
+    if(out_valid) {
+        if(check_vals.empty()) {
+            dlsc_error("unexpected output");
+        } else {
+            dlsc_assert(out_data == check_vals.front());
+            dlsc_assert(out_meta == meta_vals.front());
+            check_vals.pop_front();
+            meta_vals.pop_front();
+        }
     }
 }
 

@@ -29,6 +29,7 @@
 // Pipeline delay is $clog2(INPUTS)
 
 module dlsc_adder_tree #(
+    parameter SIGNED    = 0,
     parameter IN_BITS   = 16,
     parameter OUT_BITS  = IN_BITS+4,
     parameter INPUTS    = 9,
@@ -75,7 +76,11 @@ generate
 
         // inputs go to first level
         for(j=0;j<INPUTS;j=j+1) begin:GEN_INPUTS
-            assign nodes[0][ (j*OUT_BITS) +: OUT_BITS ] = { {INPAD{1'b0}} , in_data[ (j*IN_BITS) +: IN_BITS ] };
+            if(SIGNED) begin:GEN_INPUTS_SIGNED
+                assign nodes[0][ (j*OUT_BITS) +: OUT_BITS ] = { {INPAD{in_data[(j*IN_BITS)+IN_BITS-1]}} , in_data[ (j*IN_BITS) +: IN_BITS ] };
+            end else begin:GEN_INPUTS_UNSIGNED
+                assign nodes[0][ (j*OUT_BITS) +: OUT_BITS ] = { {INPAD{1'b0}}                           , in_data[ (j*IN_BITS) +: IN_BITS ] };
+            end
         end
         for(j=INPUTS;j<INPUTS_M2;j=j+1) begin:GEN_INPUTS_REM
             assign nodes[0][ (j*OUT_BITS) +: OUT_BITS ] = {OUT_BITS{1'b0}};
@@ -123,7 +128,7 @@ generate
         // only 1 input; just passthrough values
         assign out_valid    = in_valid;
         assign out_meta     = in_meta;
-        assign out_data     = {{INPAD{1'b0}},in_data};
+        assign out_data     = SIGNED ? {{INPAD{in_data[IN_BITS-1]}},in_data} : {{INPAD{1'b0}},in_data};
     end
 
 endgenerate
