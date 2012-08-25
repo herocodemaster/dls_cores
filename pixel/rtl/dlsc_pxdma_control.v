@@ -854,7 +854,7 @@ for(j=0;j<ACKS;j=j+1) begin:GEN_ACKS
     end
 
     always @(posedge csr_clk) begin
-        if(!enabled || !ack_select[j]) begin
+        if(!enabled || !ack_select[j] || (WRITER && !auto_mode)) begin
             ack_overflow_r  <= 1'b0;
             ack_valid_r     <= !ack_select[j];
             ack_cnt         <= 0;
@@ -887,7 +887,7 @@ if(1) begin:GEN_ACKI
     always @* begin
         next_ack_cnt = {1'b0,ack_cnt};
         if(csr_cmd_valid && csr_cmd_write && csr_addr == REG_ACK_ROWS) begin
-            next_ack_cnt = next_ack_cnt + csr_cmd_data[ABITS-1:0];
+            next_ack_cnt = next_ack_cnt + {1'b0,csr_cmd_data[ABITS-1:0]};
         end
         if(cmd_update && !ack_init) begin
             next_ack_cnt = next_ack_cnt - 1;
@@ -896,7 +896,7 @@ if(1) begin:GEN_ACKI
     end
 
     always @(posedge csr_clk) begin
-        if(!enabled || !ack_select[ACKS]) begin
+        if(!enabled || !ack_select[ACKS] || (WRITER && !auto_mode)) begin
             ack_overflow_r  <= 1'b0;
             ack_valid_r     <= !ack_select[ACKS];
             ack_cnt         <= 0;
