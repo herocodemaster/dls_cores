@@ -82,6 +82,7 @@ localparam EM_NONE      = !(EM_FILL || EM_REPEAT || EM_MIRROR);
 localparam CENTER       = (WIN/2);
 localparam RIGHT        = WIN-1;
 
+localparam STNB         = `dlsc_clog2(WIN);         // bits for state in EM_NONE
 localparam STMB         = `dlsc_clog2(CENTER+1);    // bits for state in EM_MIRROR
 
 `ifdef SIMULATION
@@ -153,90 +154,6 @@ end else begin:GEN_WIN
         assign          c0_data         = in_data;
 
     end
-    
-    // control
-
-    reg             c0_first;
-    reg             c0_row;
-
-    always @(posedge clk) begin
-        if(rst) begin
-            c0_first    <= 1'b1;
-            c0_row      <= 1'b0;
-        end else if(c0_update) begin
-            c0_first    <= 1'b0;
-            if(c0_last) begin
-                c0_first    <= 1'b1;
-                c0_row      <= !c0_row;
-            end
-        end
-    end
-
-    // Track state of each pixel in the window.
-    // Many of these fields aren't always used. Hopefully the optimizer is smart
-    // enough to prune them.
-
-    reg  [WIN-1:0]  c1_valid;
-    reg  [WIN-1:0]  c1_row;
-    reg  [WIN-1:0]  c1_first;
-    reg  [WIN-1:0]  c1_last;
-    reg  [BITS-1:0] c1_data [WIN-1:0];
-
-    reg  [WIN-1:0]  c1_update;
-    reg  [WIN-1:0]  c1_next_valid;
-    reg  [WIN-1:0]  c1_next_row;
-    reg  [WIN-1:0]  c1_next_first;
-    reg  [WIN-1:0]  c1_next_last;
-
-    always @* begin
-        c1_update           = 0;
-        c1_next_valid       = c1_valid;
-        c1_next_row         = c1_row;
-        c1_next_first       = c1_first;
-        c1_next_last        = c1_last;
-
-        c1_update[RIGHT]    = out_ready && (c0_update || (c1_row[RIGHT] != c0_row));
-        if(c1_update[RIGHT]) begin
-            c1_next_valid[RIGHT]= c0_update;
-            c1_next_row[RIGHT]  = c0_row;
-            c1_next_first[RIGHT]= c0_first;
-            c1_next_last[RIGHT] = c0_last;
-        end
-
-        for(i=(RIGHT-1);i>=0;i=i-1) begin
-            c1_update[i]        = out_ready && (c0_update || (c1_row[i] != c0_row));
-            if(c1_update[i]) begin
-                c1_next_valid[i]    = (c1_update[i+1] && c1_valid[i+1]);
-                c1_next_row[i]      = c1_row[i+1];
-                c1_next_first[i]    = c1_first[i+1];
-                c1_next_last[i]     = c1_last[i+1];
-            end
-        end
-    end
-
-    always @(posedge clk) begin
-        if(rst) begin
-            c1_valid        <= 0;
-        end else begin
-            c1_valid        <= c1_next_valid;
-        end
-    end
-
-    always @(posedge clk) begin
-        c1_row          <= c1_next_row;
-        c1_first        <= c1_next_first;
-        c1_last         <= c1_next_last;
-
-        for(i=0;i<RIGHT;i=i+1) begin
-            if(c1_update[i]) begin
-                c1_data[i]      <= c1_data[i+1];
-            end
-        end
-
-        if(c1_update[RIGHT]) begin
-            c1_data[RIGHT]  <= c0_data;
-        end
-    end
 
     reg  [BITS-1:0] out_data_r [WIN-1:0];
 
@@ -252,8 +169,13 @@ end else begin:GEN_WIN
         // No edge handling. Output is only valid when a complete window has been
         // accumulated. Output is smaller than input.
 
+        reg  [STNB-1:0] cnt;
+        reg             cnt_zero;
+
         always @(posedge clk) begin
             if(rst) begin
+                cnt         <= WIN-1;
+                cnt_zero    <= 1'b0;
                 out_valid   <= 1'b0;
                 out_last    <= 1'b0;
             end else begin
@@ -261,24 +183,119 @@ end else begin:GEN_WIN
                     out_valid   <= 1'b0;
                     out_last    <= 1'b0;
                 end
-                if(c1_update[RIGHT]) begin
-                    out_valid   <= (c1_next_valid[0] && c1_next_valid[RIGHT]) &&
-                                   (c1_next_row  [0] == c1_next_row  [RIGHT]);
-                    out_last    <= c1_next_last[RIGHT];
+                if(c0_update) begin
+                    if(cnt_zero) begin
+                        out_valid   <= 1'b1;
+                        out_last    <= c0_last;
+                    end else begin
+                        cnt         <= cnt - 1;
+                        cnt_zero    <= (cnt == 1);
+                    end
+                    if(c0_last) begin
+                        cnt         <= WIN-1;
+                        cnt_zero    <= 1'b0;
+                    end
                 end
             end
         end
 
-        always @* begin
-            for(i=0;i<=RIGHT;i=i+1) begin
-                out_data_r[i]   = c1_data[i];
+        reg  [BITS-1:0] c1_data [WIN-1:0];
+
+        always @(posedge clk) if(c0_update) begin
+            for(i=0;i<RIGHT;i=i+1) begin
+                out_data_r[i]       <= out_data_r[i+1];
             end
+            out_data_r[RIGHT]   <= c0_data;
         end
 
-    end else begin:GEN_OTHER_VALID
+    end else begin:GEN_EM_ANY
 
         // Output is valid once half of a window has been accumulated. Output is
         // the same size as the input.
+        
+        // control
+
+        reg             c0_first;
+        reg             c0_row;
+
+        always @(posedge clk) begin
+            if(rst) begin
+                c0_first    <= 1'b1;
+                c0_row      <= 1'b0;
+            end else if(c0_update) begin
+                c0_first    <= 1'b0;
+                if(c0_last) begin
+                    c0_first    <= 1'b1;
+                    c0_row      <= !c0_row;
+                end
+            end
+        end
+
+        // Track state of each pixel in the window.
+        // Many of these fields aren't always used. Hopefully the optimizer is smart
+        // enough to prune them.
+
+        reg  [WIN-1:0]  c1_valid;
+        reg  [WIN-1:0]  c1_row;
+        reg  [WIN-1:0]  c1_first;
+        reg  [WIN-1:0]  c1_last;
+        reg  [BITS-1:0] c1_data [WIN-1:0];
+
+        reg  [WIN-1:0]  c1_update;
+        reg  [WIN-1:0]  c1_next_valid;
+        reg  [WIN-1:0]  c1_next_row;
+        reg  [WIN-1:0]  c1_next_first;
+        reg  [WIN-1:0]  c1_next_last;
+
+        always @* begin
+            c1_update           = 0;
+            c1_next_valid       = c1_valid;
+            c1_next_row         = c1_row;
+            c1_next_first       = c1_first;
+            c1_next_last        = c1_last;
+
+            c1_update[RIGHT]    = out_ready && (c0_update || (c1_row[RIGHT] != c0_row));
+            if(c1_update[RIGHT]) begin
+                c1_next_valid[RIGHT]= c0_update;
+                c1_next_row[RIGHT]  = c0_row;
+                c1_next_first[RIGHT]= c0_first;
+                c1_next_last[RIGHT] = c0_last;
+            end
+
+            for(i=(RIGHT-1);i>=0;i=i-1) begin
+                c1_update[i]        = out_ready && (c0_update || (c1_row[i] != c0_row));
+                if(c1_update[i]) begin
+                    c1_next_valid[i]    = (c1_update[i+1] && c1_valid[i+1]);
+                    c1_next_row[i]      = c1_row[i+1];
+                    c1_next_first[i]    = c1_first[i+1];
+                    c1_next_last[i]     = c1_last[i+1];
+                end
+            end
+        end
+
+        always @(posedge clk) begin
+            if(rst) begin
+                c1_valid        <= 0;
+            end else begin
+                c1_valid        <= c1_next_valid;
+            end
+        end
+
+        always @(posedge clk) begin
+            c1_row          <= c1_next_row;
+            c1_first        <= c1_next_first;
+            c1_last         <= c1_next_last;
+
+            for(i=0;i<RIGHT;i=i+1) begin
+                if(c1_update[i]) begin
+                    c1_data[i]      <= c1_data[i+1];
+                end
+            end
+
+            if(c1_update[RIGHT]) begin
+                c1_data[RIGHT]  <= c0_data;
+            end
+        end
 
         always @(posedge clk) begin
             if(rst) begin
@@ -296,123 +313,123 @@ end else begin:GEN_WIN
             end
         end
 
-    end
+        if(EM_FILL) begin:GEN_EM_FILL
 
-    if(EM_FILL) begin:GEN_EM_FILL
+            // Edges are filled with a constant value.
 
-        // Edges are filled with a constant value.
-
-        always @(posedge clk) if(c1_update[CENTER]) begin
-            // left
-            for(i=0;i<CENTER;i=i+1) begin
-                out_data_r[i]       <= (c1_valid[i] && (c1_row[i] == c1_row[CENTER])) ? c1_data[i] : cfg_fill;
-            end
-            // center
-            out_data_r[CENTER]  <= c1_data[CENTER];
-            // right
-            for(i=(CENTER+1);i<=RIGHT;i=i+1) begin
-                out_data_r[i]       <= (c1_valid[i] && (c1_row[i] == c1_row[CENTER])) ? c1_data[i] : cfg_fill;
-            end
-        end
-
-    end
-
-    if(EM_REPEAT) begin:GEN_EM_REPEAT
-
-        // Edges are filled by repeating the nearest valid pixel (left is filled
-        // with first pixel; right is filled with last pixel)
-
-        reg  [BITS-1:0] c1_data_first;
-        reg  [BITS-1:0] c1_data_last;
-        
-        always @(posedge clk) if(c0_update) begin
-            if(c0_first) begin
-                c1_data_first   <= c0_data;
-            end
-            if(c0_last) begin
-                c1_data_last    <= c0_data;
-            end
-        end
-
-        always @(posedge clk) if(c1_update[CENTER]) begin
-            // left
-            for(i=0;i<CENTER;i=i+1) begin
-                out_data_r[i]       <= (c1_valid[i] && (c1_row[i] == c1_row[CENTER])) ? c1_data[i] : c1_data_first;
-            end
-            // center
-            out_data_r[CENTER]  <= c1_data[CENTER];
-            // right
-            for(i=(CENTER+1);i<=RIGHT;i=i+1) begin
-                out_data_r[i]       <= (c1_valid[i] && (c1_row[i] == c1_row[CENTER])) ? c1_data[i] : c1_data_last;
-            end
-        end
-
-    end
-
-    if(EM_MIRROR) begin:GEN_EM_MIRROR
-
-        // Edges are filled by mirroring data around the nearest valid pixel.
-        // Most costly option. Not recommended for large window sizes.
-        // Left is filled like:
-        // ... 2 1 0 1 2 3 4 ...
-        // Right is filled like:
-        // ... 6 7 8 9 10 9 8 ...
-
-        reg  [STMB-1:0] st_left;
-        reg  [STMB-1:0] st_right;
-
-        always @(posedge clk) begin
-            if(rst) begin
-                st_left     <= 0;
-                st_right    <= 0;
-            end else if(c1_update[CENTER+1]) begin
-                /* verilator lint_off WIDTH */
-                if(st_left != 0) begin
-                    st_left     <= st_left - 1;
+            always @(posedge clk) if(c1_update[CENTER]) begin
+                // left
+                for(i=0;i<CENTER;i=i+1) begin
+                    out_data_r[i]       <= (c1_valid[i] && (c1_row[i] == c1_row[CENTER])) ? c1_data[i] : cfg_fill;
                 end
-                if(st_right != 0 && st_right != CENTER) begin
-                    st_right    <= st_right + 1;
+                // center
+                out_data_r[CENTER]  <= c1_data[CENTER];
+                // right
+                for(i=(CENTER+1);i<=RIGHT;i=i+1) begin
+                    out_data_r[i]       <= (c1_valid[i] && (c1_row[i] == c1_row[CENTER])) ? c1_data[i] : cfg_fill;
                 end
-                if(c1_first[CENTER+1] && c1_valid[CENTER+1]) begin
-                    st_left     <= CENTER;
+            end
+
+        end
+
+        if(EM_REPEAT) begin:GEN_EM_REPEAT
+
+            // Edges are filled by repeating the nearest valid pixel (left is filled
+            // with first pixel; right is filled with last pixel)
+
+            reg  [BITS-1:0] c1_data_first;
+            reg  [BITS-1:0] c1_data_last;
+            
+            always @(posedge clk) if(c0_update) begin
+                if(c0_first) begin
+                    c1_data_first   <= c0_data;
+                end
+                if(c0_last) begin
+                    c1_data_last    <= c0_data;
+                end
+            end
+
+            always @(posedge clk) if(c1_update[CENTER]) begin
+                // left
+                for(i=0;i<CENTER;i=i+1) begin
+                    out_data_r[i]       <= (c1_valid[i] && (c1_row[i] == c1_row[CENTER])) ? c1_data[i] : c1_data_first;
+                end
+                // center
+                out_data_r[CENTER]  <= c1_data[CENTER];
+                // right
+                for(i=(CENTER+1);i<=RIGHT;i=i+1) begin
+                    out_data_r[i]       <= (c1_valid[i] && (c1_row[i] == c1_row[CENTER])) ? c1_data[i] : c1_data_last;
+                end
+            end
+
+        end
+
+        if(EM_MIRROR) begin:GEN_EM_MIRROR
+
+            // Edges are filled by mirroring data around the nearest valid pixel.
+            // Most costly option. Not recommended for large window sizes.
+            // Left is filled like:
+            // ... 2 1 0 1 2 3 4 ...
+            // Right is filled like:
+            // ... 6 7 8 9 10 9 8 ...
+
+            reg  [STMB-1:0] st_left;
+            reg  [STMB-1:0] st_right;
+
+            always @(posedge clk) begin
+                if(rst) begin
+                    st_left     <= 0;
                     st_right    <= 0;
-                end else if(c1_last[RIGHT] && c1_valid[RIGHT]) begin
-                    st_right    <= 1;
+                end else if(c1_update[CENTER+1]) begin
+                    /* verilator lint_off WIDTH */
+                    if(st_left != 0) begin
+                        st_left     <= st_left - 1;
+                    end
+                    if(st_right != 0 && st_right != CENTER) begin
+                        st_right    <= st_right + 1;
+                    end
+                    if(c1_first[CENTER+1] && c1_valid[CENTER+1]) begin
+                        st_left     <= CENTER;
+                        st_right    <= 0;
+                    end else if(c1_last[RIGHT] && c1_valid[RIGHT]) begin
+                        st_right    <= 1;
+                    end
+                    /* verilator lint_on WIDTH */
                 end
+            end
+
+            always @(posedge clk) if(c1_update[CENTER]) begin
+                /* verilator lint_off WIDTH */
+
+                // left
+                for(i=0;i<CENTER;i=i+1) begin
+                    out_data_r[i]   <= c1_data[i];
+                    for(j=1;j<=(CENTER-i);j=j+1) begin
+                        if(st_left == (j+(i-0))) begin
+                            out_data_r[i]   <= c1_data[i+(j*2)];
+                        end
+                    end
+                end
+                
+                // center
+                out_data_r[CENTER] <= c1_data[CENTER];
+
+                // right
+                for(i=(CENTER+1);i<=RIGHT;i=i+1) begin
+                    out_data_r[i]   <= c1_data[i];
+                    for(j=1;j<=(i-CENTER);j=j+1) begin
+                        if(st_right == (j+(RIGHT-i))) begin
+                            out_data_r[i]   <= c1_data[i-(j*2)];
+                        end
+                    end
+                end
+
                 /* verilator lint_on WIDTH */
             end
+
         end
 
-        always @(posedge clk) if(c1_update[CENTER]) begin
-            /* verilator lint_off WIDTH */
-
-            // left
-            for(i=0;i<CENTER;i=i+1) begin
-                out_data_r[i]   <= c1_data[i];
-                for(j=1;j<=(CENTER-i);j=j+1) begin
-                    if(st_left == (j+(i-0))) begin
-                        out_data_r[i]   <= c1_data[i+(j*2)];
-                    end
-                end
-            end
-            
-            // center
-            out_data_r[CENTER] <= c1_data[CENTER];
-
-            // right
-            for(i=(CENTER+1);i<=RIGHT;i=i+1) begin
-                out_data_r[i]   <= c1_data[i];
-                for(j=1;j<=(i-CENTER);j=j+1) begin
-                    if(st_right == (j+(RIGHT-i))) begin
-                        out_data_r[i]   <= c1_data[i-(j*2)];
-                    end
-                end
-            end
-
-            /* verilator lint_on WIDTH */
-        end
-
-    end
+    end // GEN_EM_ANY
 
 end // GEN_WIN
 endgenerate
