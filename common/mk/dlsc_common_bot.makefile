@@ -26,6 +26,14 @@
 
 
 #
+# Add dependencies on targets generated via "dlsc-sim"
+#
+
+.PHONY: sims $(DLSC_SIM_TARGETS)
+sims: sims_summary $(DLSC_SIM_TARGETS)
+
+
+#
 # SystemC (Verilator) or Verilog (Icarus/ISim)?
 #
 
@@ -116,7 +124,7 @@ objclean:
 	rm -f $(WORKDIR_PREFIX)__*/_objdir/*.dat
 
 .PHONY: sims_summary
-sims_summary: | sims0 sims1 sims2 sims3
+sims_summary: | $(DLSC_SIM_TARGETS)
 	@echo -e "\n\n                                   *** Results for $(TESTBENCH) ***\n"
 	@cd $(WORKROOT) && grep -n "assertions" _$(TESTBENCH)_*/*.log
 	@echo -e "\n"

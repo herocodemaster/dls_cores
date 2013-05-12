@@ -35,8 +35,7 @@
 default: coverage
 
 # multiple sims targets for parallel execution
-.PHONY: sims sims0 sims1 sims2 sims3
-sims: sims_summary sims0 sims1 sims2 sims3
+sims:
 sims0:
 sims1:
 sims2:
@@ -79,6 +78,23 @@ THIS        := $(realpath $(firstword $(MAKEFILE_LIST)))
 
 
 #
+# Simulation targets
+#
+
+DLSC_SIM_TARGETS := sims0 sims1 sims2 sims3
+
+define DLSC_SIM_TEMPLATE
+DLSC_SIM_TARGET_NAME := dsim__$$(call dlsc-md5sum,foo_$(1))
+DLSC_SIM_TARGETS += $$(DLSC_SIM_TARGET_NAME)
+$$(DLSC_SIM_TARGET_NAME):
+	$$(MAKE) -f $$(THIS) V_PARAMS=$(1)
+endef
+
+dlsc-sim    = $(eval $(call DLSC_SIM_TEMPLATE,$(1)))
+
+
+
+#
 # Variables
 #
 
@@ -106,7 +122,8 @@ VH_DIRS         := $(CWD)
 V_FLAGS         := +libext+.v+.vh
 # pre-3.810 Verilator doesn't support these extra warning options
 # UNUSED warning seems to trigger on Verilator-generated coverage code.. can't really use it yet
-VERILATOR_FLAGS := -Wall -Wwarn-style -Wno-UNUSED
+# PINNOCONNECT fires on explicit empty connections (very common)
+VERILATOR_FLAGS := -Wall -Wwarn-style -Wno-UNUSED -Wno-PINNOCONNECT
 ICARUS_FLAGS    := -Wall -Wno-timescale
 ISIM_FLAGS      := --incremental
 ISIM_FUSE_FLAGS := --incremental
@@ -133,7 +150,7 @@ H_DIRS          := $(CWD)
 H_SYS_DIRS      :=
 O_FILES         :=
 O_DIRS          :=
-CPPFLAGS        := -O1 -Wall -Wno-uninitialized -fpermissive
+CPPFLAGS        := -O2 -Wall -Wno-uninitialized -fpermissive
 LDFLAGS         := -Wall
 LDLIBS          := -lm -lstdc++
 

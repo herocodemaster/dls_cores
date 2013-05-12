@@ -24,27 +24,20 @@ V_PARAMS_DEF    += \
     AXI_MOT=16 \
     CSR_ADDR=32
 
-sims0:
-	$(MAKE) -f $(THIS) V_PARAMS=""
-	$(MAKE) -f $(THIS) V_PARAMS="AXI_ASYNC=1"
-	$(MAKE) -f $(THIS) V_PARAMS="IN_ASYNC=1"
-	$(MAKE) -f $(THIS) V_PARAMS="OUT_ASYNC=1"
-	$(MAKE) -f $(THIS) V_PARAMS="AXI_ASYNC=1 IN_ASYNC=1 OUT_ASYNC=1"
-
-sims1:
-	$(MAKE) -f $(THIS) V_PARAMS="BYTES_PER_PIXEL=1"
-	$(MAKE) -f $(THIS) V_PARAMS="BYTES_PER_PIXEL=2"
-	$(MAKE) -f $(THIS) V_PARAMS="BYTES_PER_PIXEL=4"
-	$(MAKE) -f $(THIS) V_PARAMS="READERS=2"
-
-sims2:
-	$(MAKE) -f $(THIS) V_PARAMS="READERS=3 MAX_H=513 MAX_V=1023 BYTES_PER_PIXEL=1"
-	$(MAKE) -f $(THIS) V_PARAMS="READERS=4"
-	$(MAKE) -f $(THIS) V_PARAMS="AXI_LEN=2 AXI_MOT=32"
-	$(MAKE) -f $(THIS) V_PARAMS="AXI_LEN=8 AXI_MOT=4 AXI_ADDR=30 READERS=2"
-
-sims3:
-	$(MAKE) -f $(THIS) V_PARAMS="READERS=4 AXI_ASYNC=1 IN_ASYNC=1 OUT_ASYNC=1"
+$(call dlsc-sim,"")
+$(call dlsc-sim,"AXI_ASYNC=1")
+$(call dlsc-sim,"IN_ASYNC=1")
+$(call dlsc-sim,"OUT_ASYNC=1")
+$(call dlsc-sim,"AXI_ASYNC=1 IN_ASYNC=1 OUT_ASYNC=1")
+$(call dlsc-sim,"BYTES_PER_PIXEL=1")
+$(call dlsc-sim,"BYTES_PER_PIXEL=2")
+$(call dlsc-sim,"BYTES_PER_PIXEL=4")
+$(call dlsc-sim,"READERS=2")
+$(call dlsc-sim,"READERS=3 MAX_H=513 MAX_V=1023 BYTES_PER_PIXEL=1")
+$(call dlsc-sim,"READERS=4")
+$(call dlsc-sim,"AXI_LEN=2 AXI_MOT=32")
+$(call dlsc-sim,"AXI_LEN=8 AXI_MOT=4 AXI_ADDR=30 READERS=2")
+$(call dlsc-sim,"READERS=4 AXI_ASYNC=1 IN_ASYNC=1 OUT_ASYNC=1")
 
 include $(DLSC_MAKEFILE_BOT)
 
