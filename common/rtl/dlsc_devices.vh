@@ -35,6 +35,7 @@
 /* verilator lint_off WIDTH */
 
 `ifdef XILINX
+
     // DSP48A1 new for Spartan-6
     // (backward compatible with DSP48A, but not Virtex class DSP48s)
     localparam DLSC_XILINX_DSP48A1  = ( `DLSC_DEVICE == "SPARTAN6");
@@ -60,9 +61,14 @@
     localparam DLSC_XILINX_DSP48    = ( `DLSC_DEVICE == "VIRTEX4" ||
                                         DLSC_XILINX_DSP48E );
 
-    // LUT6 present in Spartan 6+ and Virtex 5+
+    // LUT6 present in Spartan 6 and Virtex 5+
     localparam DLSC_XILINX_LUT6     = ( DLSC_XILINX_DSP48A1 ||
                                         DLSC_XILINX_DSP48E );
+    
+    // DNA_PORT present in Spartan 3A[DSP], Spartan 6, and Virtex 6+
+    localparam DLSC_XILINX_DNA_PORT = ( DLSC_XILINX_DSP48A ||
+                                        DLSC_XILINX_DSP48E1 );
+
 `endif // XILINX
 
 /* verilator lint_on WIDTH */
