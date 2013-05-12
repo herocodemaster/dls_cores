@@ -30,7 +30,8 @@
 
 module dlsc_pipedelay #(
     parameter DATA      = 32,
-    parameter DELAY     = 1
+    parameter DELAY     = 1,
+    parameter FANOUT    = 0     // Set if output of module drives a high fanout net.
 ) (
     input   wire                clk,
 
@@ -38,6 +39,8 @@ module dlsc_pipedelay #(
 
     output  wire    [DATA-1:0]  out_data
 );
+
+`include "dlsc_synthesis.vh"
 
 generate
     integer i;
@@ -49,27 +52,53 @@ generate
 
     end else if(DELAY == 1) begin:GEN_DELAY1
 
-        reg [DATA-1:0] out_data_r0;
+        if(FANOUT) begin:GEN_FANOUT
 
-        always @(posedge clk)
-            out_data_r0 <= in_data;
+            `DLSC_FANOUT_REG reg [DATA-1:0] out_data_r0;
+            always @(posedge clk) begin
+                out_data_r0 <= in_data;
+            end
+            assign out_data  = out_data_r0;
 
-        assign out_data  = out_data_r0;
+        end else begin:GEN_NORMAL
+
+            reg [DATA-1:0] out_data_r0;
+            always @(posedge clk) begin
+                out_data_r0 <= in_data;
+            end
+            assign out_data  = out_data_r0;
+
+        end
 
     end else begin:GEN_DELAYN
 
-        reg [DATA-1:0] mem[DELAY-2:0];
-        reg [DATA-1:0] out_data_r;
+        if(FANOUT) begin:GEN_FANOUT
 
-        always @(posedge clk) begin
-            out_data_r  <= mem[DELAY-2];
-            for(i=(DELAY-2);i>=1;i=i-1) begin
-                mem[i]      <= mem[i-1];
+            reg [DATA-1:0] mem[DELAY-2:0];
+            `DLSC_FANOUT_REG reg [DATA-1:0] out_data_r;
+            always @(posedge clk) begin
+                out_data_r  <= mem[DELAY-2];
+                for(i=(DELAY-2);i>=1;i=i-1) begin
+                    mem[i]      <= mem[i-1];
+                end
+                mem[0]      <= in_data;
             end
-            mem[0]      <= in_data;
-        end
+            assign out_data = out_data_r;
 
-        assign out_data = out_data_r;
+        end else begin:GEN_NORMAL
+
+            reg [DATA-1:0] mem[DELAY-2:0];
+            reg [DATA-1:0] out_data_r;
+            always @(posedge clk) begin
+                out_data_r  <= mem[DELAY-2];
+                for(i=(DELAY-2);i>=1;i=i-1) begin
+                    mem[i]      <= mem[i-1];
+                end
+                mem[0]      <= in_data;
+            end
+            assign out_data = out_data_r;
+
+        end
 
     end
 endgenerate
