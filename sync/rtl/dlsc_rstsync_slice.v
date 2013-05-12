@@ -40,7 +40,7 @@ module dlsc_rstsync_slice (
 
 `include "dlsc_synthesis.vh"
 
-parameter DEPTH = 4;    // TODO
+parameter DEPTH = 8;    // TODO
 
 input   clk;
 input   rst_in;
@@ -64,18 +64,16 @@ dlsc_syncflop_slice #(
 );
 
 // fanout control
-`DLSC_FANOUT_REG reg rst_f0;
-`DLSC_FANOUT_REG reg rst_f1;
-`DLSC_FANOUT_REG reg rst_f2;
+`DLSC_FANOUT_REG reg [DEPTH-1:0] rst_sr;
 always @(posedge clk or posedge rst_in) begin
     if(rst_in) begin
-        {rst_f2,rst_f1,rst_f0} <= {3{1'b1}};
+        rst_sr <= {DEPTH{1'b1}};
     end else begin
-        {rst_f2,rst_f1,rst_f0} <= {rst_f1,rst_f0,rst_sync};
+        rst_sr <= {rst_sr[DEPTH-2:0],rst_sync};
     end
 end
 
-assign rst_out = rst_f2;
+assign rst_out = rst_sr[DEPTH-1];
 
 /* verilator lint_on SYNCASYNCNET */
 

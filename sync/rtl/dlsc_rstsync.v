@@ -30,7 +30,7 @@
 
 module dlsc_rstsync #(
     parameter DOMAINS   = 1,
-    parameter DEPTH     = 4
+    parameter DEPTH     = 8
 ) (
     input   wire                    rst_in,     // asynchronous reset input
     input   wire    [DOMAINS-1:0]   clk,        // clocks to synchronize resets to
