@@ -113,7 +113,7 @@ end else begin:GEN_ASYNC
 
     always @(posedge in_clk) begin
         if(!in_rst && in_pulse && !in_ready) begin
-            `dlsc_error("lost pulse");
+            `dlsc_warn("lost pulse");
         end
     end
 
