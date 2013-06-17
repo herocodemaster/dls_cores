@@ -96,6 +96,11 @@ int sc_main(int argc, char **argv) {
     Verilated::commandArgs(argc, argv);     // needed for $test$plusargs
 #endif
 
+#ifdef PARAM_RAND_SEED
+    // seed random number generator with supplied value
+    srand(PARAM_RAND_SEED);
+#endif
+
 #ifndef DLSC_NOT_TRACED
     if(!vcd_file.empty()) {
 #ifndef DLSC_NOT_VERILATED
