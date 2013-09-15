@@ -2,6 +2,7 @@
 #sp interface
 
 #include <systemperl.h>
+#include <verilated.h>
 
 #include <deque>
 
@@ -56,6 +57,8 @@ public:
 
 #include "dlsc_main.cpp"
 
+#include "dlsc_bv.h"
+
 SP_CTOR_IMP(__MODULE__) : in_clk("in_clk",PARAM_IN_CLK,SC_NS), out_clk("out_clk",PARAM_OUT_CLK,SC_NS) /*AUTOINIT*/ {
     SP_AUTO_CTOR;
 
@@ -104,17 +107,10 @@ void __MODULE__::in_method() {
     if((!in_valid||in_ready) && !in_vals.empty() && rand()%30) {
         check_type in = in_vals.front(); in_vals.pop_front();
         
-#if DATA_R <= 64
-        uint64_t data = 0;
+        dlsc_bv<ROWS,DATA> data;
         for(unsigned int i=0;i<ROWS;++i) {
-            data  |= ( ((uint64_t)in.data[i])  << (i*DATA) );
+            data[i] = in.data[i];
         }
-#else
-        sc_bv<DATA_R> data = 0;
-        for(unsigned int i=0;i<ROWS;++i) {
-            data.range ( (i*DATA)+DATA-1 , (i*DATA) ) = in.data[i];
-        }
-#endif
         
         in_valid    = 1;
         in_data.write(data);

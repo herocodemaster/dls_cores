@@ -49,6 +49,8 @@ public:
 
 #include "dlsc_main.cpp"
 
+#include "dlsc_bv.h"
+
 // aim for clocks that are mostly throughput-matched
 #define CLK_MHZ (20.0)
 #define CORE_CLK_MHZ ( PARAM_CORE_CLK_FACTOR * (CLK_MHZ * (IMG_WIDTH-DISPARITIES+SAD)/(1.0*IMG_WIDTH)) * (DISPARITIES)/(1.0*MULT_D*PARAM_MULT_R) )
@@ -89,21 +91,12 @@ void __MODULE__::in_method() {
         if(!in_vals.empty() && (rand()%25) ) {
             in_type in = in_vals.front(); in_vals.pop_front();
 
-#if DATA_R <= 64
-            uint64_t left       = 0;
-            uint64_t right      = 0;
+            dlsc_bv<MULT_R,DATA> left, right;
             for(unsigned int i=0;i<MULT_R;++i) {
-                left  |= ( ((uint64_t)in.left[i])  << (i*DATA) );
-                right |= ( ((uint64_t)in.right[i]) << (i*DATA) );
+                left[i] = in.left[i];
+                right[i] = in.right[i];
             }
-#else
-            sc_bv<DATA_R> left  = 0;
-            sc_bv<DATA_R> right = 0;
-            for(unsigned int i=0;i<MULT_R;++i) {
-                left.range ( (i*DATA)+DATA-1 , (i*DATA) ) = in.left[i];
-                right.range( (i*DATA)+DATA-1 , (i*DATA) ) = in.right[i];
-            }
-#endif
+
             in_valid          = 1;
             in_left.write(left);
             in_right.write(right);
@@ -127,30 +120,24 @@ void __MODULE__::out_method() {
             } else if(out_ready) {
                 out_type chk = out_vals.front(); out_vals.pop_front();
 
-                sc_bv<DISP_BITS_SR> disp_bv     = out_disp.read();
-                sc_bv<MULT_R>       masked_bv   = out_masked.read();
-                sc_bv<MULT_R>       filtered_bv = out_filtered.read();
-                sc_bv<DATAF_R>      left_bv     = out_left.read();
-                sc_bv<DATAF_R>      right_bv    = out_right.read();
+                dlsc_bv<MULT_R,DISP_BITS_S> disp_bv     = out_disp.read();
+                dlsc_bv<MULT_R,1,bool>      masked_bv   = out_masked.read();
+                dlsc_bv<MULT_R,1,bool>      filtered_bv = out_filtered.read();
+                dlsc_bv<MULT_R,DATAF>       left_bv     = out_left.read();
+                dlsc_bv<MULT_R,DATAF>       right_bv    = out_right.read();
 
-                for(unsigned int i=0;i<MULT_R;++i) {
-                    unsigned int disp       = disp_bv.range( (i*DISP_BITS_S)+DISP_BITS_S-1 , (i*DISP_BITS_S) ).to_uint();
-                    bool         masked     = masked_bv[i].to_bool();
-                    bool         filtered   = filtered_bv[i].to_bool();
-                    unsigned int left       = left_bv.range( (i*DATAF)+DATAF-1 , (i*DATAF) ).to_uint();
-                    unsigned int right      = right_bv.range( (i*DATAF)+DATAF-1 , (i*DATAF) ).to_uint();
-
-
-                    dlsc_assert_equals(masked, !chk.disp_valid[i]);
+                for(unsigned int i=0;i<MULT_R;++i)
+                {
+                    dlsc_assert_equals(masked_bv[i], !chk.disp_valid[i]);
 #if OUT_LEFT>0
-                    dlsc_assert_equals(left , chk.left [i]);
+                    dlsc_assert_equals(left_bv[i], chk.left[i]);
 #endif
 #if OUT_RIGHT>0
-                    dlsc_assert_equals(right, chk.right[i]);
+                    dlsc_assert_equals(right_bv[i], chk.right[i]);
 #endif
                     if(chk.disp_valid[i]) {
-                        dlsc_assert_equals(filtered, chk.disp_filtered[i]);
-                        dlsc_assert_equals(disp,chk.disp[i]);
+                        dlsc_assert_equals(filtered_bv[i], chk.disp_filtered[i]);
+                        dlsc_assert_equals(disp_bv[i],chk.disp[i]);
 //                        if(d != chk.disp[i]) {
 //                            dlsc_error("at (" << chk.x << "," << (chk.y+i) << "), out_disp[" << i << "] (" << d << ") != chk.disp (" << chk.disp[i] << ")");
 //                        }

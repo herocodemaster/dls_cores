@@ -57,6 +57,8 @@ public:
 
 #include "dlsc_main.cpp"
 
+#include "dlsc_bv.h"
+
 SP_CTOR_IMP(__MODULE__) :
     clk("clk",10,SC_NS)
     /*AUTOINIT*/
@@ -152,17 +154,10 @@ void __MODULE__::clk_method() {
     timebase_cnt.write(time);
     trigger.write(inputs);
 
-#if ((PARAM_INPUTS*PARAM_META) <= 64)
-    uint64_t data = 0;
+    dlsc_bv<PARAM_INPUTS,PARAM_META> data;
     for(int i=0;i<PARAM_INPUTS;i++) {
-        data |= metas[i] << (i*PARAM_META);
+        data[i] = metas[i];
     }
-#else
-    sc_bv<PARAM_INPUTS*PARAM_META> data = 0;
-    for(int i=0;i<PARAM_INPUTS;i++) {
-        data.range( ((i+1)*PARAM_META)-1 , (i*PARAM_META) ) = metas[i];
-    }
-#endif
     meta.write(data);
 
     uint64_t rise   = (~prev) & ( inputs);

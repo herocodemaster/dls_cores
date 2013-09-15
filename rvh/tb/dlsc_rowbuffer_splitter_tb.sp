@@ -2,6 +2,7 @@
 #sp interface
 
 #include <systemperl.h>
+#include <verilated.h>
 
 #include <deque>
 
@@ -55,6 +56,8 @@ public:
 #include <boost/shared_array.hpp>
 
 #include "dlsc_main.cpp"
+
+#include "dlsc_bv.h"
 
 SP_CTOR_IMP(__MODULE__) : in_clk("in_clk",PARAM_IN_CLK,SC_NS), out_clk("out_clk",PARAM_OUT_CLK,SC_NS) /*AUTOINIT*/ {
     SP_AUTO_CTOR;
@@ -123,12 +126,10 @@ void __MODULE__::check_method() {
         } else {
             check_type chk = check_vals.front(); check_vals.pop_front();
 
-            sc_bv<DATA_R> data = out_data.read();
+            dlsc_bv<ROWS,DATA> const data = out_data.read();
 
             for(int r=0;r<ROWS;++r) {
-                unsigned int d = data.range( ((r+1)*DATA)-1 , (r*DATA) ).to_uint();
-
-                dlsc_assert_equals(d,chk.data[r]);
+                dlsc_assert_equals(data[r],chk.data[r]);
             }
         }
     }
