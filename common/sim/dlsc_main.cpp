@@ -40,6 +40,24 @@
 #include "dlsc_util.h"
 
 
+#include "dlsc_random.h"
+
+namespace {
+    dlsc_random g_dlsc_rand_inst;
+};
+
+uint32_t dlsc_random::get_seed()
+{
+#ifdef PARAM_RAND_SEED
+    static uint32_t seed = PARAM_RAND_SEED;
+#else
+    static uint32_t seed = 0;
+#endif
+    ++seed;
+    return seed;
+}
+
+
 // globals for assertion report
 int _dlsc_chk_cnt   = 0;
 int _dlsc_warn_cnt  = 0;
@@ -164,38 +182,18 @@ unsigned int dlsc_clog2(uint64_t i) {
 
 bool dlsc_rand_bool(double true_pct) {
     assert(true_pct >= 0.0 && true_pct <= 100.0);
-    bool r = ((rand()%1000) < (true_pct * 10));
-    return r;
+    return g_dlsc_rand_inst.rand_bool(true_pct/100.0);
 }
 
 int dlsc_rand(int min, int max) {
-    assert(max>=min);
-    uint64_t r64 = dlsc_rand_u64();
-    r64 %= (max-min+1);
-    return (int)r64 + min;
+    return g_dlsc_rand_inst(min,max);
 }
 
 uint32_t dlsc_rand_u32(uint32_t min,uint32_t max) {
-    assert(max>=min);
-    uint32_t r = rand();
-    r <<= 16;
-    r ^= rand();
-    if(min != 0 || (~max) != 0) {
-        r %= (max-min+1ul);
-    }
-    r += min;
-    return r;
+    return g_dlsc_rand_inst(min,max);
 }
 
 uint64_t dlsc_rand_u64(uint64_t min,uint64_t max) {
-    assert(max>=min);
-    uint64_t r = dlsc_rand_u32(0,0xFFFFFFFFul);
-    r <<= 32;
-    r ^= dlsc_rand_u32(0,0xFFFFFFFFul);
-    if(min != 0 || (~max) != 0) {
-        r %= (max-min+1ull);
-    }
-    r += min;
-    return r;
+    return g_dlsc_rand_inst(min,max);
 }
 
