@@ -38,11 +38,11 @@
         `define DLSC_LUTRAM             (* ram_style = "distributed" *)
         `define DLSC_SHREG              (* shreg_extract = "yes" *)
         `define DLSC_NO_SHREG           (* shreg_extract = "no" *)
-        `define DLSC_KEEP_REG           (* equivalent_register_removal = "no" *)
-        `define DLSC_PIPE_REG           (* equivalent_register_removal = "no", shreg_extract="no" *)
-        `define DLSC_FANOUT_REG         (* equivalent_register_removal = "no", shreg_extract="no", register_duplication = "yes", max_fanout = "reduce" *)
-        `define DLSC_ASYNC_REG          (* equivalent_register_removal = "no", shreg_extract="no", register_duplication = "no", ASYNC_REG = "TRUE", IOB = "FALSE", KEEP = "TRUE", OPTIMIZE = "OFF" *)
-        `define DLSC_SYNCFLOP           (* equivalent_register_removal = "no", shreg_extract="no", register_duplication = "no", ASYNC_REG = "TRUE", IOB = "FALSE", KEEP = "TRUE", OPTIMIZE = "OFF", HBLKNM = "dlsc_syncflops_blknm" *)
+        `define DLSC_FANOUT_REG         (* shreg_extract = "no", equivalent_register_removal = "no", register_duplication = "yes" *)
+        `define DLSC_PIPE_REG           (* shreg_extract = "no", equivalent_register_removal = "no", register_duplication = "no" *)
+        `define DLSC_KEEP_REG           (* shreg_extract = "no", equivalent_register_removal = "no", register_duplication = "no", OPTIMIZE = "OFF", KEEP = "TRUE", IOB = "FALSE" *)
+        `define DLSC_ASYNC_REG          (* shreg_extract = "no", equivalent_register_removal = "no", register_duplication = "no", OPTIMIZE = "OFF", KEEP = "TRUE", IOB = "FALSE", ASYNC_REG = "TRUE" *)
+        `define DLSC_SYNCFLOP           (* shreg_extract = "no", equivalent_register_removal = "no", register_duplication = "no", OPTIMIZE = "OFF", KEEP = "TRUE", IOB = "FALSE", ASYNC_REG = "TRUE" *)
 
     `endif // XILINX
 
