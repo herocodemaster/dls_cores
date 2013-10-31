@@ -58,7 +58,7 @@ localparam DEPTHI       = (DEPTH==0) ? (2**ADDR) : DEPTH;
 parameter DATA          = 8;                    // width of data in FIFO
 parameter ALMOST_FULL   = 0;                    // assert almost_full when <= ALMOST_FULL free spaces remain
 parameter ALMOST_EMPTY  = 0;                    // assert almost_empty when <= ALMOST_EMPTY valid entries remain
-parameter FAST_FLAGS    = 1;                    // disallow pessimistic flags
+parameter FAST_FLAGS    = 0;                    // disallow pessimistic flags
 parameter BRAM          = ((DATA*DEPTHI)>=2048);// use block RAM (instead of distributed RAM)
 parameter REGISTER      = 1;                    // register output
 

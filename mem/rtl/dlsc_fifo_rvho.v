@@ -61,7 +61,7 @@ parameter DATA          = 8;                    // width of data in FIFO
 parameter ALMOST_FULL   = 0;                    // assert almost_full when <= ALMOST_FULL free spaces remain
 parameter ALMOST_EMPTY  = 0;                    // assert almost_empty when <= ALMOST_EMPTY valid entries remain
 parameter FREE          = 0;                    // enable wr_free port
-parameter FAST_FLAGS    = 1;                    // disallow pessimistic flags
+parameter FAST_FLAGS    = 0;                    // disallow pessimistic flags
 parameter FULL_IN_RESET = 0;                    // force full flags to be set when in reset
 parameter BRAM          = ((DATA*DEPTHI)>=2048);// use block RAM (instead of distributed RAM)
 parameter REGISTER      = 1;                    // register output
