@@ -8,7 +8,7 @@ V_DUT           += dlsc_divu.v
 V_TESTBENCH     += dlsc_divu_tb.v
 
 V_PARAMS_DEF    += \
-    CYCLES=8 \
+    CYCLES=1 \
     NB=8 \
     DB=8 \
     QB=8 \

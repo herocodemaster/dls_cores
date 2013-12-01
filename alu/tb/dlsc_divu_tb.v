@@ -13,6 +13,12 @@ localparam NFB      = `PARAM_NFB;
 localparam DFB      = `PARAM_DFB;
 localparam QFB      = `PARAM_QFB;
 
+localparam DMAX     = (2**DB)-1;
+localparam NMAX     = (2**NB)-1;
+
+localparam DSMALL   = `dlsc_min(15,DMAX);
+localparam NSMALL   = `dlsc_min(15,NMAX);
+
 localparam DELAY    = (CYCLES== 1) ? (QB+1) :   // fully pipelined
                       (CYCLES>=QB) ? (QB+2) :   // fully sequential
                                      (QB+4);    // hybrid
@@ -38,7 +44,8 @@ wire    [QB-1:0]    out_quo;
     .QB ( QB ),
     .NFB ( NFB ),
     .DFB ( DFB ),
-    .QFB ( QFB )
+    .QFB ( QFB ),
+    .WARNINGS ( 0 )
 ) dut (
     .clk ( clk ),
     .rst ( rst ),
@@ -110,7 +117,7 @@ always @(posedge clk) begin
             if(out_quo == chk_quo[QB-1:0]) begin
                 `dlsc_okay("quotient okay");
             end else begin
-                `dlsc_error("%0f / %0f = %0f != %0f",rep_num,rep_den,rep_chk_quo,rep_out_quo);
+                `dlsc_error("quotient mismatch: %0f / %0f = %0f != %0f",rep_num,rep_den,rep_chk_quo,rep_out_quo);
             end
         end
     end
@@ -120,9 +127,6 @@ task div;
     input integer num;
     input integer den;
 begin
-    // clamp inputs
-    num         = `dlsc_min(num, (2**NB)-1);
-    den         = `dlsc_min(den, (2**DB)-1);
     // initiate divide
     in_valid    <= 1'b1;
     in_num      <= num;
@@ -148,32 +152,30 @@ initial begin
     rst = 1'b0;
     @(posedge clk);
 
-    div( 0, {DB{1'b1}} );
-    div( 1, {DB{1'b1}} );
-
-    div( {NB{1'b1}}, 1 );
-    div( {NB{1'b1}}, {DB{1'b1}} );
-
-    for(d=1;d<16;d=d+1) begin
-        for(n=0;n<16;n=n+1) begin
-            div( n, d );
+    for(d=-DSMALL;d<=DSMALL;d=d+1) begin
+        for(n=-NSMALL;n<=NSMALL;n=n+1) begin
+            div(
+                (d < 0) ? (DMAX+1+d) : d,
+                (n < 0) ? (NMAX+1+n) : n
+            );
         end
     end
 
     repeat(10) begin
-        repeat(1000) begin
+        repeat(2000) begin
             case(`dlsc_rand(0,9))
                 1:       n = 0;
                 2:       n = 1;
-                3:       n = ((2**NB)-1);
-                4:       n = `dlsc_rand(0,15);
-                default: n = `dlsc_rand(0,((2**NB)-1));
+                3:       n = NMAX;
+                4:       n = `dlsc_rand(0,NSMALL);
+                default: n = `dlsc_rand(0,NMAX);
             endcase
             case(`dlsc_rand(0,9))
+                1:       d = 0;
                 2:       d = 1;
-                3:       d = ((2**DB)-1);
-                4:       d = `dlsc_rand(1,15);
-                default: d = `dlsc_rand(1,((2**DB)-1));
+                3:       d = DMAX;
+                4:       d = `dlsc_rand(0,DSMALL);
+                default: d = `dlsc_rand(0,DMAX);
             endcase
             div(n,d);
         end
@@ -187,7 +189,7 @@ end
 
 
 initial begin
-    #10_000_000;
+    #20_000_000;
     `dlsc_error("watchdog timeout");
 
     `dlsc_finish;
