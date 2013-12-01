@@ -150,7 +150,8 @@ dlsc_divu #(
     .NB         ( SAD_BITS ),
     .DB         ( SAD_BITS ),
     .QB         ( SUB_BITS_TOTAL ),
-    .QSKIP      ( SAD_BITS-1 )
+    .QFB        ( SUB_BITS_TOTAL-1 ),
+    .WARNINGS   ( 0 )
 ) dlsc_divu_inst (
     .clk        ( clk ),
     .rst        ( 1'b0 ),
