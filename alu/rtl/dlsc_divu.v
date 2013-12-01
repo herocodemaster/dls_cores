@@ -40,7 +40,8 @@ module dlsc_divu #(
     parameter QB        = NB,   // total bits for quotient
     parameter NFB       = 0,    // fractional bits for numerator
     parameter DFB       = 0,    // fractional bits for denominator
-    parameter QFB       = 0     // fractional bits for quotient
+    parameter QFB       = 0,    // fractional bits for quotient
+    parameter WARNINGS  = 1     // generate warnings about potentially incorrect results
 ) (
     // system
     input   wire                    clk,
@@ -71,6 +72,10 @@ localparam QWASTE   = (QLSB>0) ? (  QLSB) : 0;  // LSbits of quotient to throw a
 
 `dlsc_static_assert( QSKIP <= DB )
 `dlsc_static_assert( QWASTE < QB )
+
+localparam DELAY    = (CYCLES== 1) ? (QB+1) :   // fully pipelined
+                      (CYCLES>=QB) ? (QB+2) :   // fully sequential
+                                     (QB+4);    // hybrid
 
 // For NB = 6, DB = 4:
 //
@@ -105,7 +110,7 @@ if(CYCLES<=1) begin:GEN_PIPELINED
     );
 
     dlsc_pipedelay_rst #(
-        .DELAY      ( QB+1 ),
+        .DELAY      ( DELAY ),
         .DATA       ( 1 ),
         .RESET      ( 1'b0 )
     ) dlsc_pipedelay_rst (
@@ -131,7 +136,7 @@ end else if(CYCLES>=QB) begin:GEN_SEQUENTIAL
     );
 
     dlsc_pipedelay_rst #(
-        .DELAY      ( QB+2 ),
+        .DELAY      ( DELAY ),
         .DATA       ( 1 ),
         .RESET      ( 1'b0 )
     ) dlsc_pipedelay_rst (
@@ -161,6 +166,51 @@ end else begin:GEN_HYBRID
 
 end
 endgenerate
+
+// simulation checks
+
+`ifdef DLSC_SIMULATION
+`include "dlsc_sim_top.vh"
+
+generate
+if(WARNINGS) begin:GEN_WARNINGS
+    wire [NB-1:0] out_num;
+    wire [DB-1:0] out_den;
+
+    dlsc_pipedelay #(
+        .DELAY      ( DELAY ),
+        .DATA       ( NB+DB )
+    ) dlsc_pipedelay_chk (
+        .clk        ( clk ),
+        .in_data    ( {  in_num,  in_den } ),
+        .out_data   ( { out_num, out_den } )
+    );
+
+    reg [63:0] chk_num, chk_den, chk_quo;
+
+    always @* begin
+        chk_num = out_num;
+        chk_den = out_den;
+        chk_num = chk_num << (32-NFB);  // fixed 32.32 format
+        chk_den = chk_den << (32-DFB);  // ""
+        chk_quo = 0;
+        if(chk_den > 0) begin
+            chk_quo = (chk_num << QFB) / chk_den;
+        end
+    end
+
+    always @(posedge clk) begin
+        if(!rst && out_valid) begin
+            if(chk_den > 0 && chk_quo != out_quo) begin
+                `dlsc_warn("divider result mismatch: %0d / %0d = %0d != %0d", out_num, out_den, chk_quo, out_quo);
+            end
+        end
+    end
+end
+endgenerate
+
+`include "dlsc_sim_bot.vh"
+`endif
 
 endmodule
 
