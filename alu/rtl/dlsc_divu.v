@@ -32,18 +32,15 @@
 //  For CYCLES >= QB, delay is QB+2 cycles (fully sequential)
 //  For other cases , delay is QB+4 cycles (hybrid)
 //
-// When using QSKIP, quotient width is effectively increased to QB+QSKIP, but with
-// the QSKIP MSbits forced to 0. This option should only be used if there is a
-// known relationship between the numerator and denominator that guarantees that
-// these MSbits are really 0 (this is not checked by the divider).
-//
 
 module dlsc_divu #(
     parameter CYCLES    = 1,    // cycles allowed per division
-    parameter NB        = 8,    // bits for numerator/dividend
-    parameter DB        = NB,   // bits for denominator/divisor
-    parameter QB        = NB,   // bits for quotient (<= NB+DB)
-    parameter QSKIP     = 0     // MSbits of canonical quotient to skip (<= DB)
+    parameter NB        = 8,    // total bits for numerator/dividend
+    parameter DB        = NB,   // total bits for denominator/divisor
+    parameter QB        = NB,   // total bits for quotient
+    parameter NFB       = 0,    // fractional bits for numerator
+    parameter DFB       = 0,    // fractional bits for denominator
+    parameter QFB       = 0     // fractional bits for quotient
 ) (
     // system
     input   wire                    clk,
@@ -61,8 +58,36 @@ module dlsc_divu #(
 
 `include "dlsc_util.vh"
 
-`dlsc_static_assert( (QB+QSKIP) <= (NB+DB) )
+`dlsc_static_assert( QB <= (NB+DB) )
+
+`dlsc_static_assert( NFB <= NB )
+`dlsc_static_assert( DFB <= DB )
+`dlsc_static_assert( QFB <= QB )
+
+localparam Q0       = QB-NB+NFB-DFB;
+localparam QLSB     = Q0-QFB;
+localparam QSKIP    = (QLSB<0) ? (0-QLSB) : 0;  // MSbits of quotient to skip (<= DB )
+localparam QWASTE   = (QLSB>0) ? (  QLSB) : 0;  // LSbits of quotient to throw away (< QB; ideally 0)
+
 `dlsc_static_assert( QSKIP <= DB )
+`dlsc_static_assert( QWASTE < QB )
+
+// For NB = 6, DB = 4:
+//
+//        0 D D D D
+// Q[ 5]: 0 0 0 0 N N N N N N
+// Q[ 4]: 0 0 0 N N N N N N 0
+// Q[ 3]: 0 0 N N N N N N 0 0
+// Q[ 2]: 0 N N N N N N 0 0 0
+// Q[ 1]: N N N N N N 0 0 0 0
+// Q[ 0]: N N N N N 0 0 0 0 0
+// Q[-1]: N N N N S 0 0 0 0 0
+// Q[-2]: N N N S S 0 0 0 0 0
+// Q[-3]: N N S S S 0 0 0 0 0
+// Q[-4]: N S S S S 0 0 0 0 0
+
+wire [QB-1:0] out_quo_pre;
+assign out_quo = { {QWASTE{1'b0}} , out_quo_pre[QB-1:QWASTE] };
 
 generate
 if(CYCLES<=1) begin:GEN_PIPELINED
@@ -76,7 +101,7 @@ if(CYCLES<=1) begin:GEN_PIPELINED
         .clk        ( clk ),
         .in_num     ( in_num ),
         .in_den     ( in_den ),
-        .out_quo    ( out_quo )
+        .out_quo    ( out_quo_pre )
     );
 
     dlsc_pipedelay_rst #(
@@ -102,7 +127,7 @@ end else if(CYCLES>=QB) begin:GEN_SEQUENTIAL
         .in_valid   ( in_valid ),
         .in_num     ( in_num ),
         .in_den     ( in_den ),
-        .out_quo    ( out_quo )
+        .out_quo    ( out_quo_pre )
     );
 
     dlsc_pipedelay_rst #(
@@ -131,7 +156,7 @@ end else begin:GEN_HYBRID
         .in_num     ( in_num ),
         .in_den     ( in_den ),
         .out_valid  ( out_valid ),
-        .out_quo    ( out_quo )
+        .out_quo    ( out_quo_pre )
     );
 
 end

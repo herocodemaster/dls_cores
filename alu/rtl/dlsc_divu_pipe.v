@@ -54,18 +54,6 @@ localparam NDB  = NB + DB;
 
 genvar j;
 
-//    0 D D D D
-// 0: 0 0 0 0 N N N N N N
-// 1: 0 0 0 N N N N N N 0
-// 2: 0 0 N N N N N N 0 0
-// 3: 0 N N N N N N 0 0 0
-// 4: N N N N N N 0 0 0 0
-// 5: N N N N N 0 0 0 0 0
-// 6: N N N N S 0 0 0 0 0
-// 7: N N N S S 0 0 0 0 0
-// 8: N N S S S 0 0 0 0 0
-// 9: N S S S S 0 0 0 0 0
-
 wire [DB -1:0]  stg_den [QB:0];
 wire [NDB-1:0]  stg_numl[QB:0];
 wire [NDB-1:0]  stg_nump[QB:0];

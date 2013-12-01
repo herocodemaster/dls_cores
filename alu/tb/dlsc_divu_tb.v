@@ -9,9 +9,9 @@ localparam CYCLES   = `PARAM_CYCLES;
 localparam NB       = `PARAM_NB;
 localparam DB       = `PARAM_DB;
 localparam QB       = `PARAM_QB;
-localparam QSKIP    = `PARAM_QSKIP;
-
-localparam QSB      = QB + QSKIP;
+localparam NFB      = `PARAM_NFB;
+localparam DFB      = `PARAM_DFB;
+localparam QFB      = `PARAM_QFB;
 
 localparam DELAY    = (CYCLES== 1) ? (QB+1) :   // fully pipelined
                       (CYCLES>=QB) ? (QB+2) :   // fully sequential
@@ -36,7 +36,9 @@ wire    [QB-1:0]    out_quo;
     .NB ( NB ),
     .DB ( DB ),
     .QB ( QB ),
-    .QSKIP ( QSKIP )
+    .NFB ( NFB ),
+    .DFB ( DFB ),
+    .QFB ( QFB )
 ) dut (
     .clk ( clk ),
     .rst ( rst ),
@@ -65,21 +67,38 @@ dlsc_pipedelay_valid #(
     .out_data   ( { out_num, out_den } )
 );
 
-reg [63:0] chk_num, chk_den, chk_quo;
+reg [63:0] chk_num, chk_den, chk_quo, chk_ovf;
 
 always @* begin
     chk_num = out_num;
     chk_den = out_den;
+    chk_num = chk_num << (32-NFB);  // fixed 32.32 format
+    chk_den = chk_den << (32-DFB);  // ""
+    chk_quo = 0;
+    chk_ovf = 1'b0;
     if(chk_den == 0) begin
         // divide-by-0
-        chk_quo = {QB{1'b1}};
+        chk_quo = {64{1'b1}};
+        chk_ovf = 1'b1;
     end else begin
-        if(QSB >= NB) begin
-            chk_quo = (chk_num << (QSB-NB)) / chk_den;
-        end else begin
-            chk_quo = (chk_num >> (NB-QSB)) / chk_den;
+        chk_quo = (chk_num << QFB) / chk_den;
+        if(chk_quo > {QB{1'b1}}) begin
+            chk_ovf = 1'b1;
         end
     end
+end
+
+real rep_num, rep_den, rep_out_quo, rep_chk_quo;
+
+always @* begin
+    rep_num     = out_num;
+    rep_den     = out_den;
+    rep_out_quo = out_quo;
+    rep_chk_quo = chk_quo[QB-1:0];
+    rep_num     = rep_num / (2**NFB);
+    rep_den     = rep_den / (2**DFB);
+    rep_out_quo = rep_out_quo / (2**QFB);
+    rep_chk_quo = rep_chk_quo / (2**QFB);
 end
 
 always @(posedge clk) begin
@@ -87,11 +106,11 @@ always @(posedge clk) begin
         if(out_valid != chk_valid) begin
             `dlsc_error("out_valid (%0d) != chk_valid (%0d)", out_valid, chk_valid);
         end
-        if(out_valid && (chk_den > 0)) begin
-            if(out_quo == chk_quo) begin
+        if(chk_valid && !chk_ovf) begin
+            if(out_quo == chk_quo[QB-1:0]) begin
                 `dlsc_okay("quotient okay");
             end else begin
-                `dlsc_error("%0d / %0d = %0d != %0d",chk_num,chk_den,chk_quo,out_quo);
+                `dlsc_error("%0f / %0f = %0f != %0f",rep_num,rep_den,rep_chk_quo,rep_out_quo);
             end
         end
     end
@@ -104,9 +123,6 @@ begin
     // clamp inputs
     num         = `dlsc_min(num, (2**NB)-1);
     den         = `dlsc_min(den, (2**DB)-1);
-    if(QSKIP>0) begin
-        den         = `dlsc_max(den, num >> (NB-1-QSKIP));
-    end
     // initiate divide
     in_valid    <= 1'b1;
     in_num      <= num;
@@ -171,7 +187,7 @@ end
 
 
 initial begin
-    #5_000_000;
+    #10_000_000;
     `dlsc_error("watchdog timeout");
 
     `dlsc_finish;

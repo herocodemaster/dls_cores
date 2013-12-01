@@ -53,18 +53,6 @@ module dlsc_divu_seq #(
 
 localparam NDB  = NB + DB;
 
-//    0 D D D D
-// 0: 0 0 0 0 N N N N N N
-// 1: 0 0 0 N N N N N N 0
-// 2: 0 0 N N N N N N 0 0
-// 3: 0 N N N N N N 0 0 0
-// 4: N N N N N N 0 0 0 0
-// 5: N N N N N 0 0 0 0 0
-// 6: N N N N S 0 0 0 0 0
-// 7: N N N S S 0 0 0 0 0
-// 8: N N S S S 0 0 0 0 0
-// 9: N S S S S 0 0 0 0 0
-
 `DLSC_PIPE_REG  reg             c1_valid;
 
 always @(posedge clk) begin
