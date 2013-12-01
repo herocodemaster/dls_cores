@@ -25,18 +25,15 @@
 //
 
 // Module Description:
-// Unsigned integer divider which can accept a new input every CYCLES clock cycles.
-//
-// Delay through module is:
-//  For CYCLES ==  1, delay is QB+1 cycles (fully pipelined)
-//  For CYCLES >= QB, delay is QB+2 cycles (fully sequential)
-//  For other cases , delay is QB+4 cycles (hybrid)
+// Partially pipeline unsigned integer divider.
+// Computes 1 division every CYCLES cycles.
+// Delay from input to output is QB+4 cycles.
 
-module dlsc_divu #(
-    parameter CYCLES    = 1,    // cycles allowed per division
+module dlsc_divu_hybrid #(
+    parameter CYCLES    = 1,    // cycles allowed per division (>= 2; < QB)
     parameter NB        = 8,    // bits for numerator/dividend
     parameter DB        = NB,   // bits for denominator/divisor
-    parameter QB        = NB    // bits for quotient (<= NB+DB)
+    parameter QB        = NB    // bits for quotient
 ) (
     // system
     input   wire                    clk,
@@ -52,32 +49,39 @@ module dlsc_divu #(
     output  wire    [QB-1:0]        out_quo
 );
 
+`include "dlsc_util.vh"
+`include "dlsc_synthesis.vh"
+
+genvar j;
+
+localparam SLICES   = (QB+CYCLES-1)/CYCLES;
+localparam SLCB     = `dlsc_clog2(SLICES);
+localparam CYCB     = `dlsc_clog2(CYCLES);
+
+reg  [SLICES-1:0]   c0_slice;
+
+always @(posedge clk) begin
+    if(rst) begin
+        c0_slice    <= 1;
+    end else if(in_valid) begin
+        c0_slice    <= { c0_slice[SLICES-2:0], c0_slice[SLICES-1] };
+    end
+end
+
+`DLSC_PIPE_REG reg [SLICES-1:0] c1_valid;
+`DLSC_PIPE_REG reg [NB-1:0]     c1_num;
+`DLSC_PIPE_REG reg [DB-1:0]     c1_den;
+
+always @(posedge clk) begin
+    c1_valid    <= in_valid ? c0_slice : 0;
+    c1_num      <= in_num;
+    c1_den      <= in_den;
+end
+
+wire [QB-1:0]       co0_quo [SLICES-1:0];
+
 generate
-if(CYCLES<=1) begin:GEN_PIPELINED
-
-    dlsc_divu_pipe #(
-        .NB         ( NB ),
-        .DB         ( DB ),
-        .QB         ( QB )
-    ) dlsc_divu_pipe (
-        .clk        ( clk ),
-        .in_num     ( in_num ),
-        .in_den     ( in_den ),
-        .out_quo    ( out_quo )
-    );
-
-    dlsc_pipedelay_rst #(
-        .DELAY      ( QB+1 ),
-        .DATA       ( 1 ),
-        .RESET      ( 1'b0 )
-    ) dlsc_pipedelay_rst (
-        .clk        ( clk ),
-        .rst        ( rst ),
-        .in_data    ( in_valid ),
-        .out_data   ( out_valid )
-    );
-
-end else if(CYCLES>=QB) begin:GEN_SEQUENTIAL
+for(j=0;j<SLICES;j=j+1) begin:GEN_SLICES
 
     dlsc_divu_seq #(
         .NB         ( NB ),
@@ -85,42 +89,61 @@ end else if(CYCLES>=QB) begin:GEN_SEQUENTIAL
         .QB         ( QB )
     ) dlsc_divu_seq (
         .clk        ( clk ),
-        .in_valid   ( in_valid ),
-        .in_num     ( in_num ),
-        .in_den     ( in_den ),
-        .out_quo    ( out_quo )
-    );
-
-    dlsc_pipedelay_rst #(
-        .DELAY      ( QB+2 ),
-        .DATA       ( 1 ),
-        .RESET      ( 1'b0 )
-    ) dlsc_pipedelay_rst (
-        .clk        ( clk ),
-        .rst        ( rst ),
-        .in_data    ( in_valid ),
-        .out_data   ( out_valid )
-    );
-
-end else begin:GEN_HYBRID
-
-    dlsc_divu_hybrid #(
-        .CYCLES     ( CYCLES ),
-        .NB         ( NB ),
-        .DB         ( DB ),
-        .QB         ( QB )
-    ) dlsc_divu_hybrid (
-        .clk        ( clk ),
-        .rst        ( rst ),
-        .in_valid   ( in_valid ),
-        .in_num     ( in_num ),
-        .in_den     ( in_den ),
-        .out_valid  ( out_valid ),
-        .out_quo    ( out_quo )
+        .in_valid   ( c1_valid[j] ),
+        .in_num     ( c1_num ),
+        .in_den     ( c1_den ),
+        .out_quo    ( co0_quo[j] )
     );
 
 end
 endgenerate
+
+localparam CO0 = 1 + QB+2;
+
+wire                co0_valid;
+
+dlsc_pipedelay_rst #(
+    .DATA       ( 1 ),
+    .DELAY      ( CO0 - 0 )
+) dlsc_pipedelay_rst (
+    .clk        ( clk ),
+    .rst        ( rst ),
+    .in_data    ( in_valid ),
+    .out_data   ( co0_valid )
+);
+
+reg  [SLCB-1:0]     co0_slice;
+wire                co0_slice_last  = (co0_slice == (SLICES-1));
+
+always @(posedge clk) begin
+    if(rst) begin
+        co0_slice   <= 0;
+    end else if(co0_valid) begin
+        co0_slice   <= co0_slice + 1;
+        if(co0_slice_last) begin
+            co0_slice   <= 0;
+        end
+    end
+end
+
+reg co1_valid;
+
+always @(posedge clk) begin
+    if(rst) begin
+        co1_valid   <= 1'b0;
+    end else begin
+        co1_valid   <= co0_valid;
+    end
+end
+
+`DLSC_PIPE_REG reg [QB-1:0] co1_quo;
+
+always @(posedge clk) begin
+    co1_quo     <= co0_quo[co0_slice];
+end
+
+assign out_valid    = co1_valid;
+assign out_quo      = co1_quo;
 
 endmodule
 
