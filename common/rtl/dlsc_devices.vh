@@ -36,29 +36,33 @@
 
 `ifdef XILINX
 
+    // ISE 13.4 parser throws a spurious syntax error on this line,
+    // but XST has no problem with it.
+    localparam DLSC_XILINX_DEVICE   = `DLSC_DEVICE;
+
     // DSP48A1 new for Spartan-6
     // (backward compatible with DSP48A, but not Virtex class DSP48s)
-    localparam DLSC_XILINX_DSP48A1  = ( `DLSC_DEVICE == "SPARTAN6");
+    localparam DLSC_XILINX_DSP48A1  = ( DLSC_XILINX_DEVICE == "SPARTAN6" );
 
     // DSP48A new for Spartan-3A DSP
     // (derived from DSP48, but not strictly compatible with it)
-    localparam DLSC_XILINX_DSP48A   = ( `DLSC_DEVICE == "SPARTAN3ADSP" ||
+    localparam DLSC_XILINX_DSP48A   = ( DLSC_XILINX_DEVICE == "SPARTAN3ADSP" ||
                                         DLSC_XILINX_DSP48A1 );
 
     // DSP48E1 new for Virtex-6
     // (backward compatible with DSP48E)
-    localparam DLSC_XILINX_DSP48E1  = ( `DLSC_DEVICE == "VIRTEX6" ||
-                                        `DLSC_DEVICE == "ARTIX7"  ||
-                                        `DLSC_DEVICE == "KINTEX7" ||
-                                        `DLSC_DEVICE == "VIRTEX7" );
+    localparam DLSC_XILINX_DSP48E1  = ( DLSC_XILINX_DEVICE == "VIRTEX6" ||
+                                        DLSC_XILINX_DEVICE == "ARTIX7"  ||
+                                        DLSC_XILINX_DEVICE == "KINTEX7" ||
+                                        DLSC_XILINX_DEVICE == "VIRTEX7" );
 
     // DSP48E new for Virtex-5
     // (backward compatible with DSP48)
-    localparam DLSC_XILINX_DSP48E   = ( `DLSC_DEVICE == "VIRTEX5" ||
+    localparam DLSC_XILINX_DSP48E   = ( DLSC_XILINX_DEVICE == "VIRTEX5" ||
                                         DLSC_XILINX_DSP48E1 );
 
     // DSP48 new for Virtex-4
-    localparam DLSC_XILINX_DSP48    = ( `DLSC_DEVICE == "VIRTEX4" ||
+    localparam DLSC_XILINX_DSP48    = ( DLSC_XILINX_DEVICE == "VIRTEX4" ||
                                         DLSC_XILINX_DSP48E );
 
     // LUT6 present in Spartan 6 and Virtex 5+
