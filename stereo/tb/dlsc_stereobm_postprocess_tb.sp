@@ -2,6 +2,7 @@
 #sp interface
 
 #include <systemperl.h>
+#include <verilated.h>
 
 #include <deque>
 

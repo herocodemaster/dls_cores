@@ -15,24 +15,15 @@ V_PARAMS_DEF    += \
     UNIQUE_MUL=1 \
     UNIQUE_DIV=4 \
     MULT_R=3 \
-    SAD_BITS=16 \
-    PIPELINE_LUT4=0
+    SAD_BITS=16
 
-sims0:
-	$(MAKE) -f $(THIS) V_PARAMS=""
-	$(MAKE) -f $(THIS) V_PARAMS="PIPELINE_LUT4=1"
-
-sims1:
-	$(MAKE) -f $(THIS) V_PARAMS="SUB_BITS=0 UNIQUE_MUL=0"
-	$(MAKE) -f $(THIS) V_PARAMS="SUB_BITS=0"
-
-sims2:
-	$(MAKE) -f $(THIS) V_PARAMS="UNIQUE_MUL=0"
-	$(MAKE) -f $(THIS) V_PARAMS="SUB_BITS_EXTRA=0"
-
-sims3:
-	$(MAKE) -f $(THIS) V_PARAMS="DISP_BITS=7 DISPARITIES=80"
-	$(MAKE) -f $(THIS) V_PARAMS="MULT_R=1"
+$(call dlsc-sim,"")
+$(call dlsc-sim,"SUB_BITS=0 UNIQUE_MUL=0")
+$(call dlsc-sim,"SUB_BITS=0")
+$(call dlsc-sim,"UNIQUE_MUL=0")
+$(call dlsc-sim,"SUB_BITS_EXTRA=0")
+$(call dlsc-sim,"DISP_BITS=7 DISPARITIES=80")
+$(call dlsc-sim,"MULT_R=1")
 
 include $(DLSC_MAKEFILE_BOT)
 

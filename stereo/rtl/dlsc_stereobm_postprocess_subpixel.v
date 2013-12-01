@@ -59,8 +59,7 @@ module dlsc_stereobm_postprocess_subpixel #(
     parameter SUB_BITS      = 4,
     parameter SUB_BITS_EXTRA= 4,
     parameter SAD_BITS      = 16,
-    parameter PIPELINE_LUT4 = 0,
-    parameter OUT_CYCLE     = 3 + (PIPELINE_LUT4>0?2:1) * (SUB_BITS+SUB_BITS_EXTRA),
+    parameter OUT_CYCLE     = 3 + (SUB_BITS+SUB_BITS_EXTRA),
     // derived; don't touch
     parameter DISP_BITS_S   = (DISP_BITS+SUB_BITS)
 ) (
@@ -87,7 +86,7 @@ localparam DISP_BITS_TOTAL  = (DISP_BITS + SUB_BITS_TOTAL);
 
 // CD0 is cycle at output of divider;
 // c2 is input; prop delay of SUB_BITS_TOTAL
-localparam CYCLE_CD0 = 2 + (PIPELINE_LUT4>0?2:1) * (SUB_BITS_TOTAL);
+localparam CYCLE_CD0 = 2 + SUB_BITS_TOTAL+1;
 localparam CYCLE_CD1 = CYCLE_CD0 + 1;
 
 `DLSC_NO_SHREG reg                c1_zero;    // subpixel adjustment is 0
@@ -147,16 +146,19 @@ dlsc_pipedelay #(
 wire [SUB_BITS_TOTAL-1:0] cd0_res;
 
 dlsc_divu #(
-    .DIVIDEND   ( SAD_BITS + SUB_BITS_TOTAL - 1 ),
-    .DIVISOR    ( SAD_BITS ),
-    .QUOTIENT   ( SUB_BITS_TOTAL ),
-    .PIPELINE   ( PIPELINE_LUT4 )
+    .CYCLES     ( 1 ),
+    .NB         ( SAD_BITS ),
+    .DB         ( SAD_BITS ),
+    .QB         ( SUB_BITS_TOTAL ),
+    .QSKIP      ( SAD_BITS-1 )
 ) dlsc_divu_inst (
     .clk        ( clk ),
-    .dividend   ( { c2_t, {(SUB_BITS_TOTAL-1){1'b0}} } ),
-    .divisor    ( c2_b ),
-    .quotient   ( cd0_res ),
-    .remainder  (  )
+    .rst        ( 1'b0 ),
+    .in_valid   ( 1'b1 ),
+    .in_num     ( c2_t ),
+    .in_den     ( c2_b ),
+    .out_valid  (  ),
+    .out_quo    ( cd0_res )
 );
 
 

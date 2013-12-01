@@ -340,9 +340,7 @@ dlsc_stereobm_postprocess #(
     .UNIQUE_MUL     ( UNIQUE_MUL ),
     .UNIQUE_DIV     ( UNIQUE_DIV ),
     .MULT_R         ( MULT_R ),
-    .SAD_BITS       ( SAD_BITS ),
-//    .PIPELINE_LUT4  ( 1 ) // sub-pixel divider was giving trouble on Spartan-6
-    .PIPELINE_LUT4  ( PIPELINE_LUT4 )
+    .SAD_BITS       ( SAD_BITS )
 ) dlsc_stereobm_postprocess_inst (
     .clk                ( clk ),
     .rst                ( rst ),

@@ -40,7 +40,6 @@ module dlsc_stereobm_postprocess #(
     parameter UNIQUE_DIV    = 4,
     parameter MULT_R        = 3,
     parameter SAD_BITS      = 16,
-    parameter PIPELINE_LUT4 = 0,
     // derived parameters; don't touch
     parameter DISP_BITS_R   = (DISP_BITS*MULT_R),
     parameter SAD_BITS_R    = (SAD_BITS*MULT_R),
@@ -70,7 +69,7 @@ module dlsc_stereobm_postprocess #(
     output  wire    [ SAD_BITS_R -1:0]  out_sad
 );
 
-localparam SUB_CYCLE    = SUB_BITS>0    ? (3 + (PIPELINE_LUT4>0?2:1) * (SUB_BITS+SUB_BITS_EXTRA)) : 0;
+localparam SUB_CYCLE    = SUB_BITS>0    ? (4+SUB_BITS+SUB_BITS_EXTRA) : 0;
 localparam UNIQUE_CYCLE = UNIQUE_MUL>0  ? 7 : 0;
 
 localparam OUT_CYCLE    = ((SUB_CYCLE>UNIQUE_CYCLE) ? SUB_CYCLE : UNIQUE_CYCLE) + 1; // use longest as output cycle
@@ -129,7 +128,6 @@ generate
                 .SUB_BITS       ( SUB_BITS ),
                 .SUB_BITS_EXTRA ( SUB_BITS_EXTRA ),
                 .SAD_BITS       ( SAD_BITS ),
-                .PIPELINE_LUT4  ( PIPELINE_LUT4 ),
                 .OUT_CYCLE      ( OUT_CYCLE )
             ) dlsc_stereobm_postprocess_subpixel_inst (
                 .clk            ( clk ),
