@@ -32,9 +32,15 @@
 
     `define dlsc_clog2(x) $clog2(x)
 
+    `define dlsc_clog2_lower(x,lower_bound) (($clog2(x) < (lower_bound)) ? (lower_bound) : $clog2(x))
+    `define dlsc_clog2_upper(x,upper_bound) (($clog2(x) > (upper_bound)) ? (upper_bound) : $clog2(x))
+
 `else
 
     `define dlsc_clog2(x) dlsc_clog2_func(x)
+    
+    `define dlsc_clog2_lower(x,lower_bound) ((dlsc_clog2_func(x) < (lower_bound)) ? (lower_bound) : dlsc_clog2_func(x))
+    `define dlsc_clog2_upper(x,upper_bound) ((dlsc_clog2_func(x) > (upper_bound)) ? (upper_bound) : dlsc_clog2_func(x))
 
     function integer dlsc_clog2_func;
         input integer val;
