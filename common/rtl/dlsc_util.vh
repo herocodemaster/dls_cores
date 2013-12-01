@@ -29,5 +29,10 @@
 `define dlsc_min(x,y) ( ((x) < (y)) ? (x) : (y) )
 `define dlsc_max(x,y) ( ((x) > (y)) ? (x) : (y) )
 
-`define dlsc_static_assert(cond) initial begin if(!(cond)) begin $display("%t : [%m] : *** ERROR *** : static assertion '%s' failed", $time, `"cond`"); $finish; end end
+`ifdef ICARUS
+    // iverilog has some trouble with stringification
+    `define dlsc_static_assert(cond) initial begin if(!(cond)) begin $display("%t : [%m] : *** ERROR *** : static assertion failed", $time); $finish; end end
+`else
+    `define dlsc_static_assert(cond) initial begin if(!(cond)) begin $display("%t : [%m] : *** ERROR *** : static assertion '%s' failed", $time, `"cond`"); $finish; end end
+`endif
 
