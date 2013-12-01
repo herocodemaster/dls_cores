@@ -8,10 +8,11 @@ V_DUT           += dlsc_divu.v
 V_TESTBENCH     += dlsc_divu_tb.v
 
 V_PARAMS_DEF    += \
+    CYCLES=8 \
     NB=8 \
     DB=8 \
     QB=8 \
-    CYCLES=8
+    QSKIP=0
 
 ## divu_pipe tests ##
 # base
@@ -31,6 +32,10 @@ $(call dlsc-sim,"NB=8 DB=8 QB=1 CYCLES=1")
 $(call dlsc-sim,"NB=8 DB=8 QB=7 CYCLES=1")
 $(call dlsc-sim,"NB=8 DB=8 QB=9 CYCLES=1")
 $(call dlsc-sim,"NB=8 DB=8 QB=16 CYCLES=1")
+# QSKIP sweep
+$(call dlsc-sim,"NB=8 DB=8 QB=8 QSKIP=1 CYCLES=1")
+$(call dlsc-sim,"NB=8 DB=8 QB=8 QSKIP=2 CYCLES=1")
+$(call dlsc-sim,"NB=8 DB=8 QB=8 QSKIP=7 CYCLES=1")
 
 ## divu_seq tests ##
 # base
@@ -54,6 +59,10 @@ $(call dlsc-sim,"NB=8 DB=8 QB=16 CYCLES=16")
 $(call dlsc-sim,"NB=8 DB=8 QB=8 CYCLES=9")
 $(call dlsc-sim,"NB=8 DB=8 QB=8 CYCLES=10")
 $(call dlsc-sim,"NB=8 DB=8 QB=8 CYCLES=30")
+# QSKIP sweep
+$(call dlsc-sim,"NB=8 DB=8 QB=8 QSKIP=1 CYCLES=8")
+$(call dlsc-sim,"NB=8 DB=8 QB=8 QSKIP=2 CYCLES=8")
+$(call dlsc-sim,"NB=8 DB=8 QB=8 QSKIP=7 CYCLES=8")
 
 ## divu_hybrid tests ##
 # base
@@ -73,6 +82,10 @@ $(call dlsc-sim,"NB=8 DB=8 QB=3 CYCLES=2")
 $(call dlsc-sim,"NB=8 DB=8 QB=7 CYCLES=2")
 $(call dlsc-sim,"NB=8 DB=8 QB=9 CYCLES=2")
 $(call dlsc-sim,"NB=8 DB=8 QB=16 CYCLES=2")
+# QSKIP sweep
+$(call dlsc-sim,"NB=8 DB=8 QB=8 QSKIP=1 CYCLES=2")
+$(call dlsc-sim,"NB=8 DB=8 QB=8 QSKIP=2 CYCLES=2")
+$(call dlsc-sim,"NB=8 DB=8 QB=8 QSKIP=7 CYCLES=2")
 # CYCLES sweep
 $(call dlsc-sim,"NB=8 DB=8 QB=8 CYCLES=3")
 $(call dlsc-sim,"NB=8 DB=8 QB=8 CYCLES=4")

@@ -31,12 +31,19 @@
 //  For CYCLES ==  1, delay is QB+1 cycles (fully pipelined)
 //  For CYCLES >= QB, delay is QB+2 cycles (fully sequential)
 //  For other cases , delay is QB+4 cycles (hybrid)
+//
+// When using QSKIP, quotient width is effectively increased to QB+QSKIP, but with
+// the QSKIP MSbits forced to 0. This option should only be used if there is a
+// known relationship between the numerator and denominator that guarantees that
+// these MSbits are really 0 (this is not checked by the divider).
+//
 
 module dlsc_divu #(
     parameter CYCLES    = 1,    // cycles allowed per division
     parameter NB        = 8,    // bits for numerator/dividend
     parameter DB        = NB,   // bits for denominator/divisor
-    parameter QB        = NB    // bits for quotient (<= NB+DB)
+    parameter QB        = NB,   // bits for quotient (<= NB+DB)
+    parameter QSKIP     = 0     // MSbits of canonical quotient to skip (<= DB)
 ) (
     // system
     input   wire                    clk,
@@ -52,13 +59,19 @@ module dlsc_divu #(
     output  wire    [QB-1:0]        out_quo
 );
 
+`include "dlsc_util.vh"
+
+`dlsc_static_assert( (QB+QSKIP) <= (NB+DB) )
+`dlsc_static_assert( QSKIP <= DB )
+
 generate
 if(CYCLES<=1) begin:GEN_PIPELINED
 
     dlsc_divu_pipe #(
         .NB         ( NB ),
         .DB         ( DB ),
-        .QB         ( QB )
+        .QB         ( QB ),
+        .QSKIP      ( QSKIP )
     ) dlsc_divu_pipe (
         .clk        ( clk ),
         .in_num     ( in_num ),
@@ -82,7 +95,8 @@ end else if(CYCLES>=QB) begin:GEN_SEQUENTIAL
     dlsc_divu_seq #(
         .NB         ( NB ),
         .DB         ( DB ),
-        .QB         ( QB )
+        .QB         ( QB ),
+        .QSKIP      ( QSKIP )
     ) dlsc_divu_seq (
         .clk        ( clk ),
         .in_valid   ( in_valid ),
@@ -108,7 +122,8 @@ end else begin:GEN_HYBRID
         .CYCLES     ( CYCLES ),
         .NB         ( NB ),
         .DB         ( DB ),
-        .QB         ( QB )
+        .QB         ( QB ),
+        .QSKIP      ( QSKIP )
     ) dlsc_divu_hybrid (
         .clk        ( clk ),
         .rst        ( rst ),

@@ -32,7 +32,8 @@
 module dlsc_divu_pipe #(
     parameter NB        = 8,    // bits for numerator/dividend
     parameter DB        = NB,   // bits for denominator/divisor
-    parameter QB        = NB    // bits for quotient
+    parameter QB        = NB,   // bits for quotient
+    parameter QSKIP     = 0     // MSbits of canonical quotient to skip
 ) (
     // system
     input   wire                    clk,
@@ -73,7 +74,7 @@ wire [QB   :0]  stg_selp;
 // drive inputs
 assign stg_den [0]  = in_den;
 assign stg_numl[0]  = 0;
-assign stg_nump[0]  = { {DB{1'b0}} , in_num };
+assign stg_nump[0]  = { {DB{1'b0}} , in_num } << QSKIP;
 assign stg_selp[0]  = 1'b1;
 
 wire [QB-1:0]  stg_quo_n;
@@ -98,10 +99,10 @@ for(j=0;j<QB;j=j+1) begin:GEN_STAGES
         numlo = { 1'b0, sub[DB-1:0], nump[NB-1:0] };
         numpo = { 1'b0, nump };
         // mask off bits that should always be 0 (should help optimizer remove unneeded registers)
-        numlo[`dlsc_min(NB-1,j):0] = 0;
-        numpo[`dlsc_min(NB-1,j):0] = 0;
-        numlo[NDB:`dlsc_min(NDB,NB+1+j)] = 0;
-        numpo[NDB:`dlsc_min(NDB,NB+1+j)] = 0;
+        numlo[`dlsc_min(NB-1,QSKIP+j):0] = 0;
+        numpo[`dlsc_min(NB-1,QSKIP+j):0] = 0;
+        numlo[NDB:`dlsc_min(NDB,NB+1+QSKIP+j)] = 0;
+        numpo[NDB:`dlsc_min(NDB,NB+1+QSKIP+j)] = 0;
     end
 
     assign stg_den [j+1] = den;

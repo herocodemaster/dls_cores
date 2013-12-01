@@ -32,7 +32,8 @@
 module dlsc_divu_seq #(
     parameter NB        = 8,    // bits for numerator/dividend
     parameter DB        = NB,   // bits for denominator/divisor
-    parameter QB        = NB    // bits for quotient
+    parameter QB        = NB,   // bits for quotient
+    parameter QSKIP     = 0     // MSbits of canonical quotient to skip
 ) (
     // system
     input   wire                    clk,
@@ -91,7 +92,7 @@ always @(posedge clk) begin
     case({in_valid,c1_selp})
         2'b00:   c1_nump <= c1_numl << 1;
         2'b01:   c1_nump <= c1_nump << 1;
-        default: c1_nump <= { {DB{1'b0}} , in_num };
+        default: c1_nump <= { {DB{1'b0}} , in_num } << QSKIP;
     endcase
 end
 

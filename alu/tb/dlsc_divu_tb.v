@@ -3,11 +3,15 @@
 module `DLSC_TB;
 
 `include "dlsc_tb_top.vh"
+`include "dlsc_util.vh"
 
 localparam CYCLES   = `PARAM_CYCLES;
 localparam NB       = `PARAM_NB;
 localparam DB       = `PARAM_DB;
 localparam QB       = `PARAM_QB;
+localparam QSKIP    = `PARAM_QSKIP;
+
+localparam QSB      = QB + QSKIP;
 
 localparam DELAY    = (CYCLES== 1) ? (QB+1) :   // fully pipelined
                       (CYCLES>=QB) ? (QB+2) :   // fully sequential
@@ -31,7 +35,8 @@ wire    [QB-1:0]    out_quo;
     .CYCLES ( CYCLES ),
     .NB ( NB ),
     .DB ( DB ),
-    .QB ( QB )
+    .QB ( QB ),
+    .QSKIP ( QSKIP )
 ) dut (
     .clk ( clk ),
     .rst ( rst ),
@@ -69,10 +74,10 @@ always @* begin
         // divide-by-0
         chk_quo = {QB{1'b1}};
     end else begin
-        if(QB >= NB) begin
-            chk_quo = (chk_num << (QB-NB)) / chk_den;
+        if(QSB >= NB) begin
+            chk_quo = (chk_num << (QSB-NB)) / chk_den;
         end else begin
-            chk_quo = (chk_num >> (NB-QB)) / chk_den;
+            chk_quo = (chk_num >> (NB-QSB)) / chk_den;
         end
     end
 end
@@ -93,9 +98,15 @@ always @(posedge clk) begin
 end
 
 task div;
-    input [NB-1:0] num;
-    input [DB-1:0] den;
+    input integer num;
+    input integer den;
 begin
+    // clamp inputs
+    num         = `dlsc_min(num, (2**NB)-1);
+    den         = `dlsc_min(den, (2**DB)-1);
+    if(QSKIP>0) begin
+        den         = `dlsc_max(den, num >> (NB-1-QSKIP));
+    end
     // initiate divide
     in_valid    <= 1'b1;
     in_num      <= num;

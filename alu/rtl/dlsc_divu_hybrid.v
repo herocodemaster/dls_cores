@@ -33,7 +33,8 @@ module dlsc_divu_hybrid #(
     parameter CYCLES    = 1,    // cycles allowed per division (>= 2; < QB)
     parameter NB        = 8,    // bits for numerator/dividend
     parameter DB        = NB,   // bits for denominator/divisor
-    parameter QB        = NB    // bits for quotient
+    parameter QB        = NB,   // bits for quotient
+    parameter QSKIP     = 0     // MSbits of canonical quotient to skip
 ) (
     // system
     input   wire                    clk,
@@ -86,7 +87,8 @@ for(j=0;j<SLICES;j=j+1) begin:GEN_SLICES
     dlsc_divu_seq #(
         .NB         ( NB ),
         .DB         ( DB ),
-        .QB         ( QB )
+        .QB         ( QB ),
+        .QSKIP      ( QSKIP )
     ) dlsc_divu_seq (
         .clk        ( clk ),
         .in_valid   ( c1_valid[j] ),
