@@ -114,8 +114,10 @@ dlsc_pipedelay_rst #(
     .out_data   ( co0_valid )
 );
 
+/* verilator lint_off WIDTH */
 reg  [SLCB-1:0]     co0_slice;
 wire                co0_slice_last  = (co0_slice == (SLICES-1));
+/* verilator lint_on WIDTH */
 
 always @(posedge clk) begin
     if(rst) begin
