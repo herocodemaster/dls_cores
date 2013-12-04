@@ -4,6 +4,7 @@ module `DLSC_TB;
 
 `include "dlsc_tb_top.vh"
 `include "dlsc_util.vh"
+`include "dlsc_divu_delay.vh"
 
 localparam CYCLES   = `PARAM_CYCLES;
 localparam NB       = `PARAM_NB;
@@ -19,9 +20,7 @@ localparam NMAX     = (2**NB)-1;
 localparam DSMALL   = `dlsc_min(15,DMAX);
 localparam NSMALL   = `dlsc_min(15,NMAX);
 
-localparam DELAY    = (CYCLES== 1) ? (QB+1) :   // fully pipelined
-                      (CYCLES>=QB) ? (QB+2) :   // fully sequential
-                                     (QB+4);    // hybrid
+localparam DELAY    = `dlsc_divu_delay(CYCLES,QB);
 
 reg                 rst     = 1'b1;
 reg                 clk     = 1'b0;
