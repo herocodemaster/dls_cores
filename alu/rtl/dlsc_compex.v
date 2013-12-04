@@ -35,63 +35,79 @@ module dlsc_compex #(
     parameter ID        = 1,
     parameter PIPELINE  = 0
 ) (
+    // system
     input   wire                clk,
+
+    // input
     input   wire    [ID-1:0]    in_id0,
-    input   wire    [DATA-1:0]  in_data0,
     input   wire    [ID-1:0]    in_id1,
+    input   wire    [DATA-1:0]  in_data0,
     input   wire    [DATA-1:0]  in_data1,
+
+    // output
     output  wire    [ID-1:0]    out_id0,
-    output  wire    [DATA-1:0]  out_data0,
     output  wire    [ID-1:0]    out_id1,
+    output  wire    [DATA-1:0]  out_data0,
     output  wire    [DATA-1:0]  out_data1
 );
 
 `include "dlsc_synthesis.vh"
 
 // ** find lower value **
+
 wire c0_zero_wins = (in_data0 <= in_data1);
-reg [  ID-1:0] c1_id0;
-reg [DATA-1:0] c1_data0;
-reg [  ID-1:0] c1_id1;
-reg [DATA-1:0] c1_data1;
-reg            c1_zero_wins;
+
+`DLSC_PIPE_REG reg [  ID-1:0] c1_id0;
+`DLSC_PIPE_REG reg [  ID-1:0] c1_id1;
+`DLSC_PIPE_REG reg [DATA-1:0] c1_data0;
+`DLSC_PIPE_REG reg [DATA-1:0] c1_data1;
+`DLSC_PIPE_REG reg            c1_zero_wins;
+
 always @(posedge clk) begin
     c1_id0          <= in_id0;
-    c1_data0        <= in_data0;
     c1_id1          <= in_id1;
+    c1_data0        <= in_data0;
     c1_data1        <= in_data1;
     c1_zero_wins    <= c0_zero_wins;
 end
 
 // ** mux outputs **
-wire [  ID-1:0] pre_id0    = ( c1_id0   & {  ID{ c1_zero_wins}} ) | ( c1_id1   & {  ID{!c1_zero_wins}} );
-wire [DATA-1:0] pre_data0  = ( c1_data0 & {DATA{ c1_zero_wins}} ) | ( c1_data1 & {DATA{!c1_zero_wins}} );
-wire [  ID-1:0] pre_id1    = ( c1_id0   & {  ID{!c1_zero_wins}} ) | ( c1_id1   & {  ID{ c1_zero_wins}} );
-wire [DATA-1:0] pre_data1  = ( c1_data0 & {DATA{!c1_zero_wins}} ) | ( c1_data1 & {DATA{ c1_zero_wins}} );
+
+wire [  ID-1:0] pre_id0     = c1_zero_wins ? c1_id0   : c1_id1;
+wire [  ID-1:0] pre_id1     = c1_zero_wins ? c1_id1   : c1_id0;
+wire [DATA-1:0] pre_data0   = c1_zero_wins ? c1_data0 : c1_data1;
+wire [DATA-1:0] pre_data1   = c1_zero_wins ? c1_data1 : c1_data0;
 
 // ** optional pipelining **
+
 generate
-    if(PIPELINE) begin:GEN_PIPE
-        `DLSC_NO_SHREG reg [  ID-1:0] c2_id0;
-        `DLSC_NO_SHREG reg [DATA-1:0] c2_data0;
-        `DLSC_NO_SHREG reg [  ID-1:0] c2_id1;
-        `DLSC_NO_SHREG reg [DATA-1:0] c2_data1;
-        always @(posedge clk) begin
-            c2_id0     <= pre_id0;
-            c2_data0   <= pre_data0;
-            c2_id1     <= pre_id1;
-            c2_data1   <= pre_data1;
-        end
-        assign out_id0      = c2_id0;
-        assign out_data0    = c2_data0;
-        assign out_id1      = c2_id1;
-        assign out_data1    = c2_data1;
-    end else begin:GEN_NOPIPE
-        assign out_id0      = pre_id0;
-        assign out_data0    = pre_data0;
-        assign out_id1      = pre_id1;
-        assign out_data1    = pre_data1;
+if(PIPELINE) begin:GEN_PIPE
+
+    `DLSC_PIPE_REG reg [  ID-1:0] c2_id0;
+    `DLSC_PIPE_REG reg [  ID-1:0] c2_id1;
+    `DLSC_PIPE_REG reg [DATA-1:0] c2_data0;
+    `DLSC_PIPE_REG reg [DATA-1:0] c2_data1;
+
+    always @(posedge clk) begin
+        c2_id0     <= pre_id0;
+        c2_id1     <= pre_id1;
+        c2_data0   <= pre_data0;
+        c2_data1   <= pre_data1;
     end
+
+    assign out_id0      = c2_id0;
+    assign out_id1      = c2_id1;
+    assign out_data0    = c2_data0;
+    assign out_data1    = c2_data1;
+
+end else begin:GEN_NOPIPE
+
+    assign out_id0      = pre_id0;
+    assign out_id1      = pre_id1;
+    assign out_data0    = pre_data0;
+    assign out_data1    = pre_data1;
+
+end
 endgenerate
 
 endmodule
