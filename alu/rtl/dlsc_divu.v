@@ -58,6 +58,7 @@ module dlsc_divu #(
 );
 
 `include "dlsc_util.vh"
+`include "dlsc_divu_delay.vh"
 
 `dlsc_static_assert( QB <= (NB+DB) )
 
@@ -73,9 +74,7 @@ localparam QWASTE   = (QLSB>0) ? (  QLSB) : 0;  // LSbits of quotient to throw a
 `dlsc_static_assert( QSKIP <= DB )
 `dlsc_static_assert( QWASTE < QB )
 
-localparam DELAY    = (CYCLES== 1) ? (QB+1) :   // fully pipelined
-                      (CYCLES>=QB) ? (QB+2) :   // fully sequential
-                                     (QB+4);    // hybrid
+localparam DELAY    = `dlsc_divu_delay(CYCLES,QB);
 
 // For NB = 6, DB = 4:
 //
@@ -171,6 +170,13 @@ endgenerate
 
 `ifdef DLSC_SIMULATION
 `include "dlsc_sim_top.vh"
+
+initial begin
+    if(!(QSKIP <= DB)) begin
+        `dlsc_info("NB: %0d, DB: %0d, QB: %0d, NFB: %0d, DFB: %0d, QFB: %0d ; QSKIP: %0d, QWASTE: %0d",
+            NB, DB, QB, NFB, DFB, QFB, QSKIP, QWASTE );
+    end
+end
 
 generate
 if(WARNINGS) begin:GEN_WARNINGS
