@@ -91,6 +91,7 @@ for(j=0;j<SLICES;j=j+1) begin:GEN_SLICES
         .QSKIP      ( QSKIP )
     ) dlsc_divu_seq (
         .clk        ( clk ),
+        .rst        ( rst ),
         .in_valid   ( c1_valid[j] ),
         .in_num     ( c1_num ),
         .in_den     ( c1_den ),

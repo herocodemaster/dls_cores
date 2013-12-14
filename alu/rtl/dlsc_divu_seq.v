@@ -37,6 +37,7 @@ module dlsc_divu_seq #(
 ) (
     // system
     input   wire                    clk,
+    input   wire                    rst,
 
     // input
     // a new input can be submitted every QB cycles
@@ -107,13 +108,17 @@ assign out_quo = c3_quo;
 integer in_cnt;
 
 always @(posedge clk) begin
-    if(in_valid) begin
-        if(in_cnt > 0) begin
-            `dlsc_warn("division interrupted by new in_valid");
+    if(rst) begin
+        in_cnt  <= 0;
+    end else begin
+        if(in_valid) begin
+            if(in_cnt > 0) begin
+                `dlsc_warn("division interrupted by new in_valid");
+            end
+            in_cnt  <= QB-1;
+        end else if(in_cnt > 0) begin
+            in_cnt  <= in_cnt - 1;
         end
-        in_cnt  <= QB-1;
-    end else if(in_cnt > 0) begin
-        in_cnt  <= in_cnt - 1;
     end
 end
 

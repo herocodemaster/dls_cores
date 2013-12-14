@@ -128,6 +128,7 @@ end else if(CYCLES>=QB) begin:GEN_SEQUENTIAL
         .QSKIP      ( QSKIP )
     ) dlsc_divu_seq (
         .clk        ( clk ),
+        .rst        ( rst ),
         .in_valid   ( in_valid ),
         .in_num     ( in_num ),
         .in_den     ( in_den ),
