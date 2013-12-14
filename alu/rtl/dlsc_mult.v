@@ -25,17 +25,21 @@
 //
 
 // Module Description:
-// Integer multiplier (unsigned or signed). Should infer FPGA multiplier
-// primitive. Optional pipelining improves performance. PIPELINE parameter
-// sets number of cycles through multiplier (a value of 3-4 is recommended
-// for Xilinx DSP48 blocks).
+// Integer multiplier with support for unsigned and signed values and fixed-
+// point values.
 
 module dlsc_mult #(
-    parameter SIGNED    = 0,                // set for signed multiplication
-    parameter DATA0     = 17,               // width of first operand
-    parameter DATA1     = 17,               // width of second operand
-    parameter OUT       = (DATA0+DATA1),    // width of output
-    parameter PIPELINE  = 4                 // pipeline delay (recommend 3-4 for Xilinx DSP48 blocks)
+    parameter DEVICE    = "GENERIC",
+    parameter SIGNED    = 0,            // set for signed multiplication
+    parameter DATA0     = 1,            // total bits for first operand (including sign bit and fractional bits)
+    parameter DATA1     = 1,            // total bits for second operand ("")
+    parameter OUT       = 1,            // total bits for output ("")
+    parameter DATAF0    = 0,            // fractional bits for first operand
+    parameter DATAF1    = 0,            // fractional bits for second operand
+    parameter OUTF      = 0,            // fractional bits for output
+    parameter CLAMP     = 0,            // clamp output on overflow (if set, PIPELINE must be >= 1)
+    parameter PIPELINE  = 4,            // pipeline delay (recommend 3-5 for Xilinx DSP48 blocks; 4-6 if using CLAMP)
+    parameter WARNINGS  = 1             // enable warnings for unclamped overflows
 ) (
     input   wire                clk,
     input   wire                clk_en,
@@ -45,119 +49,114 @@ module dlsc_mult #(
     output  wire    [OUT  -1:0] out
 );
 
-// split pipelining evenly between input and output
-// (output gets an extra stage for odd pipeline counts)
-localparam PIPELINE_IN  = PIPELINE/2;
-localparam PIPELINE_OUT = PIPELINE - PIPELINE_IN;
+`include "dlsc_util.vh"
+`include "dlsc_synthesis.vh"
 
-// width of full (non-truncated) output result
-localparam MULT_BITS    = (DATA0+DATA1);
+localparam SHIFT        = (DATAF0+DATAF1-OUTF);
+localparam RSHIFT       = (SHIFT>0) ? (  SHIFT) : 0;
+localparam LSHIFT       = (SHIFT<0) ? (0-SHIFT) : 0;
+localparam OUTIP        = DATA0 + DATA1;
+localparam OUTILS       = OUTIP + LSHIFT;
+localparam OUTI         = OUTILS - RSHIFT;
+localparam CLAMPI       = CLAMP && (OUTI > OUT);
+localparam PIPELINEM    = CLAMPI ? (PIPELINE-1) : (PIPELINE);
 
+`dlsc_static_assert( `dlsc_abs(SHIFT) < OUTIP )
+`dlsc_static_assert( PIPELINEM >= 0 )
 
-// ** pipeline inputs **
+// multiply and left-shift
 
-wire [DATA0    -1:0] in0_s;
-wire [DATA1    -1:0] in1_s;
+wire signed [OUTILS:0] mout;
 
-dlsc_pipedelay_clken #(
-    .DATA   ( DATA0 ),
-    .DELAY  ( PIPELINE_IN )
-) dlsc_pipedelay_inst_in0 (
+dlsc_mult_core #(
+    .DEVICE     ( DEVICE ),
+    .SIGNED     ( SIGNED ),
+    .DATA0      ( DATA0 ),
+    .DATA1      ( DATA1 ),
+    .OUT        ( OUTIP ),
+    .PIPELINE   ( PIPELINEM )
+) dlsc_mult_core (
     .clk        ( clk ),
     .clk_en     ( clk_en ),
-    .in_data    ( in0 ),
-    .out_data   ( in0_s )
+    .in0        ( in0 ),
+    .in1        ( in1 ),
+    .out        ( mout[ OUTILS-1 -: OUTIP ] )
 );
-
-dlsc_pipedelay_clken #(
-    .DATA   ( DATA1 ),
-    .DELAY  ( PIPELINE_IN )
-) dlsc_pipedelay_inst_in1 (
-    .clk        ( clk ),
-    .clk_en     ( clk_en ),
-    .in_data    ( in1 ),
-    .out_data   ( in1_s )
-);
-
-
-// ** multiply **
-
-wire [MULT_BITS-1:0] out_m;
 
 generate
-if(SIGNED) begin:GEN_SIGNED
-
-    wire signed [DATA0-1:0]     in0_ss  = in0_s;
-    wire signed [DATA1-1:0]     in1_ss  = in1_s;
-    wire signed [MULT_BITS-1:0] out_ms;
-
-    // signed multiplication
-    assign out_ms = in0_ss * in1_ss;
-
-    assign out_m = out_ms;
-
-end else begin:GEN_UNSIGNED
-
-    // unsigned multiplication
-    assign out_m = in0_s * in1_s;
-
+if(SIGNED) begin:GEN_MOUT_MSB_SIGNED
+    assign mout[OUTILS] = mout[OUTILS-1];
+end else begin:GEN_MOUT_MSB_UNSIGNED
+    assign mout[OUTILS] = 1'b0;
+end
+if(LSHIFT>0) begin:GEN_MOUT_LSB_ZERO
+    assign mout[0 +: LSHIFT] = 'd0;
 end
 endgenerate
 
+// right-shift
 
-// ** pipeline outputs **
+wire signed [OUTILS:0] mouts = mout >>> RSHIFT;
 
-wire [MULT_BITS-1:0] out_s;
+// clamp
 
-dlsc_pipedelay_clken #(
-    .DATA   ( MULT_BITS ),
-    .DELAY  ( PIPELINE_OUT )
-) dlsc_pipedelay_inst_out (
-    .clk        ( clk ),
-    .clk_en     ( clk_en ),
-    .in_data    ( out_m ),
-    .out_data   ( out_s )
-);
-
-
-// ** assign output **
+wire overflow;
 
 generate
-    if(OUT < MULT_BITS) begin:GEN_OUT_TRUNC
-        assign out = out_s[OUT-1:0];
-    end else if(OUT == MULT_BITS) begin:GEN_OUT_EXACT
-        assign out = out_s;
-    end else begin:GEN_OUT_PAD
-        if(SIGNED) begin:PAD_SIGNED
-            assign out = { {(OUT-MULT_BITS){out_s[MULT_BITS-1]}} , out_s };
-        end else begin:PAD_UNSIGNED
-            assign out = { {(OUT-MULT_BITS){1'b0}} , out_s };
-        end
+if(OUTI > OUT) begin:GEN_OVERFLOW
+    if(SIGNED) begin:GEN_OVERFLOW_SIGNED
+
+        assign overflow = (mouts[OUTI-1:OUT] != {(OUTI-OUT){mouts[OUT-1]}});
+
+    end else begin:GEN_OVERFLOW_UNSIGNED
+
+        assign overflow = (mouts[OUTI-1:OUT] != {(OUTI-OUT){1'b0}});
+
     end
-endgenerate
+end else begin:GEN_NO_OVERFLOW
 
+    assign overflow = 1'b0;
 
-`ifdef DLSC_SIMULATION
-`include "dlsc_sim_top.vh"
-generate
-    if(OUT<MULT_BITS) begin:GEN_CHECK_OVERFLOW
-        if(SIGNED) begin:CHECK_SIGNED
-            always @(posedge clk) if(clk_en) begin
-                if(out_s[MULT_BITS-1:OUT] != {(MULT_BITS-OUT){out_s[OUT-1]}}) begin
-                    `dlsc_warn("multiplier output overflowed! (out = 0x%0x ; out_full = 0x%0x)", out, out_s);
-                end
-            end
-        end else begin:CHECK_UNSIGNED
-            always @(posedge clk) if(clk_en) begin
-                if(out_s[MULT_BITS-1:OUT] != 0) begin
-                    `dlsc_warn("multiplier output overflowed! (out = 0x%0x ; out_full = 0x%0x)", out, out_s);
-                end
+end
+if(CLAMPI) begin:GEN_CLAMP
+
+    `DLSC_PIPE_REG reg [OUT-1:0] outr;
+    assign out = outr;
+
+    if(SIGNED) begin:GEN_CLAMP_SIGNED
+
+        always @(posedge clk) begin
+            if(clk_en) begin
+                outr <= (!overflow) ? mouts[OUT-1:0] :
+                    ( mouts[OUTI-1] ? { 1'b1, {(OUT-1){1'b0}} } : { 1'b0, {(OUT-1){1'b1}} } );
             end
         end
+
+    end else begin: GEN_CLAMP_UNSIGNED
+
+        always @(posedge clk) begin
+            if(clk_en) begin
+                outr <= overflow ? {OUT{1'b1}} : mouts[OUT-1:0];
+            end
+        end
+
     end
+end else if(OUT <= OUTILS) begin:GEN_NCLAMP
+
+    assign out = mouts[OUT-1:0];
+
+end else begin:GEN_PAD
+    if(SIGNED) begin:GEN_PAD_SIGNED
+
+        assign out = { {(OUT-OUTILS){mouts[OUTILS]}} , mouts[OUTILS-1:0] };
+
+    end else begin:GEN_PAD_UNSIGNED
+        
+        assign out = { {(OUT-OUTILS){1'b0}} , mouts[OUTILS-1:0] };
+
+    end
+end
 endgenerate
-`include "dlsc_sim_bot.vh"
-`endif
 
 endmodule
 
