@@ -1,5 +1,5 @@
 // 
-// Copyright (c) 2011, Daniel Strother < http://danstrother.com/ >
+// Copyright (c) 2013, Daniel Strother < http://danstrother.com/ >
 // All rights reserved.
 // 
 // Redistribution and use in source and binary forms, with or without
@@ -34,15 +34,19 @@
         `define DLSC_SYNTHESIS_DEFINED
 
         `define DLSC_KEEP               (* KEEP = "TRUE", OPTIMIZE = "OFF" *)
-        `define DLSC_BRAM               (* ram_style = "block", RDADDR_COLLISION_HWCONFIG = "performance" *)
-        `define DLSC_LUTRAM             (* ram_style = "distributed" *)
+        `define DLSC_BRAM               (* ram_extract = "yes", ram_style = "block", RDADDR_COLLISION_HWCONFIG = "performance" *)
+        `define DLSC_LUTRAM             (* ram_extract = "yes", ram_style = "distributed" *)
+        `define DLSC_LUTROM             (* rom_extract = "yes", rom_style = "distributed" *)
         `define DLSC_SHREG              (* shreg_extract = "yes" *)
-        `define DLSC_NO_SHREG           (* shreg_extract = "no" *)
-        `define DLSC_FANOUT_REG         (* shreg_extract = "no", equivalent_register_removal = "no", register_duplication = "yes" *)
-        `define DLSC_PIPE_REG           (* shreg_extract = "no", equivalent_register_removal = "no", register_duplication = "no" *)
-        `define DLSC_KEEP_REG           (* shreg_extract = "no", equivalent_register_removal = "no", register_duplication = "no", OPTIMIZE = "OFF", KEEP = "TRUE", IOB = "FALSE" *)
-        `define DLSC_ASYNC_REG          (* shreg_extract = "no", equivalent_register_removal = "no", register_duplication = "no", OPTIMIZE = "OFF", KEEP = "TRUE", IOB = "FALSE", ASYNC_REG = "TRUE" *)
-        `define DLSC_SYNCFLOP           (* shreg_extract = "no", equivalent_register_removal = "no", register_duplication = "no", OPTIMIZE = "OFF", KEEP = "TRUE", IOB = "FALSE", ASYNC_REG = "TRUE" *)
+        `define DLSC_FANOUT_REG         (* shreg_extract = "no", equivalent_register_removal = "no",  register_duplication = "yes" *)
+        `define DLSC_PIPE_REG           (* shreg_extract = "no", equivalent_register_removal = "no",  register_duplication = "no" *)
+        `define DLSC_CONFIG_REG         (* shreg_extract = "no", equivalent_register_removal = "yes", register_duplication = "no", KEEP = "TRUE" *)
+        `define DLSC_KEEP_REG           (* shreg_extract = "no", equivalent_register_removal = "no",  register_duplication = "no", KEEP = "TRUE", OPTIMIZE = "OFF", IOB = "FALSE" *)
+        `define DLSC_ASYNC_REG          (* shreg_extract = "no", equivalent_register_removal = "no",  register_duplication = "no", KEEP = "TRUE", OPTIMIZE = "OFF", IOB = "FALSE", ASYNC_REG = "TRUE" *)
+        `define DLSC_SYNCFLOP           (* shreg_extract = "no", equivalent_register_removal = "no",  register_duplication = "no", KEEP = "TRUE", OPTIMIZE = "OFF", IOB = "FALSE", ASYNC_REG = "TRUE" *)
+
+        // deprecated
+        `define DLSC_NO_SHREG           `DLSC_PIPE_REG
 
     `endif // XILINX
 
@@ -58,15 +62,17 @@
 
 `ifndef DLSC_SYNTHESIS_DEFINED
     `define DLSC_SYNTHESIS_DEFINED
-
+        
     `define DLSC_KEEP
     `define DLSC_BRAM
     `define DLSC_LUTRAM
+    `define DLSC_LUTROM
     `define DLSC_SHREG
     `define DLSC_NO_SHREG
-    `define DLSC_KEEP_REG
-    `define DLSC_PIPE_REG
     `define DLSC_FANOUT_REG
+    `define DLSC_CONFIG_REG
+    `define DLSC_PIPE_REG
+    `define DLSC_KEEP_REG
     `define DLSC_ASYNC_REG
     `define DLSC_SYNCFLOP
 
