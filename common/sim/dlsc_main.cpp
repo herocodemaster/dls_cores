@@ -80,16 +80,32 @@ void dlsc_assert_report() {
     std::cout << _dlsc_warn_cnt << " warnings)" << std::endl << std::endl;
 }
 
-int sc_main(int argc, char **argv) {
+namespace {
 #ifndef DLSC_NOT_TRACED
-    SpTraceFile *tfp = NULL;
+    SpTraceFile *g_dlsc_tfp = NULL;
 #endif
+    std::string g_dlsc_vcd_file;
+};
+
+void dlsc_trace_on()
+{
+#ifndef DLSC_NOT_TRACED
+    if(g_dlsc_tfp && !g_dlsc_tfp->isOpen())
+    {
+        // open trace file
+        g_dlsc_tfp->open(g_dlsc_vcd_file.c_str());
+    }
+#endif
+}
+
+int sc_main(int argc, char **argv)
+{
     sp_log_file *lfp = NULL;
 
     // parse arguments
+
     std::string log_file;
     std::string cov_file;
-    std::string vcd_file;
     
     std::vector<std::string> args;
     for(int i=1;i<argc;i++) {
@@ -105,7 +121,7 @@ int sc_main(int argc, char **argv) {
             cov_file = *it;
         }
         if(*it == "--vcd" && ++it != args.end()) {
-            vcd_file = *it;
+            g_dlsc_vcd_file = *it;
         }
         ++it;
     }
@@ -120,11 +136,11 @@ int sc_main(int argc, char **argv) {
 #endif
 
 #ifndef DLSC_NOT_TRACED
-    if(!vcd_file.empty()) {
+    if(!g_dlsc_vcd_file.empty()) {
 #ifndef DLSC_NOT_VERILATED
         Verilated::traceEverOn(true);           // we're going to be tracing
 #endif
-        tfp = new SpTraceFile;                  // trace file writer
+        g_dlsc_tfp = new SpTraceFile;           // trace file writer
     }
 #endif
 
@@ -137,9 +153,11 @@ int sc_main(int argc, char **argv) {
     DLSC_TB *tb = new DLSC_TB("tb");        // instantiate testbench
 
 #ifndef DLSC_NOT_TRACED
-    if(tfp) {
-        tb->trace(tfp,99);                      // trace testbench (once file is opened)
-        tfp->open(vcd_file.c_str());            // open trace file
+    if(g_dlsc_tfp) {
+        tb->trace(g_dlsc_tfp,99);               // trace testbench (once file is opened)
+#ifndef DLSC_TRACE_DEFER
+        dlsc_trace_on();                        // open trace file
+#endif
     }
 #endif
 
@@ -154,7 +172,9 @@ int sc_main(int argc, char **argv) {
     dlsc_assert_report();                   // write pass/fail report
 
 #ifndef DLSC_NOT_TRACED
-    if(tfp) tfp->close();                   // close trace file
+    if(g_dlsc_tfp && g_dlsc_tfp->isOpen()) {
+        g_dlsc_tfp->close();                    // close trace file
+    }
 #endif
     if(lfp) lfp->close();                   // close log file
 
