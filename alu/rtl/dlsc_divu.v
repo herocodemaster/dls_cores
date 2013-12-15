@@ -60,19 +60,19 @@ module dlsc_divu #(
 `include "dlsc_util.vh"
 `include "dlsc_divu_delay.vh"
 
-`dlsc_static_assert( QB <= (NB+DB) )
+`dlsc_static_assert_lte( QB, (NB+DB) )
 
-`dlsc_static_assert( NFB <= NB )
-`dlsc_static_assert( DFB <= DB )
-`dlsc_static_assert( QFB <= QB )
+`dlsc_static_assert_lte( NFB, NB )
+`dlsc_static_assert_lte( DFB, DB )
+`dlsc_static_assert_lte( QFB, QB )
 
 localparam Q0       = QB-NB+NFB-DFB;
 localparam QLSB     = Q0-QFB;
 localparam QSKIP    = (QLSB<0) ? (0-QLSB) : 0;  // MSbits of quotient to skip (<= DB )
 localparam QWASTE   = (QLSB>0) ? (  QLSB) : 0;  // LSbits of quotient to throw away (< QB; ideally 0)
 
-`dlsc_static_assert( QSKIP <= DB )
-`dlsc_static_assert( QWASTE < QB )
+`dlsc_static_assert_lte( QSKIP, DB )
+`dlsc_static_assert_lt( QWASTE, QB )
 
 localparam DELAY    = `dlsc_divu_delay(CYCLES,QB);
 

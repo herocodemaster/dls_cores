@@ -61,8 +61,8 @@ localparam OUTI         = OUTILS - RSHIFT;
 localparam CLAMPI       = CLAMP && (OUTI > OUT);
 localparam PIPELINEM    = CLAMPI ? (PIPELINE-1) : (PIPELINE);
 
-`dlsc_static_assert( `dlsc_abs(SHIFT) < OUTIP )
-`dlsc_static_assert( PIPELINEM >= 0 )
+`dlsc_static_assert_lt( `dlsc_abs(SHIFT), OUTIP )
+`dlsc_static_assert_gte( PIPELINEM, 0 )
 
 // multiply and left-shift
 
