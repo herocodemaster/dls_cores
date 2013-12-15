@@ -28,11 +28,26 @@
 
 `define dlsc_min(x,y) ( ((x) < (y)) ? (x) : (y) )
 `define dlsc_max(x,y) ( ((x) > (y)) ? (x) : (y) )
+`define dlsc_abs(x) ( ((x) >= 0) ? (x) : (0-(x)) )
 
-`ifdef ICARUS
+`ifndef ICARUS
+    `define dlsc_static_assert(cond) initial begin if(!(cond)) begin $display("%t : [%m] : *** ERROR *** : static assertion '%s' failed", $time, `"cond`"); $finish; end end
+    `define dlsc_static_assert_eq(lhs,rhs)  initial begin if(!((lhs)==(rhs))) begin $display("%t : [%m] : *** ERROR *** : static assertion '%s (%0d) == %s (%0d)' failed", $time, `"lhs`", (lhs), `"rhs`", (rhs)); $finish; end end
+    `define dlsc_static_assert_neq(lhs,rhs) initial begin if(!((lhs)!=(rhs))) begin $display("%t : [%m] : *** ERROR *** : static assertion '%s (%0d) != %s (%0d)' failed", $time, `"lhs`", (lhs), `"rhs`", (rhs)); $finish; end end
+    `define dlsc_static_assert_gt(lhs,rhs)  initial begin if(!((lhs)> (rhs))) begin $display("%t : [%m] : *** ERROR *** : static assertion '%s (%0d) >  %s (%0d)' failed", $time, `"lhs`", (lhs), `"rhs`", (rhs)); $finish; end end
+    `define dlsc_static_assert_gte(lhs,rhs) initial begin if(!((lhs)>=(rhs))) begin $display("%t : [%m] : *** ERROR *** : static assertion '%s (%0d) >= %s (%0d)' failed", $time, `"lhs`", (lhs), `"rhs`", (rhs)); $finish; end end
+    `define dlsc_static_assert_lt(lhs,rhs)  initial begin if(!((lhs)< (rhs))) begin $display("%t : [%m] : *** ERROR *** : static assertion '%s (%0d) <  %s (%0d)' failed", $time, `"lhs`", (lhs), `"rhs`", (rhs)); $finish; end end
+    `define dlsc_static_assert_lte(lhs,rhs) initial begin if(!((lhs)<=(rhs))) begin $display("%t : [%m] : *** ERROR *** : static assertion '%s (%0d) <= %s (%0d)' failed", $time, `"lhs`", (lhs), `"rhs`", (rhs)); $finish; end end
+    `define dlsc_static_assert_range(value,min,max) initial begin if(!(((value)>=(min))&&((value)<=(max)))) begin $display("%t : [%m] : *** ERROR *** : static assertion '%s (%0d) <= %s (%0d) <= %s (%0d)' failed", $time, `"min`", (min), `"value`", (value), `"max`", (max)); $finish; end end
+`else
     // iverilog has some trouble with stringification
     `define dlsc_static_assert(cond) initial begin if(!(cond)) begin $display("%t : [%m] : *** ERROR *** : static assertion failed", $time); $finish; end end
-`else
-    `define dlsc_static_assert(cond) initial begin if(!(cond)) begin $display("%t : [%m] : *** ERROR *** : static assertion '%s' failed", $time, `"cond`"); $finish; end end
+    `define dlsc_static_assert_eq(lhs,rhs)  initial begin if(!((lhs)==(rhs))) begin $display("%t : [%m] : *** ERROR *** : static assertion failed", $time); $finish; end end
+    `define dlsc_static_assert_neq(lhs,rhs) initial begin if(!((lhs)!=(rhs))) begin $display("%t : [%m] : *** ERROR *** : static assertion failed", $time); $finish; end end
+    `define dlsc_static_assert_gt(lhs,rhs)  initial begin if(!((lhs)> (rhs))) begin $display("%t : [%m] : *** ERROR *** : static assertion failed", $time); $finish; end end
+    `define dlsc_static_assert_gte(lhs,rhs) initial begin if(!((lhs)>=(rhs))) begin $display("%t : [%m] : *** ERROR *** : static assertion failed", $time); $finish; end end
+    `define dlsc_static_assert_lt(lhs,rhs)  initial begin if(!((lhs)< (rhs))) begin $display("%t : [%m] : *** ERROR *** : static assertion failed", $time); $finish; end end
+    `define dlsc_static_assert_lte(lhs,rhs) initial begin if(!((lhs)<=(rhs))) begin $display("%t : [%m] : *** ERROR *** : static assertion failed", $time); $finish; end end
+    `define dlsc_static_assert_range(value,min,max) initial begin if(!(((value)>=(min))&&((value)<=(max)))) begin $display("%t : [%m] : *** ERROR *** : static assertion failed", $time); $finish; end end
 `endif
 
