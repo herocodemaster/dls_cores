@@ -15,9 +15,9 @@
 // _dlsc_rand: returns a random number in the specified range
 // (just shorthand for $dist_uniform)
 initial _dlsc_rand.seed = `RANDSEED;
-function [31:0] _dlsc_rand;
-    input [31:0] min;
-    input [31:0] max;
+function signed [63:0] _dlsc_rand;
+    input signed [63:0] min;
+    input signed [63:0] max;
     integer seed;
 begin
     _dlsc_rand = $dist_uniform(seed,min,max);
