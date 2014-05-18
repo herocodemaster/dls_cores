@@ -66,7 +66,7 @@ localparam PIPELINEM    = CLAMPI ? (PIPELINE-1) : (PIPELINE);
 
 // multiply and left-shift
 
-wire signed [OUTILS:0] mout;
+wire [OUTIP-1:0] moutp;
 
 dlsc_mult_core #(
     .DEVICE     ( DEVICE ),
@@ -80,12 +80,16 @@ dlsc_mult_core #(
     .clk_en     ( clk_en ),
     .in0        ( in0 ),
     .in1        ( in1 ),
-    .out        ( mout[ OUTILS-1 -: OUTIP ] )
+    .out        ( moutp )
 );
+
+wire signed [OUTILS:0] mout;
+
+assign mout[ OUTILS-1 -: OUTIP ] = moutp;
 
 generate
 if(SIGNED) begin:GEN_MOUT_MSB_SIGNED
-    assign mout[OUTILS] = mout[OUTILS-1];
+    assign mout[OUTILS] = moutp[OUTIP-1];
 end else begin:GEN_MOUT_MSB_UNSIGNED
     assign mout[OUTILS] = 1'b0;
 end
