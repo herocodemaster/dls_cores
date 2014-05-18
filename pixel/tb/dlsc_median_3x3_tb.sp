@@ -16,13 +16,16 @@
 struct InType
 {
     dlsc_bv<3,PARAM_BITS> data;
-    bool last;
+    uint32_t meta;
+    bool unmask;
 };
 
 struct OutType
 {
+    int col;
     uint32_t data;
-    bool last;
+    uint32_t meta;
+    bool unmask;
 };
 
 SC_MODULE (__MODULE__) {
@@ -83,7 +86,8 @@ void __MODULE__::clk_method()
     if(rst)
     {
         in_valid    = 0;
-        in_last     = 0;
+        in_unmask   = 0;
+        in_meta     = 0;
         in_data     = 0;
         in_queue_.clear();
         out_queue_.clear();
@@ -99,7 +103,8 @@ void __MODULE__::clk_method()
         InType const & in = in_queue_.front();
 
         in_valid        = 1;
-        in_last         = in.last;
+        in_unmask       = in.unmask;
+        in_meta         = in.meta;
         in_data.write(in.data);
 
         in_queue_.pop_front();
@@ -113,8 +118,13 @@ void __MODULE__::clk_method()
             dlsc_error("unexpected output");
         } else {
             OutType const & out = out_queue_.front();
-            dlsc_assert_equals(out.last,out_last);
-            dlsc_assert_equals(out.data,out_data);
+            dlsc_assert_equals(out.unmask,out_unmask);
+            if(out.col >= 1 && PARAM_META>0) {
+                dlsc_assert_equals(out.meta,out_meta);
+            }
+            if(out.col >= 2) {
+                dlsc_assert_equals(out.data,out_data);
+            }
             out_queue_.pop_front();
         }
     }
@@ -129,44 +139,57 @@ void __MODULE__::run_test()
     InType in;
     OutType out;
 
+    bool win_unmask[3];
+    uint32_t win_meta[3];
     int64_t win[3][3];
     int64_t sorted[3][3];
 
+    std::fill(win_unmask,win_unmask+3,false);
+    std::fill(win_meta,win_meta+3,0u);
+
+    int col = 0;
+
     do
     {
-        int const width = rng_.rand(3,1024);
-
-        for(int col=0;col<width;++col)
-        {
-            // shift window
+        // shift window
+        for(int x=1;x<3;++x) {
             for(int y=0;y<3;++y) {
-                for(int x=1;x<3;++x) {
-                    win[y][x-1] = win[y][x];
-                }
+                win[y][x-1]     = win[y][x];
             }
-
-            // add new column
-            in.last = (col == (width-1));
-            for(int y=0;y<3;++y) {
-                win[y][2] = rng_.rand(0ll,(1ll<<PARAM_BITS)-1ll);
-                in.data[y] = win[y][2];
-            }
-            in_queue_.push_back(in);
-
-            // sort window
-            // TODO: bit of a hack..
-            memcpy(sorted,win,3*3*sizeof(int64_t));
-            std::sort(&sorted[0][0],&sorted[2][2]+1);
-
-            out.last = in.last;
-            out.data = static_cast<uint32_t>(sorted[1][1]); // median
-
-            if(col >= 2)
-                out_queue_.push_back(out);
-
-            while(in_queue_.size() > 150)
-                wait(1,SC_US);
+            win_unmask[x-1] = win_unmask[x];
+            win_meta[x-1]   = win_meta[x];
         }
+
+        // add new column
+        for(int y=0;y<3;++y) {
+            win[y][2]       = rng_.rand(0ll,(1ll<<PARAM_BITS)-1ll);
+            in.data[y]      = win[y][2];
+        }
+        win_unmask[2]   = rng_.rand_bool(0.7);
+        win_meta[2]     = (PARAM_META>0) ? (rng_.rand(0,(1<<PARAM_META)-1)) : 0;
+
+        // submit new column
+        in.unmask       = win_unmask[2];
+        in.meta         = win_meta[2];
+        in_queue_.push_back(in);
+
+        // sort window
+        // TODO: bit of a hack..
+        memcpy(sorted,win,3*3*sizeof(int64_t));
+        std::sort(&sorted[0][0],&sorted[2][2]+1);
+
+        // submit output
+        out.col         = col;
+        out.unmask      = win_unmask[1];
+        out.meta        = win_meta[1];
+        out.data        = static_cast<uint32_t>(sorted[1][1]); // median
+
+        out_queue_.push_back(out);
+
+        ++col;
+
+        while(in_queue_.size() > 150)
+            wait(1,SC_US);
     } while(sc_time_stamp() < end_time);
 }
 
@@ -181,7 +204,11 @@ void __MODULE__::stim_thread()
     {
         dlsc_info("** iteration " << (iteration+1) << "/" << iterations << " **");
 
-        wait(clk.posedge_event());
+        // hold reset
+        for(int i=0;i<34;++i) {
+            wait(clk.posedge_event());
+        }
+
         rst = 0;
         wait(clk.posedge_event());
 

@@ -28,7 +28,10 @@
 // Implements a 3x3 median filter using a pipelined version of Mahmoodi's algorithm.
 
 module dlsc_median_3x3 #(
-    parameter BITS      = 8     // bits for data
+    parameter BITS      = 12,   // bits for data
+    parameter META      = 0,    // bits for metadata
+    // derived; don't touch
+    parameter META1     = ((META>0) ? META : 1 )
 ) (
     // system
     input   wire                    clk,
@@ -36,16 +39,18 @@ module dlsc_median_3x3 #(
 
     // input
     // submit 1 whole column at a time
+    // can accept new data every cycle
     input   wire                    in_valid,
-    input   wire                    in_last,    // last pixel in row
+    input   wire                    in_unmask,
+    input   wire    [ META1-1:0]    in_meta,
     input   wire    [3*BITS-1:0]    in_data,
 
     // output
-    // output is only produced once 3 columns are accumulated
     // pipeline delay from input to output is 11 cycles
-    output  reg                     out_valid,
-    output  reg                     out_last,
-    output  reg     [  BITS-1:0]    out_data
+    output  wire                    out_valid,
+    output  wire                    out_unmask,
+    output  wire    [ META1-1:0]    out_meta,
+    output  wire    [  BITS-1:0]    out_data
 );
 
 // ** sort column **
@@ -221,64 +226,28 @@ dlsc_median_3x3_slice #(
 
 // ** output **
 
-wire            c10_valid;
-wire            c10_last;
+reg  [BITS-1:0] c11_med;
 
-dlsc_pipedelay_valid #(
-    .DELAY      ( 10-0 ),
-    .DATA       ( 1 )
-) dlsc_pipedelay_valid (
+always @(posedge clk) begin
+    c11_med <= c10_med;
+end
+
+assign out_data = c11_med;
+
+dlsc_window_pipedelay #(
+    .WIN_DELAY  ( 1 ),
+    .PIPE_DELAY ( 11-0 ),
+    .META       ( META )
+) dlsc_window_pipedelay (
     .clk        ( clk ),
     .rst        ( rst ),
     .in_valid   ( in_valid ),
-    .in_data    ( in_last ),
-    .out_valid  ( c10_valid ),
-    .out_data   ( c10_last )
+    .in_unmask  ( in_unmask ),
+    .in_meta    ( in_meta ),
+    .out_valid  ( out_valid ),
+    .out_unmask ( out_unmask ),
+    .out_meta   ( out_meta )
 );
-
-reg             c10_cnt;
-reg             c10_primed;
-
-always @(posedge clk) begin
-    if(rst) begin
-        {c10_primed,c10_cnt} <= 2'b00;
-    end else if(c10_valid) begin
-        if(c10_last) begin
-            {c10_primed,c10_cnt} <= 2'b00;
-        end else begin
-            {c10_primed,c10_cnt} <= {c10_cnt,1'b1};
-        end
-    end
-end
-
-always @(posedge clk) begin
-    if(rst) begin
-        out_valid   <= 1'b0;
-    end else begin
-        out_valid   <= c10_valid && c10_primed;
-    end
-end
-
-always @(posedge clk) begin
-    out_last    <= c10_last;
-    out_data    <= c10_med;
-end
-
-// ** simulation checks **
-
-`ifdef DLSC_SIMULATION
-`include "dlsc_sim_top.vh"
-
-always @(posedge clk) begin
-    if(!rst) begin
-        if(c10_valid && c10_last && !c10_primed) begin
-            `dlsc_warn("got last before completely primed; no last forwarded to output");
-        end
-    end
-end
-
-`include "dlsc_sim_bot.vh"
-`endif
 
 endmodule
 
