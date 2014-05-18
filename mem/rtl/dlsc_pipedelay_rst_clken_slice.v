@@ -24,34 +24,13 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-// Module Description:
-//
-// Implements an arbitrary pipeline delay with resettable contents.
-// This module supports three different reset modes, selected by FAST_RESET.
-// In all modes, 'out_data' is always driven to RESET 1 cycle after 'rst' is
-// asserted. The modes differ in their requirements regarding the 'rst' and
-// 'in_data' input signals.
-//
-// FAST_RESET = 1:
-//      Module can accept a 'rst' pulse that is only 1 cycle long. In this mode,
-//      the module does NOT infer shift-registers in most FPGAs.
-// FAST_RESET = 0:
-//      'rst' must be held asserted for at least 33 cycles. 'in_data' does not
-//      have to be driven to a specific value while 'rst' is asserted.
-// FAST_RESET = -1:
-//      When 'rst' is asserted, 'in_data' must also be driven to RESET. 'rst' must
-//      be held asserted for at least 33 cycles after 'in_data' is driven to RESET.
-//      These requirements are not always easy to meet, so this mode is generally
-//      reserved for special low-level applications.
-//
-
-module dlsc_pipedelay_rst #(
-    parameter DELAY         = 1,            // delay from input to output
+module dlsc_pipedelay_rst_clken_slice #(
+    parameter DELAY         = 1,            // delay from input to output (>= 1)
     parameter DATA          = 1,            // width of delayed data
-    parameter RESET         = {DATA{1'b0}}, // reset value for data
-    parameter FAST_RESET    = 1             // when set, indicates that a single-cycle rst is expected
+    parameter RESET         = {DATA{1'b0}}  // reset value for data
 ) (
     input   wire                clk,
+    input   wire                clk_en,
     input   wire                rst,
 
     input   wire    [DATA-1:0]  in_data,
@@ -59,18 +38,70 @@ module dlsc_pipedelay_rst #(
     output  wire    [DATA-1:0]  out_data
 );
 
-dlsc_pipedelay_rst_clken #(
-    .DELAY      ( DELAY ),
-    .DATA       ( DATA ),
-    .RESET      ( RESET ),
-    .FAST_RESET ( FAST_RESET )
-) dlsc_pipedelay_rst_clken (
-    .clk        ( clk ),
-    .clk_en     ( 1'b1 ),
-    .rst        ( rst ),
-    .in_data    ( in_data ),
-    .out_data   ( out_data )
-);
+`include "dlsc_synthesis.vh"
+
+integer i;
+
+wire [DATA-1:0] delay_data;
+
+generate
+if(DELAY>1) begin:GEN_DELAYN
+
+    `DLSC_SHREG reg [DATA-1:0] mem[DELAY-2:0];
+
+    always @(posedge clk) begin
+        if(clk_en) begin
+            for(i=(DELAY-2);i>=1;i=i-1) begin
+                mem[i] <= mem[i-1];
+            end
+            mem[0] <= in_data;
+        end
+    end
+
+    assign delay_data = mem[DELAY-2];
+
+    `ifdef DLSC_SIMULATION
+    `include "dlsc_sim_top.vh"
+
+    reg rst_prev = 1'b0;
+    reg mismatch;
+
+    always @(posedge clk) begin
+        if(!rst && rst_prev) begin
+            mismatch = 1'b0;
+            for(i=0;i<(DELAY-2);i=i+1) begin
+                if(mem[i] != RESET) begin
+                    mismatch = 1'b1;
+                end
+            end
+            if(mismatch) begin
+                `dlsc_warn("reset released before contents were entirely reset");
+            end
+        end
+        rst_prev <= rst;
+    end
+
+    `include "dlsc_sim_bot.vh"
+    `endif
+
+end else begin:GEN_DELAY1
+
+    assign delay_data = in_data;
+
+end
+endgenerate
+
+`DLSC_PIPE_REG reg [DATA-1:0] out_data_r;
+
+always @(posedge clk) begin
+    if(rst) begin
+        out_data_r  <= RESET;
+    end else if(clk_en) begin
+        out_data_r  <= delay_data;
+    end
+end
+
+assign out_data = out_data_r;
 
 endmodule
 
