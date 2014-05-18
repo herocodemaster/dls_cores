@@ -235,7 +235,7 @@ end
 
 task report;
 begin
-    `dlsc_info("max usage: %0d%% (%0d/%0d)",((max_cnt*100)/DEPTH),max_cnt,DEPTH);
+    `dlsc_info("max usage: %0d%% (%0d/%0d)",((max_cnt*100)/DEPTHI),max_cnt,DEPTHI);
 end
 endtask
 
