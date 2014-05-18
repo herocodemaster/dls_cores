@@ -40,7 +40,7 @@
         `define DLSC_SHREG              (* shreg_extract = "yes" *)
         `define DLSC_FANOUT_REG         (* shreg_extract = "no", equivalent_register_removal = "no",  register_duplication = "yes" *)
         `define DLSC_PIPE_REG           (* shreg_extract = "no", equivalent_register_removal = "no",  register_duplication = "no" *)
-        `define DLSC_CONFIG_REG         (* shreg_extract = "no", equivalent_register_removal = "yes", register_duplication = "no", KEEP = "TRUE" *)
+        `define DLSC_CONFIG_REG         (* shreg_extract = "no", equivalent_register_removal = "yes", register_duplication = "no" *)
         `define DLSC_KEEP_REG           (* shreg_extract = "no", equivalent_register_removal = "no",  register_duplication = "no", KEEP = "TRUE", OPTIMIZE = "OFF", IOB = "FALSE" *)
         `define DLSC_ASYNC_REG          (* shreg_extract = "no", equivalent_register_removal = "no",  register_duplication = "no", KEEP = "TRUE", OPTIMIZE = "OFF", IOB = "FALSE", ASYNC_REG = "TRUE" *)
         `define DLSC_SYNCFLOP           (* shreg_extract = "no", equivalent_register_removal = "no",  register_duplication = "no", KEEP = "TRUE", OPTIMIZE = "OFF", IOB = "FALSE", ASYNC_REG = "TRUE" *)
