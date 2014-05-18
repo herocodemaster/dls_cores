@@ -3,7 +3,7 @@ are the creation of Dan Strother and are made freely available under an open-
 source 3-clause BSD License:
 
  
- Copyright (c) 2011-2012, Daniel Strother < http://danstrother.com/ >
+ Copyright (c) 2011-2014, Daniel Strother < http://danstrother.com/ >
  All rights reserved.
  
  Redistribution and use in source and binary forms, with or without
