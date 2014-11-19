@@ -72,11 +72,11 @@ begin
     @(posedge clk);
     // de-assert command
     csr_cmd_valid   <= 1'b0;
+    // wait for response
+    while(!csr_rsp_valid) @(posedge clk);
     csr_cmd_write   <= 1'bx;
     csr_cmd_addr    <= {ADDR{1'bx}};
     csr_cmd_data    <= {DATA{1'bx}};
-    // wait for response
-    while(!csr_rsp_valid) @(posedge clk);
     if(csr_rsp_error) begin
         `dlsc_warn("got rsp_error on read");
         data        = {DATA{1'bx}};
@@ -102,11 +102,11 @@ begin
     @(posedge clk);
     // de-assert command
     csr_cmd_valid   <= 1'b0;
+    // wait for response
+    while(!csr_rsp_valid) @(posedge clk);
     csr_cmd_write   <= 1'bx;
     csr_cmd_addr    <= {ADDR{1'bx}};
     csr_cmd_data    <= {DATA{1'bx}};
-    // wait for response
-    while(!csr_rsp_valid) @(posedge clk);
     if(csr_rsp_error) begin
         `dlsc_warn("got rsp_error on write");
     end
