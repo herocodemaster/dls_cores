@@ -69,7 +69,60 @@ localparam WXB  =   EM_FILL     ? `dlsc_clog2_lower((WINX/2)  ,1) :
 generate
 if(WINX <= 1) begin:GEN_WINX_1
 
-    // TODO
+    // TODO: may prefer to have user supply this directly
+    wire [XB-1:0] cfg_x_m1_in = cfg_x - 1;
+    wire [XB-1:0] cfg_x_m1;
+
+    dlsc_cfgreg_slice #(
+        .DATA   ( XB )
+    ) dlsc_cfgreg_slice_cfg_x_m1 (
+        .clk    ( clk ),
+        .clk_en ( 1'b1 ),
+        .rst    ( 1'b0 ),
+        .in     ( cfg_x_m1_in ),
+        .out    ( cfg_x_m1 )
+    );
+
+    `DLSC_PIPE_REG  reg  [XB-1:0]   c0_x;
+    `DLSC_PIPE_REG  reg             c0_x_last;
+
+    reg  [XB-1:0]   c0_next_x;
+    reg             c0_next_x_last;
+
+    always @* begin
+        c0_next_x       = c0_x + 1;
+        c0_next_x_last  = (c0_x == cfg_x_m1);
+        if(c0_x_last) begin
+            c0_next_x       = 0;
+            c0_next_x_last  = 1'b0;
+        end
+    end
+
+    always @(posedge clk) begin
+        if(rst) begin
+            c0_x        <= 0;
+            c0_x_last   <= 1'b0;
+            c0_in_en    <= 1'b1;
+        end else if(c0_en) begin
+            c0_x        <= c0_next_x;
+            c0_x_last   <= c0_next_x_last;
+            c0_in_en    <= 1'b1;
+        end
+    end
+
+    always @* begin
+        c0_en_y         = c0_x_last;
+    end
+
+    always @(posedge clk) begin
+        c1_out_en       <= 1'b1;
+        c1_out_unmask   <= 1'b1;
+        c1_out_last     <= c0_x_last;
+        c1_fill         <= 1'b0;
+        c1_rd_en        <= 1'b1;
+        c1_wr_en        <= 1'b1;
+        c1_addr         <= c0_x;
+    end
 
 end else if(EM_FILL) begin:GEN_WINX_FILL
 

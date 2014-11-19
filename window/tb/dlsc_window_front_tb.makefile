@@ -20,6 +20,7 @@ V_PARAMS_DEF    += \
 $(call dlsc-sim,"")
 $(call dlsc-sim,"CYCLES=1")
 $(call dlsc-sim,"CYCLES=6")
+$(call dlsc-sim,"WINX=1 WINY=3")
 $(call dlsc-sim,"WINX=3 WINY=3")
 $(call dlsc-sim,"WINX=5 WINY=9")
 $(call dlsc-sim,"WINY=9 WINX=5")

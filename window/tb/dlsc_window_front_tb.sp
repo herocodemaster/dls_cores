@@ -22,9 +22,9 @@ int const CENY          = WINY/2;
 int const BITS          = PARAM_BITS;
 uint32_t const PX_MAX   = ((1ull<<BITS)-1ull);
 
-int const MIN_WIDTH     = WINX;
+int const MIN_WIDTH     = std::max(WINX,2);
 int const MAX_WIDTH     = PARAM_MAXX;
-int const MIN_HEIGHT    = WINY;
+int const MIN_HEIGHT    = std::max(WINY,2);
 int const MAX_HEIGHT    = (1<<PARAM_YB);
 
 bool const EM_FILL      = (PARAM_EDGE_MODE == 1);
