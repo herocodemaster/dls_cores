@@ -122,8 +122,8 @@ VH_DIRS         := $(CWD)
 V_FLAGS         := +libext+.v+.vh
 # pre-3.810 Verilator doesn't support these extra warning options
 # UNUSED warning seems to trigger on Verilator-generated coverage code.. can't really use it yet
-# PINNOCONNECT fires on explicit empty connections (very common)
-VERILATOR_FLAGS := -Wall -Wwarn-style -Wno-UNUSED -Wno-PINNOCONNECT
+# PINCONNECTEMPTY fires on explicit empty connections (very common)
+VERILATOR_FLAGS := -Wall -Wwarn-style -Wno-UNUSED -Wno-PINCONNECTEMPTY
 ICARUS_FLAGS    := -Wall -Wno-timescale
 ISIM_FLAGS      := --incremental
 ISIM_FUSE_FLAGS := --incremental
